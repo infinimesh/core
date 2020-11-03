@@ -1,18 +1,3 @@
-// describe("Login Page render tests", () => {
-//   setupTest({
-//     server: true
-//   });
-
-//   it("redirects from / to /login", async () => {
-//     const { page } = await get("/");
-//     console.log(page);
-//   });
-
-//   // it("renders html", () => {
-//   //   // ...
-//   // });
-// });
-
 import { shallowMount } from "@vue/test-utils";
 import Login from "../login";
 
