@@ -16,11 +16,12 @@ limitations under the License.
 syntax = "proto3";
 package infinimesh.node.namespaces;
 
+import "pkg/node/proto/access/access.proto";
+
 message Namespace {
   string uuid = 1;
   string title = 2;
-  optional int32 access_level = 3;
-  optional string namespace = 4;
+  optional infinimesh.node.access.Access access = 3;
 }
 
 message NamespacesPool {
