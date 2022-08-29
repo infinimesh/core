@@ -60,7 +60,6 @@ const loading = ref(false)
 
 const tags = ref([])
 watch(show, () => {
-    console.log(show.value, device.value.tags)
     tags.value = show.value ? device.value.tags : []
     loading.value = false
 })
