@@ -10,11 +10,11 @@ services:
     profiles: ["traefik"]
   console:
     depends_on: !override
-      - web
-  web:
+      - gateway
+  gateway:
     depends_on: !override
-      - repo
-  repo:
+      - api
+  api:
     depends_on: !override
       - db
   caddy:
@@ -35,7 +35,7 @@ services:
       - "8883:8883"
     depends_on: !override
       - rabbitmq
-      - repo
+      - api
     environment:
       TLS_CERT_FILE: /caddy-certs/certificates/acme-v02.api.letsencrypt.org-directory/mqtt.${BASE_DOMAIN}/mqtt.${BASE_DOMAIN}.crt
       TLS_KEY_FILE: /caddy-certs/certificates/acme-v02.api.letsencrypt.org-directory/mqtt.${BASE_DOMAIN}/mqtt.${BASE_DOMAIN}.key

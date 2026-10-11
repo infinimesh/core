@@ -8,42 +8,42 @@ console.{$BASE_DOMAIN} {
 
 api.{$BASE_DOMAIN} {
 	handle /infinimesh.handsfree.* {
-		reverse_proxy handsfree:8000 {
+		reverse_proxy pairing:8000 {
 			transport http {
 				versions h2c
 			}
 		}
 	}
 	handle /infinimesh.node.* {
-		reverse_proxy repo:8000 {
+		reverse_proxy api:8000 {
 			transport http {
 				versions h2c
 			}
 		}
 	}
 	handle /infinimesh.shadow* {
-		reverse_proxy repo:8000 {
+		reverse_proxy api:8000 {
 			transport http {
 				versions h2c
 			}
 		}
 	}
 	handle /infinimesh.plugins* {
-		reverse_proxy repo:8000 {
+		reverse_proxy api:8000 {
 			transport http {
 				versions h2c
 			}
 		}
 	}
 	handle /oauth* {
-		reverse_proxy repo:8000 {
+		reverse_proxy api:8000 {
 			transport http {
 				versions h2c
 			}
 		}
 	}
 	handle {
-		reverse_proxy web:8000
+		reverse_proxy gateway:8000
 	}
 }
 

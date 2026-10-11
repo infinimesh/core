@@ -9,6 +9,12 @@ import (
 	"go.uber.org/zap/zaptest"
 )
 
+func TestDefaultAPIServerHost(t *testing.T) {
+	if apiserver != "api:8000" {
+		t.Fatalf("APISERVER_HOST default %q", apiserver)
+	}
+}
+
 func TestBuildTLSConfigInsecure(t *testing.T) {
 	cfg, err := buildTLSConfig(false, "", zaptest.NewLogger(t))
 	if err != nil {

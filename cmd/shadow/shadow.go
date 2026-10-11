@@ -60,7 +60,7 @@ func init() {
 
 	viper.SetDefault("PORT", "8000")
 	viper.SetDefault("REDIS_HOST", "redis:6379")
-	viper.SetDefault("DEVICES_HOST", "repo:8000")
+	viper.SetDefault("DEVICES_HOST", "api:8000")
 	viper.SetDefault("RABBITMQ_CONN", "amqp://infinimesh:infinimesh@rabbitmq:5672/")
 	viper.SetDefault("SIGNING_KEY", "seeeecreet")
 	viper.SetDefault("BUFFER_CAPACITY", 10)

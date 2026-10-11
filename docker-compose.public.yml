@@ -24,14 +24,14 @@ services:
       - traefik.http.routers.mqttcert.tls.certresolver=letsencrypt
       - traefik.http.routers.mqttcert.service=mqttmetrics@docker
       - traefik.http.services.mqttmetrics.loadbalancer.server.port=2112
-  handsfree:
+  pairing:
     labels:
-      - traefik.http.routers.handsfree_tls.rule=Host(`api.${BASE_DOMAIN}`)&&PathPrefix(`/infinimesh.handsfree.`)
-      - traefik.http.routers.handsfree_tls.entrypoints=https
-      - traefik.http.routers.handsfree_tls.tls.certresolver=letsencrypt
-      - traefik.http.routers.handsfree_tls.service=handsfree_tls@docker
-      - traefik.http.services.handsfree_tls.loadbalancer.server.port=8000
-      - traefik.http.services.handsfree_tls.loadbalancer.server.scheme=h2c
+      - traefik.http.routers.pairing_tls.rule=Host(`api.${BASE_DOMAIN}`)&&PathPrefix(`/infinimesh.handsfree.`)
+      - traefik.http.routers.pairing_tls.entrypoints=https
+      - traefik.http.routers.pairing_tls.tls.certresolver=letsencrypt
+      - traefik.http.routers.pairing_tls.service=pairing_tls@docker
+      - traefik.http.services.pairing_tls.loadbalancer.server.port=8000
+      - traefik.http.services.pairing_tls.loadbalancer.server.scheme=h2c
   rabbitmq:
     ports: !override
       - "127.0.0.1:5672:5672"
