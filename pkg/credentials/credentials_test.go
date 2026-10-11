@@ -17,6 +17,7 @@ package credentials
 
 import (
 	"context"
+	"os"
 
 	"github.com/arangodb/go-driver"
 	"github.com/infinimesh/core/pkg/graph/schema"
@@ -37,8 +38,9 @@ var (
 )
 
 func init() {
-	// TODO: Move this to e2e
-	return
+	if os.Getenv("INF_TEST_DB") == "" {
+		return
+	}
 	viper.AutomaticEnv()
 	log = zap.NewExample()
 

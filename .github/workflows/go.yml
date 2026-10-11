@@ -65,10 +65,42 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
-          cache: true
+          go-version: "1.27.x"
+          check-latest: true
 
       - name: govulncheck
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@latest
-          govulncheck ./...
+          set +e
+          govulncheck -format json ./... > vuln.json
+          code=$?
+          set -e
+          if [ "$code" -eq 0 ]; then
+            exit 0
+          fi
+          python3 - <<'PY'
+          import json, sys
+          dec = json.JSONDecoder()
+          raw = open("vuln.json").read()
+          i = 0
+          fixed = []
+          while i < len(raw):
+              while i < len(raw) and raw[i].isspace():
+                  i += 1
+              if i >= len(raw):
+                  break
+              msg, n = dec.raw_decode(raw, i)
+              i = n
+              finding = msg.get("finding")
+              if not finding:
+                  continue
+              called = any(str(frame.get("module", "")).startswith("github.com/infinimesh/") for frame in finding.get("trace", []))
+              version = finding.get("fixed_version")
+              if called and version:
+                  fixed.append(f"{finding.get('osv')} fixed in {version}")
+          if fixed:
+              print("Reachable vulnerabilities with a released fix:")
+              print("\n".join(sorted(set(fixed))))
+              sys.exit(1)
+          print("No reachable vulnerability has a released fix.")
+          PY

@@ -146,7 +146,7 @@ func (s *ShadowServiceServer) Remove(ctx context.Context, req *pb.RemoveRequest)
 	delete(fields, req.GetKey())
 
 	state.Timestamp = timestamppb.Now()
-	log.Debug("Result", zap.Any("state", state))
+	log.Debug("Result", zap.Any("state", &state))
 
 	s.Store(log, req.Device, req.StateKey, &state)
 
