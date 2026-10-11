@@ -2243,6 +2243,30 @@ func (_c *MockCollection_UpdateDocuments_Call) RunAndReturn(run func(context.Con
 	return _c
 }
 
+func (_m *MockCollection) EnsureMDIIndex(ctx context.Context, fields []string, options *driver.EnsureMDIIndexOptions) (driver.Index, bool, error) {
+	ret := _m.Called(ctx, fields, options)
+	if len(ret) == 0 {
+		panic("no return value specified for EnsureMDIIndex")
+	}
+	var idx driver.Index
+	if ret.Get(0) != nil {
+		idx = ret.Get(0).(driver.Index)
+	}
+	return idx, ret.Get(1).(bool), ret.Error(2)
+}
+
+func (_m *MockCollection) EnsureMDIPrefixedIndex(ctx context.Context, fields []string, options *driver.EnsureMDIPrefixedIndexOptions) (driver.Index, bool, error) {
+	ret := _m.Called(ctx, fields, options)
+	if len(ret) == 0 {
+		panic("no return value specified for EnsureMDIPrefixedIndex")
+	}
+	var idx driver.Index
+	if ret.Get(0) != nil {
+		idx = ret.Get(0).(driver.Index)
+	}
+	return idx, ret.Get(1).(bool), ret.Error(2)
+}
+
 // NewMockCollection creates a new instance of MockCollection. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockCollection(t interface {

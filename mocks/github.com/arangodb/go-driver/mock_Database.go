@@ -936,6 +936,40 @@ func (_c *MockDatabase_EnsureAnalyzer_Call) RunAndReturn(run func(context.Contex
 	return _c
 }
 
+func (_m *MockDatabase) EnsureCreatedAnalyzer(ctx context.Context, analyzer *driver.ArangoSearchAnalyzerDefinition) (driver.ArangoSearchAnalyzer, bool, error) {
+	ret := _m.Called(ctx, analyzer)
+
+	if len(ret) == 0 {
+		panic("no return value specified for EnsureCreatedAnalyzer")
+	}
+
+	var r0 driver.ArangoSearchAnalyzer
+	var r1 bool
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, *driver.ArangoSearchAnalyzerDefinition) (driver.ArangoSearchAnalyzer, bool, error)); ok {
+		return rf(ctx, analyzer)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *driver.ArangoSearchAnalyzerDefinition) driver.ArangoSearchAnalyzer); ok {
+		r0 = rf(ctx, analyzer)
+	} else if ret.Get(0) != nil {
+		r0 = ret.Get(0).(driver.ArangoSearchAnalyzer)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *driver.ArangoSearchAnalyzerDefinition) bool); ok {
+		r1 = rf(ctx, analyzer)
+	} else {
+		r1 = ret.Get(1).(bool)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, *driver.ArangoSearchAnalyzerDefinition) error); ok {
+		r2 = rf(ctx, analyzer)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
 // ExplainQuery provides a mock function with given fields: ctx, query, bindVars, opts
 func (_m *MockDatabase) ExplainQuery(ctx context.Context, query string, bindVars map[string]interface{}, opts *driver.ExplainQueryOptions) (driver.ExplainQueryResult, error) {
 	ret := _m.Called(ctx, query, bindVars, opts)
