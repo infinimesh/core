@@ -58,7 +58,9 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/${{ matrix.tag }}
-          tags: type=raw,value=${{ env.IMAGE_TAG }}
+          tags: |
+            type=raw,value=${{ env.IMAGE_TAG }}
+            type=raw,value=latest
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
