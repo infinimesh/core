@@ -27,7 +27,9 @@ The old wiki was removed; see `docs/` in this repo:
 
 ## Releases
 
-- Current version: `v2.5` (see `CHANGELOG.md`).
+Current version: `v3.1.0` (see `CHANGELOG.md`).
+
+Pushing a tag `vX.Y.Z` on `main` publishes `ghcr.io/infinimesh/core/<service>:vX.Y.Z` and `:latest` for `console`, `handsfree`, `mqtt-bridge`, `repo`, `shadow`, and `web`, and opens the GitHub release from the matching `CHANGELOG.md` section. The same tag on [platform-operator](https://github.com/infinimesh/platform-operator) publishes `ghcr.io/infinimesh/platform-operator`.
 
 ## Repositories
 
