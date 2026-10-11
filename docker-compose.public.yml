@@ -1,0 +1,39 @@
+# Public Traefik overlay. Let's Encrypt for mqtt.$BASE_DOMAIN, and no plaintext
+# ports on the public interface.
+#
+#   docker compose -f docker-compose.yaml -f docker-compose.public.yml up -d
+#
+# See docs/public-tls.md. Leave this file off for infinimesh.local.
+
+services:
+  proxy:
+    ports: !override
+      - "80:80"
+      - "443:443"
+  mqtt:
+    ports: !override
+      - "8883:8883"
+    environment:
+      ACME: /acme/acme.json
+    volumes:
+      - ./letsencrypt:/acme:ro
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.mqttcert.rule=Host(`mqtt.${BASE_DOMAIN}`)
+      - traefik.http.routers.mqttcert.entrypoints=https
+      - traefik.http.routers.mqttcert.tls.certresolver=letsencrypt
+      - traefik.http.routers.mqttcert.service=mqttmetrics@docker
+      - traefik.http.services.mqttmetrics.loadbalancer.server.port=2112
+  handsfree:
+    labels:
+      - traefik.http.routers.handsfree_tls.rule=Host(`api.${BASE_DOMAIN}`)&&PathPrefix(`/infinimesh.handsfree.`)
+      - traefik.http.routers.handsfree_tls.entrypoints=https
+      - traefik.http.routers.handsfree_tls.tls.certresolver=letsencrypt
+      - traefik.http.routers.handsfree_tls.service=handsfree_tls@docker
+      - traefik.http.services.handsfree_tls.loadbalancer.server.port=8000
+      - traefik.http.services.handsfree_tls.loadbalancer.server.scheme=h2c
+  rabbitmq:
+    ports: !override
+      - "127.0.0.1:5672:5672"
+  redis:
+    ports: !reset []
