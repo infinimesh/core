@@ -36,7 +36,7 @@ The old wiki was removed; see `docs/` in this repo:
 - [operator](https://github.com/infinimesh/platform-operator) — Kubernetes operator
 - [k8s](https://github.com/infinimesh/k8s) — cluster install recipes
 - [website](https://github.com/infinimesh/website)
-- Addons: [sdk](https://github.com/infinimesh/addon-sdk), [redis-stream](https://github.com/infinimesh/addon-redis-stream), [elasticsearch](https://github.com/infinimesh/addon-elasticsearch), [snowflake](https://github.com/infinimesh/addon-snowflake), [sap-hana](https://github.com/infinimesh/addon-sap-hana), [timeseries](https://github.com/infinimesh/addon-timeseries), [cloud-connect](https://github.com/infinimesh/addon-cloud-connect)
+- [addons](https://github.com/infinimesh/addons) — connectors (Redis stream, Elasticsearch, Snowflake, SAP HANA, RedisTimeSeries, cloud storage). Module `github.com/infinimesh/addons`
 
 ## Protobufs
 
