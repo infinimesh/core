@@ -124,7 +124,7 @@ On macOS the CA bundle is often `/etc/ssl/cert.pem`.
 
 ### Kubernetes operator
 
-[platform-operator](https://github.com/infinimesh/platform-operator) installs the previous platform: Dgraph, Kafka, and a separate device-registry Deployment. That Deployment is ClusterIP `<platform>-device-registry:8080` and serves plaintext. TLS sits on the API Ingress and on the MQTT bridge, which is the layout Recasta used.
+[platform-operator](https://github.com/infinimesh/platform-operator) deploys this same stack. Images are `ghcr.io/infinimesh/core/<service>`. The static manifests are in [k8s](https://github.com/infinimesh/k8s). MQTT TLS is the secret named by `spec.mqtt.secretName`, mounted at `/cert`.
 
 Create a TLS secret whose keys are `tls.crt` and `tls.key` (cert-manager or any other issuer). Then set the Platform resource:
 

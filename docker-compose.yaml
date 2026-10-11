@@ -26,7 +26,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
 
   console:
-    image: "ghcr.io/infinimesh/infinimesh/console:${INFINIMESH_VERSION}"
+    image: "ghcr.io/infinimesh/core/console:${INFINIMESH_VERSION}"
     restart: always
     depends_on:
       - proxy
@@ -38,7 +38,7 @@ services:
       - traefik.http.routers.console.service=console@docker
       - traefik.http.services.console.loadbalancer.server.port=80
   web:
-    image: "ghcr.io/infinimesh/infinimesh/web:${INFINIMESH_VERSION}"
+    image: "ghcr.io/infinimesh/core/web:${INFINIMESH_VERSION}"
     restart: always
     depends_on:
       - repo
@@ -75,7 +75,7 @@ services:
       - rbmq_log:/var/log/rabbitmq
 
   mqtt:
-    image: "ghcr.io/infinimesh/infinimesh/mqtt-bridge:${INFINIMESH_VERSION}"
+    image: "ghcr.io/infinimesh/core/mqtt-bridge:${INFINIMESH_VERSION}"
     restart: always
     depends_on:
       - rabbitmq
@@ -96,7 +96,7 @@ services:
       SIGNING_KEY: "${SIGNING_KEY}"
 
   repo:
-    image: "ghcr.io/infinimesh/infinimesh/repo:${INFINIMESH_VERSION}"
+    image: "ghcr.io/infinimesh/core/repo:${INFINIMESH_VERSION}"
     restart: always
     labels:
       - traefik.http.routers.repo.rule=Host(`api.${BASE_DOMAIN}`)
@@ -131,7 +131,7 @@ services:
       - ./oauth2_config.yaml:/oauth2_config.yaml
 
   shadow:
-    image: "ghcr.io/infinimesh/infinimesh/shadow:${INFINIMESH_VERSION}"
+    image: "ghcr.io/infinimesh/core/shadow:${INFINIMESH_VERSION}"
     restart: unless-stopped
     labels:
       - traefik.enable=false
@@ -180,7 +180,7 @@ services:
 
   # Comment this service and HF env variable at web service to disable handsfree service
   handsfree:
-    image: "ghcr.io/infinimesh/infinimesh/handsfree:${INFINIMESH_VERSION}"
+    image: "ghcr.io/infinimesh/core/handsfree:${INFINIMESH_VERSION}"
     restart: always
     environment:
       LOG_LEVEL: ${LOG_LEVEL}
