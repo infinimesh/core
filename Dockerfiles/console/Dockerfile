@@ -1,4 +1,4 @@
-FROM node:18 AS console-builder
+FROM node:20 AS console-builder
 
 ARG INFINIMESH_VERSION_TAG
 ENV INFINIMESH_VERSION_TAG=$INFINIMESH_VERSION_TAG
@@ -6,8 +6,8 @@ ENV INFINIMESH_VERSION_TAG=$INFINIMESH_VERSION_TAG
 ADD console /console
 WORKDIR /console
 
-RUN npm install -g pnpm
-RUN pnpm i && pnpm build
+RUN npm install -g pnpm@9
+RUN pnpm install --frozen-lockfile && pnpm build
 
 # Build server
 FROM golang:1.26-alpine AS builder

@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v3.1.0-r2] - 2026-10-11
+
+### Fixed
+- The console image installs pnpm 9 on Node 20, the same versions the test job uses. The v3.1.0-r1 build pulled current pnpm, which rejected `pnpm-lock.yaml`.
+
 ## [v3.1.0-r1] - 2026-10-11
 
 ### Fixed
@@ -49,6 +54,7 @@ All notable changes to this project will be documented in this file.
 - Root claim handling now uses boolean values so privileged tokens work as intended.
 - Swagger Pages workflow now passes `GITHUB_TOKEN` to actions.
 
+[v3.1.0-r2]: https://github.com/infinimesh/core/releases/tag/v3.1.0-r2
 [v3.1.0-r1]: https://github.com/infinimesh/core/releases/tag/v3.1.0-r1
 [v3.1.0]: https://github.com/infinimesh/core/releases/tag/v3.1.0
 [v3.0.0]: https://github.com/2pk03/infinimesh-IoT/releases/tag/v3.0.0

@@ -48,6 +48,16 @@ if "$notes" v9.9.9 "$tmp" >/dev/null 2>&1; then
   exit 1
 fi
 
+console_df="$root/Dockerfiles/console/Dockerfile"
+grep -q "FROM node:20 " "$console_df" || {
+  echo "console image must build on node 20" >&2
+  exit 1
+}
+grep -q "pnpm@9" "$console_df" || {
+  echo "console image must install pnpm 9 to match the lockfile" >&2
+  exit 1
+}
+
 go_ver=$(awk '/^go / { print $2; exit }' "$root/go.mod")
 major=${go_ver%.*}
 for f in "$root"/Dockerfiles/*/Dockerfile; do
