@@ -48,6 +48,20 @@ if "$notes" v9.9.9 "$tmp" >/dev/null 2>&1; then
   exit 1
 fi
 
+wf="$root/.github/workflows/docker-build.yml"
+grep -q "fail-fast: false" "$wf" || {
+  echo "image builds must not cancel each other" >&2
+  exit 1
+}
+awk '
+  /^  build:/ { job="build"; next }
+  /^  public:/ { job="public"; next }
+  /^  [a-z]/ { job="" }
+  job == "build" && /Make the package public/ { print "public check is inside the build job"; exit 1 }
+  job == "public" && /Make the package public/ { found=1 }
+  END { if (!found) { print "public check job missing"; exit 1 } }
+' "$wf"
+
 console_df="$root/Dockerfiles/console/Dockerfile"
 grep -q "FROM node:20 " "$console_df" || {
   echo "console image must build on node 20" >&2

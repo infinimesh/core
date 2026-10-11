@@ -40,6 +40,7 @@ jobs:
     needs: discover
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         tag: ${{ fromJson(needs.discover.outputs.tags) }}
     permissions:
@@ -93,8 +94,28 @@ jobs:
             IMAGE_TAG=${{ env.IMAGE_TAG }}
             INFINIMESH_VERSION_TAG=${{ needs.discover.outputs.version }}
 
-      - name: Make the package public
+      - name: Publish summary
         if: github.event_name != 'pull_request'
+        run: |
+          echo "### :whale: Published ${{ matrix.tag }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ steps.build.outputs.imageid }}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+  public:
+    needs: [discover, build]
+    if: github.event_name != 'pull_request' && needs.build.result != 'cancelled' && needs.build.result != 'skipped'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        tag: ${{ fromJson(needs.discover.outputs.tags) }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Make the package public
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -110,12 +131,3 @@ jobs:
             -H "Authorization: Bearer ${tok}" \
             -H "Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json" \
             "https://ghcr.io/v2/${image}/manifests/${check}"
-
-      - name: Publish summary
-        if: github.event_name != 'pull_request'
-        run: |
-          echo "### :whale: Published ${{ matrix.tag }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          echo "${{ steps.build.outputs.imageid }}" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
