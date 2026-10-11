@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v3.1.0] - 2026-10-11
+
+### Changed
+- Images publish to `ghcr.io/infinimesh/core/<service>` for `console`, `handsfree`, `mqtt-bridge`, `repo`, `shadow`, and `web`. The version tag is also published as `latest`.
+- The cluster install is [k8s](https://github.com/infinimesh/k8s).
+
 ## [v3.0.0] - 2025-11-28
 
 ### Added
@@ -36,5 +42,6 @@ All notable changes to this project will be documented in this file.
 - Root claim handling now uses boolean values so privileged tokens work as intended.
 - Swagger Pages workflow now passes `GITHUB_TOKEN` to actions.
 
+[v3.1.0]: https://github.com/infinimesh/core/releases/tag/v3.1.0
 [v3.0.0]: https://github.com/2pk03/infinimesh-IoT/releases/tag/v3.0.0
 [v2.5.2]: https://github.com/2pk03/infinimesh-IoT/releases/tag/v2.5.2
