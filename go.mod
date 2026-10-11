@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	github.com/Pallinder/go-randomdata v1.2.0
-	github.com/arangodb/go-driver v1.6.1
+	github.com/arangodb/go-driver v1.6.9
 	github.com/cskr/pubsub v1.0.2
 	github.com/evanphx/json-patch v5.9.0+incompatible
 	github.com/go-ldap/ldap/v3 v3.4.6
@@ -18,13 +18,13 @@ require (
 	go.uber.org/zap v1.26.0
 	golang.org/x/crypto v0.57.0
 	google.golang.org/grpc v1.83.2
-	google.golang.org/protobuf v1.36.11
+	google.golang.org/protobuf v1.36.12
 	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
 	// this version works - newer commits have breaking changes - do not update
-	github.com/Azure/go-ntlmssp v0.0.0-20221128193559-754e69321358 // indirect
+	github.com/Azure/go-ntlmssp v0.1.1 // indirect
 	github.com/arangodb/go-velocypack v0.0.0-20200318135517-5af53c29c67e // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
@@ -51,8 +51,8 @@ require (
 )
 
 require (
-	connectrpc.com/connect v1.14.0
-	connectrpc.com/grpchealth v1.3.0
+	connectrpc.com/connect v1.21.0
+	connectrpc.com/grpchealth v1.5.0
 	github.com/go-faker/faker/v4 v4.2.1
 	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/google/uuid v1.6.0
@@ -60,9 +60,9 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.19.1
 	github.com/infinimesh/proto v0.0.0-20261011144652-104ae634a302
 	github.com/prometheus/client_golang v1.18.0
-	github.com/rabbitmq/amqp091-go v1.13.0
+	github.com/rabbitmq/amqp091-go v1.14.0
 	github.com/rs/cors v1.11.1
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.11.1
 	golang.org/x/oauth2 v0.36.0
 )
 
@@ -77,7 +77,7 @@ require (
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
-	github.com/stretchr/objx v0.5.1 // indirect
+	github.com/stretchr/objx v0.5.2 // indirect
 	golang.org/x/exp v0.0.0-20240119083558-1b970713d09a // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
