@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- Console lockfile: `postcss` 8.5.29.
+
 ## [v3.2.0] - 2026-10-11
 
 ### Changed
