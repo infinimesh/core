@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [v3.2.0] - 2026-10-11
+
 ### Changed
 - Go 1.27.2. Service images build from `golang:1.27-alpine`.
 - Go modules: `connect` 1.21.0, `grpchealth` 1.5.0, `protobuf` 1.36.12, `amqp091-go` 1.14.0, `go-ntlmssp` 0.1.1, `go-driver` 1.6.9.
@@ -76,6 +78,8 @@ All notable changes to this project will be documented in this file.
 - Root claim handling now uses boolean values so privileged tokens work as intended.
 - Swagger Pages workflow now passes `GITHUB_TOKEN` to actions.
 
+[v3.2.0]: https://github.com/infinimesh/core/releases/tag/v3.2.0
+[v3.1.0-r4]: https://github.com/infinimesh/core/releases/tag/v3.1.0-r4
 [v3.1.0-r3]: https://github.com/infinimesh/core/releases/tag/v3.1.0-r3
 [v3.1.0-r2]: https://github.com/infinimesh/core/releases/tag/v3.1.0-r2
 [v3.1.0-r1]: https://github.com/infinimesh/core/releases/tag/v3.1.0-r1
