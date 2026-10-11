@@ -29,6 +29,9 @@ jobs:
       - name: gofmt
         run: test -z "$(gofmt -l .)"
 
+      - name: release scripts
+        run: sh scripts/release_test.sh
+
       - name: go vet
         run: go vet ./...
 

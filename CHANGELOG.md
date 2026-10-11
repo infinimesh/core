@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v3.1.0-r1] - 2026-10-11
+
+### Fixed
+- Service images build with the Go version in `go.mod`.
+- A revision tag `vX.Y.Z-rN` also publishes `:vX.Y.Z` and `:latest`.
+- The GitHub release body is the `## [tag]` section of this file.
+
 ## [v3.1.0] - 2026-10-11
 
 ### Changed
@@ -42,6 +49,7 @@ All notable changes to this project will be documented in this file.
 - Root claim handling now uses boolean values so privileged tokens work as intended.
 - Swagger Pages workflow now passes `GITHUB_TOKEN` to actions.
 
+[v3.1.0-r1]: https://github.com/infinimesh/core/releases/tag/v3.1.0-r1
 [v3.1.0]: https://github.com/infinimesh/core/releases/tag/v3.1.0
 [v3.0.0]: https://github.com/2pk03/infinimesh-IoT/releases/tag/v3.0.0
 [v2.5.2]: https://github.com/2pk03/infinimesh-IoT/releases/tag/v2.5.2
