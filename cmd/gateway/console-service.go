@@ -39,13 +39,14 @@ func init_cs(log *zap.Logger) {
 		SERVICES_ENABLED_MAP["http_fs"] = http_fs
 	}
 
-	viper.SetDefault("HANDSFREE", "")
-	handsfree := viper.GetString("HANDSFREE")
-	log.Debug("HANDSFREE", zap.String("value", handsfree))
-	if handsfree != "" {
-		log.Info("Handsfree service is enabled")
+	viper.SetDefault("PAIRING", "")
+	pairing := viper.GetString("PAIRING")
+	log.Debug("PAIRING", zap.String("value", pairing))
+	if pairing != "" {
+		log.Info("Pairing service is enabled")
+		// Console and the RPC name still use handsfree.
 		enabled["handsfree"] = ""
-		SERVICES_ENABLED_MAP["handsfree"] = handsfree
+		SERVICES_ENABLED_MAP["handsfree"] = pairing
 	}
 
 	viper.SetDefault("CHATTING", "")

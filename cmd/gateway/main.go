@@ -54,7 +54,7 @@ func init() {
 	log = logger.NewLogger()
 
 	viper.SetDefault("CORS_ALLOWED", []string{"*"})
-	viper.SetDefault("APISERVER_HOST", "proxy:8000")
+	viper.SetDefault("APISERVER_HOST", "api:8000")
 	viper.SetDefault("SECURE", false)
 	viper.SetDefault("WITH_BLOCK", false)
 	viper.SetDefault("APISERVER_CA_FILE", "")
@@ -143,10 +143,10 @@ func main() {
 	}
 
 	if e, ok := SERVICES_ENABLED_MAP["handsfree"]; ok {
-		log.Info("Handsfree enabled, registering Gateway")
+		log.Info("Pairing enabled, registering Gateway")
 		err = hfpb.RegisterHandsfreeServiceHandlerFromEndpoint(context.Background(), gwmux, e, opts)
 		if err != nil {
-			log.Fatal("Failed to register Handsfree service gateway", zap.Error(err))
+			log.Fatal("Failed to register pairing service gateway", zap.Error(err))
 		}
 	}
 

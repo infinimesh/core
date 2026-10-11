@@ -94,11 +94,11 @@ func init() {
 		services[s] = true
 	}
 
-	viper.SetDefault("REGISTRY", "repo:8000")
-	viper.SetDefault("NAMESPACES", "repo:8000")
+	viper.SetDefault("REGISTRY_HOST", "api:8000")
+	viper.SetDefault("NAMESPACES_HOST", "api:8000")
 
-	accountsConnection = viper.GetString("REGISTRY")
-	namespacesConnection = viper.GetString("NAMESPACES")
+	accountsConnection = viper.GetString("REGISTRY_HOST")
+	namespacesConnection = viper.GetString("NAMESPACES_HOST")
 
 	configs = map[string]config.Config{}
 	file, err := os.ReadFile("oauth2_config.yaml")
@@ -191,11 +191,11 @@ func main() {
 
 	if _, ok := services["devices"]; ok {
 		log.Info("Registering devices service")
-		viper.SetDefault("HANDSFREE_HOST", "handsfree:8000")
-		host := viper.GetString("HANDSFREE_HOST")
+		viper.SetDefault("PAIRING_HOST", "pairing:8000")
+		host := viper.GetString("PAIRING_HOST")
 		conn, err := grpc.Dial(host, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
-			log.Fatal("Failed to connect to handsfree", zap.String("address", host), zap.Error(err))
+			log.Fatal("Failed to connect to pairing", zap.String("address", host), zap.Error(err))
 		}
 
 		dev_ctrl := graph.NewDevicesControllerModule(log, db, handsfree.NewHandsfreeServiceClient(conn))
@@ -206,7 +206,7 @@ func main() {
 	}
 	if _, ok := services["shadow"]; ok {
 		log.Info("Registering shadow service")
-		viper.SetDefault("SHADOW_HOST", "shadow-api:8000")
+		viper.SetDefault("SHADOW_HOST", "shadow:8000")
 		host := viper.GetString("SHADOW_HOST")
 		conn, err := grpc.Dial(host, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {

@@ -30,31 +30,31 @@ services:
     restart: always
     depends_on:
       - proxy
-      - web
+      - gateway
     labels:
       - traefik.http.routers.console.rule=Host(`console.${BASE_DOMAIN}`)
       - traefik.http.routers.console.entrypoints=https
       - traefik.http.routers.console.tls.certresolver=letsencrypt
       - traefik.http.routers.console.service=console@docker
       - traefik.http.services.console.loadbalancer.server.port=80
-  web:
-    image: "ghcr.io/infinimesh/core/web:${INFINIMESH_VERSION}"
+  gateway:
+    image: "ghcr.io/infinimesh/core/gateway:${INFINIMESH_VERSION}"
     restart: always
     depends_on:
-      - repo
+      - api
       - proxy
     labels:
-      - traefik.http.routers.web.rule=Host(`api.${BASE_DOMAIN}`)
-      - traefik.http.routers.web.entrypoints=https
-      - traefik.http.routers.web.tls.certresolver=letsencrypt
-      - traefik.http.routers.web.service=web@docker
-      - traefik.http.services.web.loadbalancer.server.port=8000
+      - traefik.http.routers.gateway.rule=Host(`api.${BASE_DOMAIN}`)
+      - traefik.http.routers.gateway.entrypoints=https
+      - traefik.http.routers.gateway.tls.certresolver=letsencrypt
+      - traefik.http.routers.gateway.service=gateway@docker
+      - traefik.http.services.gateway.loadbalancer.server.port=8000
     environment:
-      APISERVER_HOST: repo:8000
-      # Optional CA for TLS between web and repo; leave empty for insecure
+      APISERVER_HOST: api:8000
+      # Optional CA for TLS between gateway and api; leave empty for insecure
       APISERVER_CA_FILE: /cert/tls.crt
       HTTP_FS: "https://media.${BASE_DOMAIN}"
-      HANDSFREE: handsfree:8000
+      PAIRING: pairing:8000
     volumes:
       - ./hack/server.crt:/cert/tls.crt:ro
 
@@ -79,7 +79,7 @@ services:
     restart: always
     depends_on:
       - rabbitmq
-      - repo
+      - api
       - proxy
     ports:
       - 1883:1883 # BasicAuth(non-TLS)
@@ -91,25 +91,25 @@ services:
     environment:
       LOG_LEVEL: ${LOG_LEVEL}
       RABBITMQ_CONN: amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/
-      DEVICES_HOST: repo:8000
+      DEVICES_HOST: api:8000
       SHADOW_HOST: shadow:8000
       SIGNING_KEY: "${SIGNING_KEY}"
 
-  repo:
-    image: "ghcr.io/infinimesh/core/repo:${INFINIMESH_VERSION}"
+  api:
+    image: "ghcr.io/infinimesh/core/api:${INFINIMESH_VERSION}"
     restart: always
     labels:
-      - traefik.http.routers.repo.rule=Host(`api.${BASE_DOMAIN}`)
-      - traefik.http.routers.repo.entrypoints=grpc
-      - traefik.http.routers.repo.service=repo@docker
-      - traefik.http.services.repo.loadbalancer.server.port=8000
-      - traefik.http.services.repo.loadbalancer.server.scheme=h2c
+      - traefik.http.routers.api.rule=Host(`api.${BASE_DOMAIN}`)
+      - traefik.http.routers.api.entrypoints=grpc
+      - traefik.http.routers.api.service=api@docker
+      - traefik.http.services.api.loadbalancer.server.port=8000
+      - traefik.http.services.api.loadbalancer.server.scheme=h2c
 
-      - traefik.http.routers.repo_connect.rule=Host(`api.${BASE_DOMAIN}`)&&PathPrefix("/infinimesh.node.", "/infinimesh.shadow", "/infinimesh.plugins", "/oauth")
-      - traefik.http.routers.repo_connect.entrypoints=https
-      - traefik.http.routers.repo_connect.tls.certresolver=letsencrypt
-      - traefik.http.routers.repo_connect.service=repo_connect@docker
-      - traefik.http.services.repo_connect.loadbalancer.server.port=8000
+      - traefik.http.routers.api_connect.rule=Host(`api.${BASE_DOMAIN}`)&&PathPrefix("/infinimesh.node.", "/infinimesh.shadow", "/infinimesh.plugins", "/oauth")
+      - traefik.http.routers.api_connect.entrypoints=https
+      - traefik.http.routers.api_connect.tls.certresolver=letsencrypt
+      - traefik.http.routers.api_connect.service=api_connect@docker
+      - traefik.http.services.api_connect.loadbalancer.server.port=8000
 
     depends_on:
       - db
@@ -121,11 +121,11 @@ services:
       SHADOW_HOST: shadow:8000
       INF_DEFAULT_ROOT_PASS: infinimesh
       SIGNING_KEY: "${SIGNING_KEY}"
-      HANDSFREE_HOST: handsfree:8000
+      PAIRING_HOST: pairing:8000
 
       OAUTH_PORT: 80
-      REGISTRY_HOST: repo:8000
-      NAMESPACES_HOST: repo:8000
+      REGISTRY_HOST: api:8000
+      NAMESPACES_HOST: api:8000
       CORS_ALLOWED: "https://*.${BASE_DOMAIN},https://*"
     volumes:
       - ./oauth2_config.yaml:/oauth2_config.yaml
@@ -142,7 +142,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL}
       RABBITMQ_CONN: amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/
       REDIS_HOST: redis:6379
-      DEVICES_HOST: repo:8000
+      DEVICES_HOST: api:8000
       SIGNING_KEY: "${SIGNING_KEY}"
 
   redis:
@@ -166,7 +166,7 @@ services:
     volumes:
       - data:/var/lib/arangodb3
 
-  # Comment this service and HTTP_FS env variable at web service to disable http-fs
+  # Comment this service and HTTP_FS on gateway to disable http-fs
   http-fs:
     image: ghcr.io/infinimesh/http-fs:latest
     restart: always
@@ -178,18 +178,18 @@ services:
     volumes:
       - user-media:/static
 
-  # Comment this service and HF env variable at web service to disable handsfree service
-  handsfree:
-    image: "ghcr.io/infinimesh/core/handsfree:${INFINIMESH_VERSION}"
+  # Comment this service and PAIRING on gateway to disable pairing
+  pairing:
+    image: "ghcr.io/infinimesh/core/pairing:${INFINIMESH_VERSION}"
     restart: always
     environment:
       LOG_LEVEL: ${LOG_LEVEL}
       SIGNING_KEY: "${SIGNING_KEY}"
     labels:
-      - traefik.http.routers.handsfree.rule=Host(`api.${BASE_DOMAIN}`)&&PathPrefix("/infinimesh.handsfree.")
-      - traefik.http.routers.handsfree.entrypoints=grpc
-      - traefik.http.services.handsfree.loadbalancer.server.port=8000
-      - traefik.http.services.handsfree.loadbalancer.server.scheme=h2c
+      - traefik.http.routers.pairing.rule=Host(`api.${BASE_DOMAIN}`)&&PathPrefix("/infinimesh.handsfree.")
+      - traefik.http.routers.pairing.entrypoints=grpc
+      - traefik.http.services.pairing.loadbalancer.server.port=8000
+      - traefik.http.services.pairing.loadbalancer.server.scheme=h2c
 
 volumes:
   data:

@@ -98,9 +98,9 @@ Recreate `mqtt` after changing them.
 
 ## Device registry
 
-In this Compose stack the device registry is the `repo` service. `mqtt`, `shadow`, and `web` dial `repo:8000` with plaintext gRPC on the Docker network (`DEVICES_HOST`, `REGISTRY_HOST`). That port is not the public TLS endpoint.
+In this Compose stack the device registry is the `api` service. `mqtt`, `shadow`, and `gateway` dial `api:8000` with plaintext gRPC on the Docker network (`DEVICES_HOST`, `REGISTRY_HOST`). That port is not the public TLS endpoint.
 
-Public clients use `api.$BASE_DOMAIN` on port 443. Traefik and Caddy send these path prefixes to `repo`: `/infinimesh.node.`, `/infinimesh.shadow`, `/infinimesh.plugins`, `/oauth`. The console and the REST front go to `web`, and `web` dials `repo` inside the network. Handsfree (`/infinimesh.handsfree.`) is included on HTTPS in both public overlays. In the base file it is only on the plaintext `:8000` entrypoint.
+Public clients use `api.$BASE_DOMAIN` on port 443. Traefik and Caddy send these path prefixes to `api`: `/infinimesh.node.`, `/infinimesh.shadow`, `/infinimesh.plugins`, `/oauth`. The console and the REST front go to `gateway`, and `gateway` dials `api` inside the network. Pairing (`/infinimesh.handsfree.`) is included on HTTPS in both public overlays. In the base file it is only on the plaintext `:8000` entrypoint.
 
 Log in with the CLI against port 443:
 
@@ -151,4 +151,4 @@ spec:
     apiserver_rest: true
 ```
 
-The bridge mounts `spec.mqtt.secretName` at `/cert` and reads `/cert/tls.crt` and `/cert/tls.key`. The sample in the operator repo uses secret `api-infinimesh-io-tls` with hosts `api.infinimesh.io` and `grpc.api.infinimesh.io`. `controller.device_registry` starts that older Deployment. The Compose `repo` service is the registry for the current single-host stack.
+The bridge mounts `spec.mqtt.secretName` at `/cert` and reads `/cert/tls.crt` and `/cert/tls.key`. The sample in the operator repo uses secret `api-infinimesh-io-tls` with hosts `api.infinimesh.io` and `grpc.api.infinimesh.io`. `controller.device_registry` starts that older Deployment. The Compose `api` service is the registry for the current single-host stack.

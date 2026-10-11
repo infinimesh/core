@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v3.1.0-r4] - 2026-10-11
+
+### Changed
+- Images are `api` (registry), `gateway` (HTTP/JSON), and `pairing` (short-code relay). The RPC prefix stays `/infinimesh.handsfree.`. Env `PAIRING` and `PAIRING_HOST` replace `HANDSFREE` and `HANDSFREE_HOST`. The registry address is `REGISTRY_HOST` (default `api:8000`).
+
 ## [v3.1.0-r3] - 2026-10-11
 
 ### Fixed

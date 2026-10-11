@@ -29,7 +29,7 @@ The old wiki was removed; see `docs/` in this repo:
 
 Current version: `v3.1.0` (see `CHANGELOG.md`).
 
-Pushing a tag `vX.Y.Z` or `vX.Y.Z-rN` on `main` publishes `ghcr.io/infinimesh/core/<service>` for `console`, `handsfree`, `mqtt-bridge`, `repo`, `shadow`, and `web`. Each tag is also published as `:latest`. A revision tag publishes the base version `:vX.Y.Z` as well. The GitHub release body is the matching `## [tag]` section in `CHANGELOG.md`. The same tag on [platform-operator](https://github.com/infinimesh/platform-operator) publishes `ghcr.io/infinimesh/platform-operator`.
+Pushing a tag `vX.Y.Z` or `vX.Y.Z-rN` on `main` publishes `ghcr.io/infinimesh/core/<service>` for `api`, `console`, `gateway`, `mqtt-bridge`, `pairing`, and `shadow`. Each tag is also published as `:latest`. A revision tag publishes the base version `:vX.Y.Z` as well. The GitHub release body is the matching `## [tag]` section in `CHANGELOG.md`. The same tag on [platform-operator](https://github.com/infinimesh/platform-operator) publishes `ghcr.io/infinimesh/platform-operator`.
 
 ## Repositories
 
@@ -99,7 +99,7 @@ mosquitto_pub -h api.${BASE_DOMAIN} -p 1883 \
   -m '{"reboot":true}'
 
 Notes:
-- The CLI now accepts `--api` as a URL or host; it defaults missing ports to `:8000`, which matches the repo service exposed by Traefik.
+- The CLI now accepts `--api` as a URL or host; it defaults missing ports to `:8000`, which matches the `api` service exposed by Traefik.
 - MQTT flags support bearer-style auth (`--device-id/--device-token`) in addition to basic auth or certs; the default topic template is `shadow/devices/%s/desired` where `%s` is replaced by the device ID.
 ```
 
