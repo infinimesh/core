@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Changed
+- Go 1.27.2. Service images build from `golang:1.27-alpine`.
 - Go modules: `connect` 1.21.0, `grpchealth` 1.5.0, `protobuf` 1.36.12, `amqp091-go` 1.14.0, `go-ntlmssp` 0.1.1, `go-driver` 1.6.9.
 - Console: `axios` 1.20.0, `highlight.js` 11.12.0, `vue-router` 4.5.1, `@vitejs/plugin-vue` 6.0.9, `happy-dom` 20.14.5, `vite` 5.4.21, `@types/markdown-it` 14.2.0.
 - Actions: `setup-go` v7, `setup-node` v7, `pnpm/action-setup` v6, `docker/setup-buildx-action` v4, `docker/login-action` v4.
