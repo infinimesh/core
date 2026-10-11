@@ -29,8 +29,8 @@ If not using a wildcard DNS like `127.0.0.1.nip.io`, add entries to `/etc/hosts`
 ## Bring up the stack
 
 ```bash
-git clone https://github.com/2pk03/infinimesh-IoT.git
-cd infinimesh-IoT
+git clone https://github.com/infinimesh/core.git
+cd core
 # optional: set INFINIMESH_VERSION in .env to pin an image tag
 docker compose up -d
 ```
@@ -66,3 +66,7 @@ Change these for anything beyond local testing.
   inf devices token demo-sensor > demo-sensor.token
   ```
 - Shadow/MQTT examples are in [device-auth.md](device-auth.md).
+
+## Public domain
+
+`infinimesh.local` does not get a Let's Encrypt certificate. For a public name, Traefik or Caddy, and TLS for the device registry and MQTT, see [public-tls.md](public-tls.md).

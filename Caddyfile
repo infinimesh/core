@@ -1,0 +1,64 @@
+{
+	email {$ACME_EMAIL}
+}
+
+console.{$BASE_DOMAIN} {
+	reverse_proxy console:80
+}
+
+api.{$BASE_DOMAIN} {
+	handle /infinimesh.handsfree.* {
+		reverse_proxy handsfree:8000 {
+			transport http {
+				versions h2c
+			}
+		}
+	}
+	handle /infinimesh.node.* {
+		reverse_proxy repo:8000 {
+			transport http {
+				versions h2c
+			}
+		}
+	}
+	handle /infinimesh.shadow* {
+		reverse_proxy repo:8000 {
+			transport http {
+				versions h2c
+			}
+		}
+	}
+	handle /infinimesh.plugins* {
+		reverse_proxy repo:8000 {
+			transport http {
+				versions h2c
+			}
+		}
+	}
+	handle /oauth* {
+		reverse_proxy repo:8000 {
+			transport http {
+				versions h2c
+			}
+		}
+	}
+	handle {
+		reverse_proxy web:8000
+	}
+}
+
+rbmq.{$BASE_DOMAIN} {
+	reverse_proxy rabbitmq:15672
+}
+
+db.{$BASE_DOMAIN} {
+	reverse_proxy db:8529
+}
+
+media.{$BASE_DOMAIN} {
+	reverse_proxy http-fs:8000
+}
+
+mqtt.{$BASE_DOMAIN} {
+	reverse_proxy mqtt:2112
+}

@@ -17,6 +17,7 @@ Our APIs (REST / gRPC / ConnectRPC) are considered beta and may change. Infinime
 The old wiki was removed; see `docs/` in this repo:
 
 - docs/installation.md — prerequisites and Docker Compose quickstart
+- docs/public-tls.md — Traefik or Caddy with Let's Encrypt on a public domain
 - docs/device-auth.md — device tokens/certs and MQTT usage
 - API schema: `api.swagger.json`
 

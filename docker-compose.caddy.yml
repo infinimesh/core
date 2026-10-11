@@ -1,0 +1,52 @@
+# Public Caddy overlay. Issues Let's Encrypt certificates and feeds the MQTT
+# bridge the PEM files for mqtt.$BASE_DOMAIN. Traefik does not start.
+#
+#   docker compose -f docker-compose.yaml -f docker-compose.caddy.yml up -d
+#
+# See docs/public-tls.md.
+
+services:
+  proxy:
+    profiles: ["traefik"]
+  console:
+    depends_on: !override
+      - web
+  web:
+    depends_on: !override
+      - repo
+  repo:
+    depends_on: !override
+      - db
+  caddy:
+    image: caddy:2
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      BASE_DOMAIN: ${BASE_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:-admin@example.com}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+  mqtt:
+    ports: !override
+      - "8883:8883"
+    depends_on: !override
+      - rabbitmq
+      - repo
+    environment:
+      TLS_CERT_FILE: /caddy-certs/certificates/acme-v02.api.letsencrypt.org-directory/mqtt.${BASE_DOMAIN}/mqtt.${BASE_DOMAIN}.crt
+      TLS_KEY_FILE: /caddy-certs/certificates/acme-v02.api.letsencrypt.org-directory/mqtt.${BASE_DOMAIN}/mqtt.${BASE_DOMAIN}.key
+    volumes:
+      - caddy_data:/caddy-certs:ro
+  rabbitmq:
+    ports: !override
+      - "127.0.0.1:5672:5672"
+  redis:
+    ports: !reset []
+
+volumes:
+  caddy_data:
+  caddy_config:

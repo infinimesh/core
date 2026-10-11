@@ -62,4 +62,4 @@ Adjust `--cafile` to your OS trust store. Replace topic `%s` with your device ID
 
 - 401/permission errors: ensure token includes the device with at least read; reissue with `--allow-post` for writes.
 - Connection refused: check broker host/port and that `docker compose ps` shows `mqtt-bridge` healthy.
-- TLS failures: verify `--cafile` points to a CA that signed the broker cert (or use provided `hack/server.crt` for local).
+- TLS failures: locally, `--cafile hack/server.crt`. On a public domain the broker certificate is the Let's Encrypt certificate for `mqtt.$BASE_DOMAIN`, so the system CA bundle validates it. See [public-tls.md](public-tls.md).
