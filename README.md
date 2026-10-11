@@ -27,7 +27,7 @@ The old wiki was removed; see `docs/` in this repo:
 
 ## Releases
 
-Current version: `v3.1.0` (see `CHANGELOG.md`).
+Current version: `v3.2.0` (see `CHANGELOG.md`).
 
 Pushing a tag `vX.Y.Z` or `vX.Y.Z-rN` on `main` publishes `ghcr.io/infinimesh/core/<service>` for `api`, `console`, `gateway`, `mqtt-bridge`, `pairing`, and `shadow`. Each tag is also published as `:latest`. A revision tag publishes the base version `:vX.Y.Z` as well. The GitHub release body is the matching `## [tag]` section in `CHANGELOG.md`. The same tag on [platform-operator](https://github.com/infinimesh/platform-operator) publishes `ghcr.io/infinimesh/platform-operator`.
 
