@@ -18,6 +18,7 @@ package graph
 import (
 	"context"
 	"errors"
+	"os"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -58,8 +59,9 @@ var (
 )
 
 func init() {
-	// TODO: Move to e2e
-	return
+	if os.Getenv("INF_TEST_DB") == "" {
+		return
+	}
 
 	viper.AutomaticEnv()
 	log = zap.NewExample()
