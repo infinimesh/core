@@ -14,10 +14,9 @@ FROM golang:1.24-alpine AS builder
 
 RUN apk add upx
 
-WORKDIR /go/src/github.com/infinimesh/infinimesh
+WORKDIR /go/src/github.com/infinimesh/core
 
 COPY go.mod go.sum ./
-COPY third_party ./third_party
 RUN GOPROXY=https://proxy.golang.org,direct go mod download
 
 COPY ./cmd/console ./cmd/console
@@ -28,11 +27,11 @@ RUN upx ./console
 FROM scratch
 
 COPY --from=console-builder /console/dist/ /app
-COPY --from=builder /go/src/github.com/infinimesh/infinimesh/console /console
+COPY --from=builder /go/src/github.com/infinimesh/core/console /console
 
 EXPOSE 80
 
-LABEL org.opencontainers.image.source="https://github.com/infinimesh/infinimesh"
+LABEL org.opencontainers.image.source="https://github.com/infinimesh/core"
 
 # Run thttpd
 ENTRYPOINT ["/console"]

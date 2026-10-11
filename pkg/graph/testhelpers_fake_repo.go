@@ -50,5 +50,9 @@ func (f fakeICARepo) ListOwnedDeep(ctx context.Context, log *zap.Logger, from In
 func (f fakeICARepo) DeleteRecursive(ctx context.Context, log *zap.Logger, from InfinimeshGraphNode) error {
 	return nil
 }
-func (f fakeICARepo) Toggle(ctx context.Context, node InfinimeshGraphNode, field string) error { return nil }
-func (f fakeICARepo) EnsureRootExists(_log *zap.Logger, rdb *redis.Client, passwd string) error   { return nil }
+func (f fakeICARepo) Toggle(ctx context.Context, node InfinimeshGraphNode, field string) error {
+	return nil
+}
+func (f fakeICARepo) EnsureRootExists(_log *zap.Logger, rdb *redis.Client, passwd string) error {
+	return nil
+}

@@ -3,7 +3,7 @@ package shadow_test
 import (
 	"testing"
 
-	"github.com/infinimesh/infinimesh/pkg/shadow"
+	"github.com/infinimesh/core/pkg/shadow"
 	pb "github.com/infinimesh/proto/shadow"
 	"github.com/stretchr/testify/assert"
 )

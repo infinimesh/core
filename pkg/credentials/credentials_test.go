@@ -19,8 +19,8 @@ import (
 	"context"
 
 	"github.com/arangodb/go-driver"
-	"github.com/infinimesh/infinimesh/pkg/graph/schema"
-	inf "github.com/infinimesh/infinimesh/pkg/shared"
+	"github.com/infinimesh/core/pkg/graph/schema"
+	inf "github.com/infinimesh/core/pkg/shared"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/metadata"

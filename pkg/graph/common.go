@@ -23,9 +23,9 @@ import (
 
 	"github.com/arangodb/go-driver"
 	"github.com/go-redis/redis/v8"
-	"github.com/infinimesh/infinimesh/pkg/credentials"
-	"github.com/infinimesh/infinimesh/pkg/graph/schema"
-	inf "github.com/infinimesh/infinimesh/pkg/shared"
+	"github.com/infinimesh/core/pkg/credentials"
+	"github.com/infinimesh/core/pkg/graph/schema"
+	inf "github.com/infinimesh/core/pkg/shared"
 	"github.com/infinimesh/proto/node/access"
 	accpb "github.com/infinimesh/proto/node/accounts"
 	nspb "github.com/infinimesh/proto/node/namespaces"

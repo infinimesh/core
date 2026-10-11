@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
-	"github.com/infinimesh/infinimesh/pkg/oauth/config"
-	"github.com/infinimesh/infinimesh/pkg/oauth/handlers"
+	"github.com/infinimesh/core/pkg/oauth/config"
+	"github.com/infinimesh/core/pkg/oauth/handlers"
 	"github.com/infinimesh/proto/node/nodeconnect"
 	"go.uber.org/zap"
 	"net/http"
@@ -48,15 +48,15 @@ func (s *oauthService) Register(router *mux.Router, configs map[string]config.Co
 		s.registeredProviders = append(s.registeredProviders, key)
 	}
 
-		router.HandleFunc("/oauth/providers", func(w http.ResponseWriter, r *http.Request) {
-			marshal, err := json.Marshal(s.registeredProviders)
-			if err != nil {
-				s.log.Error("Failed to marshal providers", zap.Error(err))
-				w.WriteHeader(http.StatusInternalServerError)
-				_, _ = w.Write([]byte(fmt.Sprintf("Failed to get providers. %s", err.Error())))
-				return
-			}
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write(marshal)
-		}).Methods(http.MethodGet)
+	router.HandleFunc("/oauth/providers", func(w http.ResponseWriter, r *http.Request) {
+		marshal, err := json.Marshal(s.registeredProviders)
+		if err != nil {
+			s.log.Error("Failed to marshal providers", zap.Error(err))
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(fmt.Sprintf("Failed to get providers. %s", err.Error())))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(marshal)
+	}).Methods(http.MethodGet)
 }

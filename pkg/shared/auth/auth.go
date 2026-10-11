@@ -32,8 +32,8 @@ import (
 	"github.com/infinimesh/proto/node/access"
 	"github.com/infinimesh/proto/node/nodeconnect"
 
-	"github.com/infinimesh/infinimesh/pkg/sessions"
-	infinimesh "github.com/infinimesh/infinimesh/pkg/shared"
+	"github.com/infinimesh/core/pkg/sessions"
+	infinimesh "github.com/infinimesh/core/pkg/shared"
 )
 
 type AuthInterceptor interface {

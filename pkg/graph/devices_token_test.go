@@ -12,10 +12,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 
-	"github.com/infinimesh/infinimesh/pkg/graph/schema"
-	inf "github.com/infinimesh/infinimesh/pkg/shared"
-	"github.com/infinimesh/proto/node/access"
+	"github.com/infinimesh/core/pkg/graph/schema"
+	inf "github.com/infinimesh/core/pkg/shared"
 	pb "github.com/infinimesh/proto/node"
+	"github.com/infinimesh/proto/node/access"
 )
 
 type fakeICA struct {
@@ -48,8 +48,12 @@ func (f fakeICA) ListOwnedDeep(ctx context.Context, log *zap.Logger, from Infini
 func (f fakeICA) DeleteRecursive(ctx context.Context, log *zap.Logger, from InfinimeshGraphNode) error {
 	return nil
 }
-func (f fakeICA) Toggle(ctx context.Context, node InfinimeshGraphNode, field string) error { return nil }
-func (f fakeICA) EnsureRootExists(_log *zap.Logger, rdb *redis.Client, passwd string) error   { return nil }
+func (f fakeICA) Toggle(ctx context.Context, node InfinimeshGraphNode, field string) error {
+	return nil
+}
+func (f fakeICA) EnsureRootExists(_log *zap.Logger, rdb *redis.Client, passwd string) error {
+	return nil
+}
 
 func TestMakeDevicesToken_Success(t *testing.T) {
 	ctrl := &DevicesController{
@@ -57,7 +61,7 @@ func TestMakeDevicesToken_Success(t *testing.T) {
 			log: zap.NewExample(),
 			db:  nil,
 		},
-		ica_repo:   fakeICA{ok: true, level: access.Level_ADMIN},
+		ica_repo:    fakeICA{ok: true, level: access.Level_ADMIN},
 		SIGNING_KEY: []byte("secret"),
 	}
 
@@ -86,7 +90,7 @@ func TestMakeDevicesToken_NotEnoughAccess(t *testing.T) {
 			log: zap.NewExample(),
 			db:  nil,
 		},
-		ica_repo:   fakeICA{ok: false, level: access.Level_NONE},
+		ica_repo:    fakeICA{ok: false, level: access.Level_NONE},
 		SIGNING_KEY: []byte("secret"),
 	}
 

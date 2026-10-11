@@ -20,12 +20,12 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/arangodb/go-driver"
-	inf "github.com/infinimesh/infinimesh/pkg/shared"
+	inf "github.com/infinimesh/core/pkg/shared"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/infinimesh/infinimesh/pkg/graph/schema"
+	"github.com/infinimesh/core/pkg/graph/schema"
 	"github.com/infinimesh/proto/node/access"
 	"github.com/infinimesh/proto/node/namespaces"
 	pb "github.com/infinimesh/proto/plugins"

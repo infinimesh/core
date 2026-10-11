@@ -20,5 +20,17 @@ cover.html
 # Local dev artifacts
 .home
 *.bin
-inf-cli/inf
-inf-cli/inf.exe
+
+# secrets and local env
+.env
+.env.*
+!.env.example
+*.pem
+
+# binaries
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+/bin/

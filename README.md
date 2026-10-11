@@ -22,27 +22,25 @@ The old wiki was removed; see `docs/` in this repo:
 
 ## Build status
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/infinimesh/infinimesh)](https://goreportcard.com/report/github.com/infinimesh/infinimesh)
+[![Go Report Card](https://goreportcard.com/badge/github.com/infinimesh/core)](https://goreportcard.com/report/github.com/infinimesh/core)
 
 ## Releases
 
 - Current version: `v2.5` (see `CHANGELOG.md`).
 
+## Repositories
+
+- [core](https://github.com/infinimesh/core) — this platform
+- [proto](https://github.com/infinimesh/proto) — gRPC, Connect, and OpenAPI schemas (`github.com/infinimesh/proto`)
+- [inf-cli](https://github.com/infinimesh/inf-cli) — `inf` command
+- [operator](https://github.com/infinimesh/platform-operator) — Kubernetes operator
+- [k8s](https://github.com/infinimesh/k8s) — cluster install recipes
+- [website](https://github.com/infinimesh/website)
+- Addons: [sdk](https://github.com/infinimesh/addon-sdk), [redis-stream](https://github.com/infinimesh/addon-redis-stream), [elasticsearch](https://github.com/infinimesh/addon-elasticsearch), [snowflake](https://github.com/infinimesh/addon-snowflake), [sap-hana](https://github.com/infinimesh/addon-sap-hana), [timeseries](https://github.com/infinimesh/addon-timeseries), [cloud-connect](https://github.com/infinimesh/addon-cloud-connect)
+
 ## Protobufs
 
-Protos are vendored at `third_party/infinimesh-proto` (mapped via `replace` in `go.mod`). To edit/regenerate:
-
-```bash
-cd third_party/infinimesh-proto
-buf mod update
-buf generate
-```
-
-See `third_party/infinimesh-proto/README.md` for tool requirements.
-
-## Client libraries
-
-We vendor the protobuf module and ship generated Go stubs. Generate clients for other languages from `third_party/infinimesh-proto` or fetch prebuilt packages that match these schemas.
+Schemas and generated stubs live in [github.com/infinimesh/proto](https://github.com/infinimesh/proto). This module depends on that repository. Regenerate with `buf generate` in that repo.
 
 ## Community
 
@@ -54,6 +52,7 @@ You can reach out to the community via Discord.
 
 - Prereqs: Docker + Docker Compose. `BASE_DOMAIN` (from `.env`) is the root host used for all services (e.g., `console.${BASE_DOMAIN}`, `api.${BASE_DOMAIN}`). Default is `infinimesh.local`; change it to something that resolves to your machine (e.g., `127.0.0.1.nip.io`) to avoid editing `/etc/hosts`.
 - Hostnames: the stack expects `console.${BASE_DOMAIN}`, `api.${BASE_DOMAIN}`, `traefik.${BASE_DOMAIN}`, `db.${BASE_DOMAIN}`, `rbmq.${BASE_DOMAIN}`, and `media.${BASE_DOMAIN}` to resolve to your host. For a quick local run with the default `infinimesh.local`, add them to `/etc/hosts`.
+- Copy `.env.example` to `.env` before the first start.
 - Start the platform: `docker compose up -d` (images come from GHCR; set `INFINIMESH_VERSION` in `.env` to pin a release).
 - Access:
   - Console UI: http://console.${BASE_DOMAIN}
@@ -69,7 +68,7 @@ You can reach out to the community via Discord.
 
 ### CLI Walkthrough (inf)
 
-Install the CLI from https://github.com/infinimesh/inf (or prebuilt package), then:
+Install the CLI from https://github.com/infinimesh/inf-cli (or prebuilt package), then:
 
 ```bash
 # point the CLI at the local stack (h2c on port 8000)
@@ -128,7 +127,7 @@ and see usage [usage](#usage)
 
 #### `.deb` (Debian, Ubuntu, etc.)
 
-1. Go to [CLI Releases](https://github.com/infinimesh/inf/releases)
+1. Go to [CLI Releases](https://github.com/infinimesh/inf-cli/releases)
 2. Get `.deb` package for your CPU arch (`arm64` or `x86_64`)
 3. `dpkg -i path/to/.deb`
 
@@ -138,7 +137,7 @@ Then see usage [usage](#usage)
 
 #### `.rpm` (RedHat, CentOS, Fedora, etc.)
 
-1. Go to [CLI Releases](https://github.com/infinimesh/inf/releases)
+1. Go to [CLI Releases](https://github.com/infinimesh/inf-cli/releases)
 2. Get `.rpm` package for your CPU arch (`arm64` or `x86_64`)
 3. `yum localinstall path/to/.rpm` or `dnf install path/to/.rpm`
 
@@ -179,11 +178,11 @@ You're good to go!
 
 Then see usage [usage](#usage)
 
-If you don't have [**Homebrew**](https://brew.sh), consider using it ;), otherwise you can get prebuilt binary from [CLI Releases page](https://github.com/infinimesh/inf/releases) as an `.tar.gz` archive.
+If you don't have [**Homebrew**](https://brew.sh), consider using it ;), otherwise you can get prebuilt binary from [CLI Releases page](https://github.com/infinimesh/inf-cli/releases) as an `.tar.gz` archive.
 
 ```shell
 # if you have wget then
-wget https://github/infinimesh/inf/releases/#version/inf-version-darwin-arch.tar.gz
+wget https://github.com/infinimesh/inf-cli/releases/download/version/inf-version-darwin-arch.tar.gz
 # if you don't, just download it
 tar -xvzf #inf-version-darwin-arch.tar.gz
 # move binary to /usr/local/bin or alike
@@ -196,8 +195,8 @@ Then see usage [usage](#usage)
 
 ### Windows
 
-1. Go to [CLI Releases](https://github.com/infinimesh/inf/releases)
-2. Get prebuilt binary from [CLI Releases page](https://github.com/infinimesh/inf/releases) as an `.zip` archive.
+1. Go to [CLI Releases](https://github.com/infinimesh/inf-cli/releases)
+2. Get prebuilt binary from [CLI Releases page](https://github.com/infinimesh/inf-cli/releases) as an `.zip` archive.
 3. Unpack it
 4. Put it somewhere in `$PATH`
 
@@ -205,4 +204,4 @@ Then see usage [usage](#usage)
 
 ### Build From Source
 
-See [CLI repo](https://github.com/infinimesh/inf) for source and instructions.
+See [CLI repo](https://github.com/infinimesh/inf-cli) for source and instructions.

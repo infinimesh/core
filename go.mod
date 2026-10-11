@@ -1,4 +1,4 @@
-module github.com/infinimesh/infinimesh
+module github.com/infinimesh/core
 
 go 1.24.0
 
@@ -12,7 +12,6 @@ require (
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/golang/protobuf v1.5.4
 	github.com/gorilla/handlers v1.5.2
-	github.com/infinimesh/proto v0.0.0-20240206143316-baaaf1972c54
 	github.com/slntopp/mqtt-go v0.0.0-20220907123405-b74a704b056b
 	github.com/spf13/viper v1.18.2
 	github.com/tmc/grpc-websocket-proxy v0.0.0-20220101234140-673ab2c3ae75
@@ -59,6 +58,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.19.1
+	github.com/infinimesh/proto v0.0.0-20261011144652-104ae634a302
 	github.com/prometheus/client_golang v1.18.0
 	github.com/rabbitmq/amqp091-go v1.9.0
 	github.com/rs/cors v1.10.1
@@ -82,5 +82,3 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20251022142026-3a174f9686a8 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251022142026-3a174f9686a8 // indirect
 )
-
-replace github.com/infinimesh/proto => ./third_party/infinimesh-proto

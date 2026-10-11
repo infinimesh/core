@@ -2,9 +2,8 @@ FROM golang:1.24-alpine AS builder
 
 RUN apk add upx
 
-WORKDIR /go/src/github.com/infinimesh/infinimesh
+WORKDIR /go/src/github.com/infinimesh/core
 COPY go.mod go.sum ./
-COPY third_party ./third_party
 COPY . .
 RUN GOPROXY=https://proxy.golang.org,direct go mod download
 RUN CGO_ENABLED=0 go build -ldflags="-s -w -X google.golang.org/protobuf/reflect/protoregistry.conflictPolicy=warn" -buildvcs=false ./cmd/handsfree
@@ -17,11 +16,11 @@ RUN wget https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/v
 
 FROM scratch
 WORKDIR /
-COPY --from=builder /go/src/github.com/infinimesh/infinimesh/handsfree /handsfree
+COPY --from=builder /go/src/github.com/infinimesh/core/handsfree /handsfree
 COPY --from=builder /health/check /check
 
 HEALTHCHECK --start-period=5s CMD [ "/check", "-addr=:8000" ]
 
-LABEL org.opencontainers.image.source="https://github.com/infinimesh/infinimesh"
+LABEL org.opencontainers.image.source="https://github.com/infinimesh/core"
 
 ENTRYPOINT ["/handsfree"]

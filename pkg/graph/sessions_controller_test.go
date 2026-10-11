@@ -10,23 +10,23 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	inf "github.com/infinimesh/core/pkg/shared"
 	"github.com/infinimesh/proto/node"
 	sesspb "github.com/infinimesh/proto/node/sessions"
-	inf "github.com/infinimesh/infinimesh/pkg/shared"
 )
 
 type stubSessions struct {
-	getSessions   []*sesspb.Session
-	getActivity   map[string]*timestamppb.Timestamp
-	revokeErr     error
-	getErr        error
+	getSessions    []*sesspb.Session
+	getActivity    map[string]*timestamppb.Timestamp
+	revokeErr      error
+	getErr         error
 	getActivityErr error
 }
 
-func (s *stubSessions) New(exp int64, client string) *sesspb.Session { return nil }
+func (s *stubSessions) New(exp int64, client string) *sesspb.Session        { return nil }
 func (s *stubSessions) Store(account string, session *sesspb.Session) error { return nil }
-func (s *stubSessions) Check(account, sid string) error                    { return nil }
-func (s *stubSessions) LogActivity(account, sid string, exp int64) error   { return nil }
+func (s *stubSessions) Check(account, sid string) error                     { return nil }
+func (s *stubSessions) LogActivity(account, sid string, exp int64) error    { return nil }
 func (s *stubSessions) Get(account string) ([]*sesspb.Session, error) {
 	return s.getSessions, s.getErr
 }

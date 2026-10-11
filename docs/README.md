@@ -6,4 +6,4 @@ This folder contains the living, text-based docs for the platform. Start here:
 - [Installation & Local Run](installation.md) — prerequisites, Docker Compose bring-up, hostnames, defaults.
 - [Device Authentication & MQTT](device-auth.md) — tokens vs certificates and MQTT examples.
 
-For API reference, see `api.swagger.json` and the generated stubs in `third_party/infinimesh-proto`.
+For API reference, see `api.swagger.json` and [github.com/infinimesh/proto](https://github.com/infinimesh/proto).

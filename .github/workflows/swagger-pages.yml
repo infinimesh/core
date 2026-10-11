@@ -2,7 +2,7 @@ name: Publish Swagger UI
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
   workflow_dispatch:
 
 permissions:

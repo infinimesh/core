@@ -22,8 +22,8 @@ import (
 	"net"
 
 	structpb "github.com/golang/protobuf/ptypes/struct"
-	"github.com/infinimesh/infinimesh/pkg/mqtt/metrics"
-	"github.com/infinimesh/infinimesh/pkg/pubsub"
+	"github.com/infinimesh/core/pkg/mqtt/metrics"
+	"github.com/infinimesh/core/pkg/pubsub"
 	devpb "github.com/infinimesh/proto/node/devices"
 	pb "github.com/infinimesh/proto/shadow"
 	"github.com/slntopp/mqtt-go/packet"

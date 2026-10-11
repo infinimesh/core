@@ -21,7 +21,7 @@ import (
 
 	"github.com/arangodb/go-driver"
 	"github.com/arangodb/go-driver/http"
-	"github.com/infinimesh/infinimesh/pkg/graph/schema"
+	"github.com/infinimesh/core/pkg/graph/schema"
 	"go.uber.org/zap"
 )
 

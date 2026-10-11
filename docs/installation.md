@@ -53,10 +53,9 @@ Change these for anything beyond local testing.
 
 ## CLI
 
-- Install from the bundled `inf-cli` module (or the release at https://github.com/2pk03/infimesh-CLI):
+- Install the CLI:
   ```bash
-  cd inf-cli
-  go install ./...
+  go install github.com/infinimesh/inf-cli@main
   ```
 - Point the CLI at the local API (port defaults to 8000):
   ```bash

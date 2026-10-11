@@ -19,7 +19,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/infinimesh/infinimesh/pkg/pubsub"
+	"github.com/infinimesh/core/pkg/pubsub"
 	devpb "github.com/infinimesh/proto/node/devices"
 	pb "github.com/infinimesh/proto/shadow"
 	amqp "github.com/rabbitmq/amqp091-go"

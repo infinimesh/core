@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/infinimesh/infinimesh/pkg/oauth/config"
+	"github.com/infinimesh/core/pkg/oauth/config"
 
 	"github.com/infinimesh/proto/node"
 	"github.com/infinimesh/proto/node/access"

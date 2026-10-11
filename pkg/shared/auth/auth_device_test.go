@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 
+	infinimesh "github.com/infinimesh/core/pkg/shared"
 	"github.com/infinimesh/proto/node/access"
-	infinimesh "github.com/infinimesh/infinimesh/pkg/shared"
 )
 
 func TestConnectDeviceAuthMiddleware_InjectsDevicesScope(t *testing.T) {

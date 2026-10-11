@@ -27,7 +27,7 @@ import (
 
 	"go.uber.org/zap"
 
-	inf "github.com/infinimesh/infinimesh/pkg/shared"
+	inf "github.com/infinimesh/core/pkg/shared"
 	pb "github.com/infinimesh/proto/node"
 	"github.com/infinimesh/proto/shadow"
 )

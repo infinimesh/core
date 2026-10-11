@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 
-	inf "github.com/infinimesh/infinimesh/pkg/shared"
-	nspb "github.com/infinimesh/proto/node/namespaces"
+	inf "github.com/infinimesh/core/pkg/shared"
 	"github.com/infinimesh/proto/node/access"
+	nspb "github.com/infinimesh/proto/node/namespaces"
 )
 
 func TestNamespacesController_Get_AllowsRead(t *testing.T) {

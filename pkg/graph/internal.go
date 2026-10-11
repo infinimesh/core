@@ -23,7 +23,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	cred "github.com/infinimesh/infinimesh/pkg/credentials"
+	cred "github.com/infinimesh/core/pkg/credentials"
 )
 
 type InternalService struct {

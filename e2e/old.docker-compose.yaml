@@ -35,7 +35,7 @@ services:
         DGRAPH_URL: server:9080
         DB_ADDR: redis:6379
       volumes:
-        - ../:/go/src/github.com/infinimesh/infinimesh
+        - ../:/go/src/github.com/infinimesh/core
       # networks:
           # - internal
 volumes:

@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 
-	infinimesh "github.com/infinimesh/infinimesh/pkg/shared"
+	infinimesh "github.com/infinimesh/core/pkg/shared"
 	sesspb "github.com/infinimesh/proto/node/sessions"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -28,7 +28,7 @@ func (d *dummySessions) Check(account, sid string) error {
 	return d.checkErr
 }
 func (d *dummySessions) LogActivity(account, sid string, exp int64) error { return nil }
-func (d *dummySessions) Get(account string) ([]*sesspb.Session, error)   { return nil, nil }
+func (d *dummySessions) Get(account string) ([]*sesspb.Session, error)    { return nil, nil }
 func (d *dummySessions) GetActivity(account string) (map[string]*timestamppb.Timestamp, error) {
 	return map[string]*timestamppb.Timestamp{}, nil
 }

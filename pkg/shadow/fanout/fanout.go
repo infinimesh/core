@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/infinimesh/infinimesh/pkg/pubsub"
+	"github.com/infinimesh/core/pkg/pubsub"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"

@@ -19,7 +19,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/infinimesh/infinimesh/pkg/pubsub"
+	"github.com/infinimesh/core/pkg/pubsub"
 	pb "github.com/infinimesh/proto/shadow"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"go.uber.org/zap"

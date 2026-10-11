@@ -12,7 +12,7 @@
     <links />
     <span>
       Source code at
-      <a href="https://www.github.com/infinimesh/infinimesh" target="_blank">
+      <a href="https://www.github.com/infinimesh/core" target="_blank">
         <strong>GitHub</strong>
       </a>
       ©2020-2023

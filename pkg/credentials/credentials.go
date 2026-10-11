@@ -22,7 +22,7 @@ import (
 	"strings"
 
 	"github.com/arangodb/go-driver"
-	"github.com/infinimesh/infinimesh/pkg/graph/schema"
+	"github.com/infinimesh/core/pkg/graph/schema"
 	accountspb "github.com/infinimesh/proto/node/accounts"
 	"go.uber.org/zap"
 )

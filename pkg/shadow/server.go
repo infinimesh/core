@@ -21,7 +21,7 @@ import (
 	"encoding/json"
 
 	redis "github.com/go-redis/redis/v8"
-	"github.com/infinimesh/infinimesh/pkg/pubsub"
+	"github.com/infinimesh/core/pkg/pubsub"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

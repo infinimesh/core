@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
-	redis_mocks "github.com/infinimesh/infinimesh/mocks/github.com/go-redis/redis/v8"
-	"github.com/infinimesh/infinimesh/pkg/sessions"
+	redis_mocks "github.com/infinimesh/core/mocks/github.com/go-redis/redis/v8"
+	"github.com/infinimesh/core/pkg/sessions"
 	sess_pb "github.com/infinimesh/proto/node/sessions"
 
 	"github.com/stretchr/testify/assert"

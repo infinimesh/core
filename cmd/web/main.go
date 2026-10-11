@@ -24,7 +24,7 @@ import (
 	"os"
 	"strings"
 
-	logger "github.com/infinimesh/infinimesh/pkg/log"
+	logger "github.com/infinimesh/core/pkg/log"
 	hfpb "github.com/infinimesh/proto/handsfree"
 	pb "github.com/infinimesh/proto/node"
 	"github.com/infinimesh/proto/plugins"

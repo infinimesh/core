@@ -20,5 +20,5 @@ const DarkThemeOverrides = {
 
 const FooterLinks = [
     { title: "REST-API", href: "https://infinimesh.github.io/infinimesh/" },
-    // { title: "Documentation", href: "https://github.com/infinimesh/infinimesh/wiki" }
+    // { title: "Documentation", href: "https://github.com/infinimesh/core/wiki" }
 ]

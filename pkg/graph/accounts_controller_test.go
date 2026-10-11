@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 
-	inf "github.com/infinimesh/infinimesh/pkg/shared"
-	accpb "github.com/infinimesh/proto/node/accounts"
+	inf "github.com/infinimesh/core/pkg/shared"
 	"github.com/infinimesh/proto/node/access"
+	accpb "github.com/infinimesh/proto/node/accounts"
 )
 
 func TestAccountsController_Get_AllowsRead(t *testing.T) {

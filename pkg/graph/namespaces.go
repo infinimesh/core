@@ -23,8 +23,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/infinimesh/infinimesh/pkg/graph/schema"
-	inf "github.com/infinimesh/infinimesh/pkg/shared"
+	"github.com/infinimesh/core/pkg/graph/schema"
+	inf "github.com/infinimesh/core/pkg/shared"
 	pb "github.com/infinimesh/proto/node"
 	accpb "github.com/infinimesh/proto/node/accounts"
 	"go.uber.org/zap"
