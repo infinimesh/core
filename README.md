@@ -36,7 +36,7 @@ The old wiki was removed; see `docs/` in this repo:
 - [inf-cli](https://github.com/infinimesh/inf-cli) — `inf` command
 - [operator](https://github.com/infinimesh/platform-operator) — Kubernetes operator
 - [k8s](https://github.com/infinimesh/k8s) — cluster install recipes
-- [website](https://github.com/infinimesh/website)
+- [website](https://github.com/infinimesh/website) — public site at [infinimesh.org](https://infinimesh.org/)
 - [addons](https://github.com/infinimesh/addons) — connectors (Redis stream, Elasticsearch, Snowflake, SAP HANA, RedisTimeSeries, cloud storage). Module `github.com/infinimesh/addons`
 
 ## Protobufs
