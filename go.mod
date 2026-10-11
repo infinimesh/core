@@ -1,6 +1,6 @@
 module github.com/infinimesh/core
 
-go 1.26.0
+go 1.27.2
 
 require (
 	github.com/Pallinder/go-randomdata v1.2.0
