@@ -16,13 +16,11 @@ limitations under the License.
 package main
 
 import (
-	"errors"
 	"fmt"
 	"net"
 
 	"github.com/infinimesh/core/pkg/mqtt/metrics"
 	devpb "github.com/infinimesh/proto/node/devices"
-	"github.com/slntopp/mqtt-go/packet"
 	"go.uber.org/zap"
 )
 
@@ -39,21 +37,13 @@ func HandleTCPConnections(tcp net.Listener) {
 		log.Debug("Connection Accepted", zap.String("remote", conn.RemoteAddr().String()))
 
 		go func(conn net.Conn) {
-			p, err := packet.ReadPacket(conn, 0)
+			connectPacket, meta, err := readConnect(conn)
 			if err != nil {
 				LogErrorAndClose(conn, fmt.Errorf("error while reading connect packet: %v", err))
 				metrics.ConnNotAnMqttPacketTotal.Inc()
 				return
 			}
-			log.Debug("ControlPacket", zap.Any("packet", p))
-
-			connectPacket, ok := p.(*packet.ConnectControlPacket)
-			if !ok {
-				LogErrorAndClose(conn, errors.New("first packet isn't ConnectControlPacket"))
-				metrics.ConnNotAnMqttPacketTotal.Inc()
-				return
-			}
-			log.Debug("ConnectPacket", zap.Any("packet", p))
+			log.Debug("ConnectPacket", zap.String("client", connectPacket.ConnectPayload.ClientID))
 
 			var fingerprint []byte
 			fingerprint, err = verifyBasicAuth(connectPacket)
@@ -86,7 +76,7 @@ func HandleTCPConnections(tcp net.Listener) {
 				return
 			}
 
-			go HandleConn(conn, connectPacket, device)
+			go HandleConn(conn, connectPacket, meta, device)
 		}(conn)
 	}
 }

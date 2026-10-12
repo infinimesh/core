@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/infinimesh/core/pkg/graph/schema"
@@ -225,22 +224,13 @@ func main() {
 					return
 				}
 
-				p, err := packet.ReadPacket(conn, 0)
+				connectPacket, meta, err := readConnect(conn)
 				if err != nil {
 					LogErrorAndClose(conn, fmt.Errorf("error while reading connect packet: %v", err))
 					metrics.ConnNotAnMqttPacketTotal.Inc()
 					return
 				}
-
-				log.Debug("Control packet", zap.Any("packet", p))
-
-				connectPacket, ok := p.(*packet.ConnectControlPacket)
-				if !ok {
-					LogErrorAndClose(conn, errors.New("first packet isn't ConnectControlPacket"))
-					metrics.ConnNotAnMqttPacketTotal.Inc()
-					return
-				}
-				log.Debug("ConnectPacket", zap.Any("packet", p))
+				log.Debug("ConnectPacket", zap.String("client", connectPacket.ConnectPayload.ClientID))
 
 				if len(conn.ConnectionState().PeerCertificates) == 0 {
 					LogErrorAndClose(conn, errors.New("no certificate given"))
@@ -267,7 +257,7 @@ func main() {
 					return
 				}
 
-				go HandleConn(conn, connectPacket, device)
+				go HandleConn(conn, connectPacket, meta, device)
 			}(c)
 		}
 	}
@@ -285,17 +275,6 @@ func printConnState(con net.Conn) {
 		zap.String("proto-version", state.NegotiatedProtocol),
 		zap.Any("certs", state.PeerCertificates),
 	)
-}
-
-// TopicChecker - validates the subscribed topic name
-//
-//	input : topic, deviceId string
-//	output : topicAltered
-func TopicChecker(topic, deviceId string) string {
-	state := strings.Split(topic, "/")
-	state[1] = deviceId
-	topic = strings.Join(state, "/")
-	return topic
 }
 
 // MQTT5 schema
