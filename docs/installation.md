@@ -43,7 +43,7 @@ ArangoDB and RabbitMQ are reachable by the other containers. Their admin UIs are
 
 ## Default credentials (for local only)
 
-- Platform root user: `root` / `infinimesh` (from `INF_DEFAULT_ROOT_PASS` in `.env`)
+- Platform admin user: `infinimesh` / `infinimesh` (the password comes from `INF_DEFAULT_ROOT_PASS` in `.env`)
 - ArangoDB, on the Compose network: `root` / `openSesame`
 - RabbitMQ, on the Compose network: `infinimesh` / `infinimesh`
 
@@ -57,7 +57,7 @@ Change these for anything beyond local testing.
   ```
 - Point the CLI at the local API (port defaults to 8000):
   ```bash
-  inf login --api http://api.${BASE_DOMAIN}:8000 --username root --password infinimesh --insecure
+  inf login --api http://api.${BASE_DOMAIN}:8000 --username infinimesh --password infinimesh --insecure
   inf namespaces create demo
   inf namespaces use demo
   inf devices create demo-sensor

@@ -42,7 +42,7 @@ ArangoDB and RabbitMQ stay on the Compose network. Their admin UIs are not route
 
 Default logins. Change them before you expose anything.
 
-- Platform admin: user `root`, password from `INF_DEFAULT_ROOT_PASS` (`infinimesh` by default)
+- Platform admin: user `infinimesh`, password from `INF_DEFAULT_ROOT_PASS` (`infinimesh` by default)
 - ArangoDB, inside the Compose network: user `root`, password `openSesame`
 - RabbitMQ, inside the Compose network: `infinimesh` / `infinimesh` (from `.env`)
 
@@ -92,8 +92,8 @@ A short session against the local stack:
 ```bash
 API=http://api.${BASE_DOMAIN}:8000
 
-# log in as root
-inf login --api "$API" --username root --password infinimesh --insecure
+# log in as the admin account
+inf login --api "$API" --username infinimesh --password infinimesh --insecure
 
 # list namespaces and devices
 inf namespaces list
