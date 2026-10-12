@@ -124,6 +124,10 @@ mosquitto_pub -h api.${BASE_DOMAIN} -p 1883 \
 - [docs/device-auth.md](docs/device-auth.md): device tokens, certificates and MQTT
 - [api.swagger.json](api.swagger.json): API schema
 
+## Checks
+
+`make commit-check` runs `fmt`, `race`, `test-fuzz`, and `code-ql-gate`. `fmt` writes Go files that `gofmt` would change. `race` is `go test -race`. `test-fuzz` runs each `Fuzz` target for `FUZZ_TIME` (default `30s`). `code-ql` runs the CodeQL CLI (`brew install --cask codeql`) and writes SARIF under `.tmp/codeql/`. The gate fails when a result is level `error`, ignoring paths under `vendor`. `jq` is required for the gate. Lower the Go database limit with `CODEQL_GO_RAM_MB` if the machine is tight. GitHub Actions runs the same race and fuzz steps, and CodeQL on pull requests with `security-extended` and `security-and-quality`.
+
 ## Releases
 
 Current version: `v3.2.0`. See [CHANGELOG.md](CHANGELOG.md) and [Releases](https://github.com/infinimesh/core/releases).

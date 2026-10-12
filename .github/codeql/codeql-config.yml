@@ -1,0 +1,7 @@
+name: CodeQL
+paths-ignore:
+  - vendor
+  - "**/vendor/**"
+  - "**/node_modules/**"
+  - console/dist
+  - console/coverage
