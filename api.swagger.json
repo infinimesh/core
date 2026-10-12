@@ -618,6 +618,31 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "namespace",
+            "description": "Stream every device in this namespace that the account can read. Requires an account token.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "namespaces",
+            "description": "Namespaces watched by an account stream. Set by the API, not the client.",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "account",
+            "description": "Authenticated account for a scope stream. Set by the API, not the client.",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
@@ -1852,6 +1877,34 @@
         },
         "desired": {
           "$ref": "#/definitions/shadowState"
+        },
+        "eventId": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "title": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "event": {
+          "type": "string",
+          "enum": [
+            "STATE",
+            "DEVICE_ADDED",
+            "DEVICE_REMOVED"
+          ],
+          "default": "STATE"
+        },
+        "account": {
+          "type": "string"
         }
       }
     },

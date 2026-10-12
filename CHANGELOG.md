@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- `GET /devices/states/stream` accepts an account token. `namespace` limits the stream to one readable namespace. Omitting it streams every device that account can read. The stream emits `DEVICE_ADDED` and `DEVICE_REMOVED`. Each message has `eventId`. State messages include title, namespace, and tags when the registry has them. A repeated `eventId` is the same event.
+
 ### Changed
 - The MQTT codec lives in `pkg/mqtt/packet`. The bridge no longer imports `github.com/slntopp/mqtt-go`.
 - The MQTT bridge allows a device to publish `devices/<id>/state/reported` and subscribe to `devices/<id>/state/desired`. QoS 1 and 2 are acknowledged. Desired state is delivered at the subscribed QoS and retried until the client acknowledges it. MQTT 3.1.1 keeps that inflight state for one hour when clean session is 0. MQTT 5 uses the session expiry interval. Both live in the bridge process.

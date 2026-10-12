@@ -42,6 +42,7 @@ type AuthInterceptor interface {
 	MakeToken(string) (string, error)
 	ConnectStandardAuthMiddleware(context.Context, []byte, string) (context.Context, bool, error)
 	ConnectDeviceAuthMiddleware(context.Context, []byte, string) (context.Context, bool, error)
+	ConnectShadowStreamMiddleware(context.Context, []byte, string) (context.Context, bool, error)
 
 	SetSessionsHandler(sessions.SessionsHandler)
 }
@@ -146,6 +147,8 @@ func (i *interceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) co
 		var middleware middleware
 
 		switch {
+		case procedure == nodeconnect.ShadowServiceStreamShadowProcedure || procedure == nodeconnect.ShadowServiceStreamShadowSyncProcedure:
+			middleware = i.ConnectShadowStreamMiddleware
 		case strings.HasPrefix(procedure, "/"+nodeconnect.ShadowServiceName):
 			middleware = i.ConnectDeviceAuthMiddleware
 		case procedure == handsfreeconnect.HandsfreeServiceConnectProcedure:
@@ -237,6 +240,17 @@ func (i *interceptor) ConnectStandardAuthMiddleware(_ctx context.Context, signin
 
 func (i *interceptor) ConnectBlankMiddleware(_ctx context.Context, signingKey []byte, tokenString string) (ctx context.Context, log_activity bool, err error) {
 	return _ctx, false, nil
+}
+
+func (i *interceptor) ConnectShadowStreamMiddleware(ctx context.Context, signingKey []byte, tokenString string) (context.Context, bool, error) {
+	token, err := connectValidateToken(i.jwt, signingKey, tokenString)
+	if err != nil {
+		return ctx, false, status.Error(codes.Unauthenticated, "Invalid token format")
+	}
+	if token[infinimesh.INFINIMESH_DEVICES_CLAIM] != nil {
+		return i.ConnectDeviceAuthMiddleware(ctx, signingKey, tokenString)
+	}
+	return i.ConnectStandardAuthMiddleware(ctx, signingKey, tokenString)
 }
 
 func (i *interceptor) ConnectDeviceAuthMiddleware(_ctx context.Context, signingKey []byte, tokenString string) (ctx context.Context, log_activity bool, err error) {

@@ -156,6 +156,8 @@ func main() {
 	}
 
 	ensure_root := false
+	var nsCtrl *graph.NamespacesController
+	var devMod graph.DevicesControllerModule
 	if _, ok := services["accounts"]; ok {
 		log.Info("Registering accounts service")
 		acc_ctrl := graph.NewAccountsController(log, db, rdb)
@@ -167,8 +169,8 @@ func main() {
 	}
 	if _, ok := services["namespaces"]; ok {
 		log.Info("Registering namespaces service")
-		ns_ctrl := graph.NewNamespacesController(log, db)
-		path, handler := nodeconnect.NewNamespacesServiceHandler(ns_ctrl, interceptors)
+		nsCtrl = graph.NewNamespacesController(log, db)
+		path, handler := nodeconnect.NewNamespacesServiceHandler(nsCtrl, interceptors)
 		router.PathPrefix(path).Handler(handler)
 
 		ensure_root = true
@@ -198,10 +200,10 @@ func main() {
 			log.Fatal("Failed to connect to pairing", zap.String("address", host), zap.Error(err))
 		}
 
-		dev_ctrl := graph.NewDevicesControllerModule(log, db, handsfree.NewHandsfreeServiceClient(conn))
-		dev_ctrl.SetSigningKey(SIGNING_KEY)
+		devMod = graph.NewDevicesControllerModule(log, db, handsfree.NewHandsfreeServiceClient(conn))
+		devMod.SetSigningKey(SIGNING_KEY)
 
-		path, handler := nodeconnect.NewDevicesServiceHandler(dev_ctrl.Handler(), interceptors)
+		path, handler := nodeconnect.NewDevicesServiceHandler(devMod.Handler(), interceptors)
 		router.PathPrefix(path).Handler(handler)
 	}
 	if _, ok := services["shadow"]; ok {
@@ -213,8 +215,15 @@ func main() {
 			log.Fatal("Failed to connect to shadow", zap.String("address", host), zap.Error(err))
 		}
 		client := shadowpb.NewShadowServiceClient(conn)
+		if devMod != nil {
+			devMod.SetScopePublisher(client)
+		}
+		api := NewShadowAPI(log, client)
+		if devMod != nil && nsCtrl != nil {
+			api.SetRegistry(devMod.Handler(), nsCtrl)
+		}
 
-		path, handler := nodeconnect.NewShadowServiceHandler(NewShadowAPI(log, client), interceptors)
+		path, handler := nodeconnect.NewShadowServiceHandler(api, interceptors)
 		router.PathPrefix(path).Handler(handler)
 	}
 

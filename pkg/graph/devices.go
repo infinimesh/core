@@ -32,9 +32,12 @@ import (
 	pb "github.com/infinimesh/proto/node"
 	access "github.com/infinimesh/proto/node/access"
 	devpb "github.com/infinimesh/proto/node/devices"
+	shadowpb "github.com/infinimesh/proto/shadow"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type Device struct {
@@ -93,6 +96,16 @@ type DevicesController struct {
 	ica_repo InfinimeshCommonActionsRepo // Infinimesh Common Actions Repository
 
 	SIGNING_KEY []byte
+
+	scope ScopePublisher
+}
+
+type ScopePublisher interface {
+	PublishDeviceScope(ctx context.Context, in *shadowpb.Shadow, opts ...grpc.CallOption) (*emptypb.Empty, error)
+}
+
+func (c *DevicesController) SetScopePublisher(p ScopePublisher) {
+	c.scope = p
 }
 
 func NewDevicesController(
@@ -192,6 +205,8 @@ func (c *DevicesController) Create(ctx context.Context, _req *connect.Request[de
 		return nil, status.Error(codes.Internal, "error creating Permission")
 	}
 
+	c.publishScope(ctx, shadowpb.ShadowEvent_DEVICE_ADDED, device.Device, ns_id, "")
+
 	return connect.NewResponse(&devpb.CreateResponse{
 		Device: device.Device,
 	}), nil
@@ -236,7 +251,7 @@ func (c *DevicesController) _HandsfreeCreate(ctx context.Context, req *devpb.Cre
 	}
 
 	cleanup := func(err error) (*connect.Response[devpb.CreateResponse], error) {
-		if _, d_err := c.Delete(ctx, connect.NewRequest(device.Device)); d_err != nil {
+		if _, d_err := c.delete(ctx, connect.NewRequest(device.Device), false); d_err != nil {
 			log.Warn("Couldn't delete Device", zap.Error(d_err))
 			return connect.NewResponse(&devpb.CreateResponse{
 					Device: device.Device,
@@ -279,6 +294,8 @@ func (c *DevicesController) _HandsfreeCreate(ctx context.Context, req *devpb.Cre
 		return cleanup(err)
 	}
 
+	c.publishScope(ctx, shadowpb.ShadowEvent_DEVICE_ADDED, dev, ns_id, "")
+
 	return connect.NewResponse(&devpb.CreateResponse{
 		Device: dev,
 	}), nil
@@ -310,6 +327,8 @@ func (c *DevicesController) Update(ctx context.Context, req *connect.Request[dev
 		log.Warn("Error updating Device", zap.Error(err))
 		return nil, status.Error(codes.Internal, "Error while updating Device")
 	}
+
+	c.publishScope(ctx, shadowpb.ShadowEvent_DEVICE_ADDED, curr.Msg, "", "")
 
 	return curr, nil
 }
@@ -491,7 +510,11 @@ func (c *DevicesController) List(ctx context.Context, req *connect.Request[pb.Qu
 	}), nil
 }
 
-func (c *DevicesController) Delete(ctx context.Context, _req *connect.Request[devpb.Device]) (*connect.Response[pb.DeleteResponse], error) {
+func (c *DevicesController) Delete(ctx context.Context, req *connect.Request[devpb.Device]) (*connect.Response[pb.DeleteResponse], error) {
+	return c.delete(ctx, req, true)
+}
+
+func (c *DevicesController) delete(ctx context.Context, _req *connect.Request[devpb.Device], publish bool) (*connect.Response[pb.DeleteResponse], error) {
 	log := c.log.Named("Delete")
 	req := _req.Msg
 
@@ -521,6 +544,10 @@ func (c *DevicesController) Delete(ctx context.Context, _req *connect.Request[de
 	)
 	if err != nil {
 		log.Warn("Error removing device from namespace", zap.Error(err))
+	}
+
+	if publish {
+		c.publishScope(ctx, shadowpb.ShadowEvent_DEVICE_REMOVED, dev.Device, "", "")
 	}
 
 	return connect.NewResponse(&pb.DeleteResponse{}), nil
@@ -718,10 +745,34 @@ func (c *DevicesController) Join(ctx context.Context, req *connect.Request[pb.Jo
 		return nil, status.Error(codes.Internal, "error creating Permission")
 	}
 
+	if col == "Accounts" {
+		c.publishScope(ctx, shadowpb.ShadowEvent_DEVICE_ADDED, dev.Device, "", key)
+	}
+
 	return connect.NewResponse(&access.Node{
 		Node: req.Msg.Join,
 		Access: &access.Access{
 			Level: lvl,
 		},
 	}), nil
+}
+
+func (c *DevicesController) publishScope(ctx context.Context, event shadowpb.ShadowEvent, dev *devpb.Device, namespace, account string) {
+	if c == nil || c.scope == nil || dev == nil || dev.GetUuid() == "" {
+		return
+	}
+	if namespace == "" {
+		namespace = dev.GetAccess().GetNamespace()
+	}
+	ev := &shadowpb.Shadow{
+		Device:    dev.GetUuid(),
+		Title:     dev.GetTitle(),
+		Namespace: namespace,
+		Tags:      append([]string(nil), dev.GetTags()...),
+		Event:     event,
+		Account:   account,
+	}
+	if _, err := c.scope.PublishDeviceScope(context.WithoutCancel(ctx), ev); err != nil {
+		c.log.Warn("device scope publish failed", zap.String("device", dev.GetUuid()), zap.Error(err))
+	}
 }
