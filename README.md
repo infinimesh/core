@@ -32,7 +32,7 @@ It redirects to HTTPS with a local self-signed certificate, so accept the browse
 
 Log in as `infinimesh` / `infinimesh`. Change the password right away.
 
-Images come from GHCR. Set `INFINIMESH_VERSION` in `.env` to pin a release.
+Images come from GHCR. Set `INFINIMESH_VERSION` in `.env` to pin a release. `v3.4.0-rc.1` pulls that exact tag. A release candidate does not move `latest`.
 
 `BASE_DOMAIN` in `.env` is the root host for all services. The default, `127.0.0.1.nip.io`, resolves to your own machine, so it works locally with no `/etc/hosts` edits. For real use, set `BASE_DOMAIN` to your own domain (see [docs/public-tls.md](docs/public-tls.md)).
 
@@ -135,7 +135,7 @@ mosquitto_pub -h api.${BASE_DOMAIN} -p 1883 \
 
 Current version: `v3.2.0`. See [CHANGELOG.md](CHANGELOG.md) and [Releases](https://github.com/infinimesh/core/releases).
 
-A tag `vX.Y.Z` or `vX.Y.Z-rN` on `main` publishes `ghcr.io/infinimesh/core/<service>` for `api`, `console`, `gateway`, `mqtt-bridge`, `pairing` and `shadow`. Each tag is also published as `:latest`. A revision tag also publishes the base version `:vX.Y.Z`. The GitHub release text is the matching `## [tag]` section in `CHANGELOG.md`. The same tag on [platform-operator](https://github.com/infinimesh/platform-operator) publishes `ghcr.io/infinimesh/platform-operator`.
+A tag `vX.Y.Z` or `vX.Y.Z-rN` publishes `ghcr.io/infinimesh/core/<service>` and `:latest`. A revision tag also publishes `:vX.Y.Z`. A tag `vX.Y.Z-rc.N` publishes only that tag, and the GitHub release is a pre-release whose notes start with "for testing, not for production". The release text is the matching `## [tag]` section in `CHANGELOG.md`. The same tags on [platform-operator](https://github.com/infinimesh/platform-operator) publish `ghcr.io/infinimesh/platform-operator`. The Helm chart stays on its stable `image.tag` unless you set an RC tag yourself. RC images older than 30 days are deleted.
 
 ## Repositories
 

@@ -11,6 +11,8 @@ latest" ]
 out=$("$tags" v3.1.0)
 [ "$out" = "v3.1.0
 latest" ]
+out=$("$tags" v3.4.0-rc.1)
+[ "$out" = "v3.4.0-rc.1" ]
 out=$("$tags" main)
 [ "$out" = "latest" ]
 
@@ -43,6 +45,40 @@ out=$("$notes" v3.1.0 "$tmp")
 out=$("$notes" v3.0.0 "$tmp")
 [ "$out" = "
 - old" ]
+
+cat > "$tmp" << 'EOF'
+## [v3.4.0-rc.1] - 2026-10-12
+
+### Added
+- http-fs
+EOF
+out=$("$notes" v3.4.0-rc.1 "$tmp")
+[ "$out" = "This release is for testing, not for production.
+
+### Added
+- http-fs" ]
+
+ids=$(printf '%s\n' '[
+  {"id":1,"created_at":"2020-01-01T00:00:00Z","metadata":{"container":{"tags":["v3.4.0-rc.1"]}}},
+  {"id":2,"created_at":"2026-10-01T00:00:00Z","metadata":{"container":{"tags":["v3.4.0-rc.2"]}}},
+  {"id":3,"created_at":"2020-01-01T00:00:00Z","metadata":{"container":{"tags":["v3.3.0","latest"]}}},
+  {"id":4,"created_at":"2020-01-01T00:00:00Z","metadata":{"container":{"tags":["v3.4.0-rc.1","latest"]}}},
+  {"id":5,"created_at":"2020-01-01T00:00:00Z","metadata":{"container":{"tags":[]}}}
+]' | sh "$root/scripts/prune-rc-images.sh" --select 2026-09-12T00:00:00Z)
+[ "$ids" = "1" ]
+
+grep -q 'v\[0-9\]+.\[0-9\]+.\[0-9\]+-rc.\[0-9\]+' "$root/.github/workflows/docker-build.yml" || {
+  echo "docker-build must accept release candidate tags" >&2
+  exit 1
+}
+grep -q 'v\[0-9\]+.\[0-9\]+.\[0-9\]+-rc.\[0-9\]+' "$root/.github/workflows/release.yml" || {
+  echo "release workflow must accept release candidate tags" >&2
+  exit 1
+}
+grep -q 'prerelease:' "$root/.github/workflows/release.yml" || {
+  echo "release candidates must be GitHub pre-releases" >&2
+  exit 1
+}
 if "$notes" v9.9.9 "$tmp" >/dev/null 2>&1; then
   echo "missing tag should fail" >&2
   exit 1

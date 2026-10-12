@@ -5,6 +5,7 @@ on:
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+"
       - "v[0-9]+.[0-9]+.[0-9]+-r[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+"
 
 permissions:
   contents: write
@@ -38,6 +39,7 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           body: ${{ steps.notes.outputs.body }}
+          prerelease: ${{ contains(github.ref_name, '-rc.') }}
           files: api.swagger.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
