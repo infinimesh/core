@@ -191,5 +191,22 @@ func (s *ShadowServiceServer) stamp(ctx context.Context, sh *pb.Shadow) {
 	if sh.EventId == 0 && s.ids != nil {
 		sh.EventId = s.ids.Next(ctx)
 	}
+	if sh.Sequence == 0 {
+		sh.Sequence = sh.EventId
+	}
+	s.rememberEvent(sh)
 	s.fill(sh, nil)
+}
+
+func requestDevices(req *pb.GetRequest) []string {
+	if req == nil {
+		return nil
+	}
+	if req.GetDevice() != "" {
+		return []string{req.GetDevice()}
+	}
+	if len(req.GetDevices()) > 0 {
+		return append([]string(nil), req.GetDevices()...)
+	}
+	return append([]string(nil), req.GetPool()...)
 }

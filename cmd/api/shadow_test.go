@@ -45,7 +45,7 @@ func (f *fakeScopeNamespaces) Get(_ context.Context, req *connect.Request[nspb.N
 	return connect.NewResponse(&nspb.Namespace{Uuid: req.Msg.GetUuid()}), nil
 }
 
-func (f *fakeScopeNamespaces) List(context.Context, *connect.Request[pb.EmptyMessage]) (*connect.Response[nspb.Namespaces], error) {
+func (f *fakeScopeNamespaces) List(context.Context, *connect.Request[pb.ListRequest]) (*connect.Response[nspb.Namespaces], error) {
 	return connect.NewResponse(&nspb.Namespaces{Namespaces: f.items}), nil
 }
 

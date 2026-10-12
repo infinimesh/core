@@ -17,11 +17,10 @@ package graph
 
 import (
 	"context"
+	"github.com/infinimesh/core/pkg/apierr"
 
 	"connectrpc.com/connect"
 	pb "github.com/infinimesh/proto/node"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	cred "github.com/infinimesh/core/pkg/credentials"
 )
@@ -32,7 +31,7 @@ type InternalService struct {
 
 func (*InternalService) GetLDAPProviders(ctx context.Context, _ *connect.Request[pb.EmptyMessage]) (*connect.Response[pb.LDAPProviders], error) {
 	if !cred.LDAP_CONFIGURED {
-		return nil, status.Error(codes.OK, "LDAP Auth is not configured")
+		return nil, apierr.Code(connect.CodeUnknown, "LDAP Auth is not configured")
 	}
 
 	res := make(map[string]string)

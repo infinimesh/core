@@ -53,7 +53,7 @@ func TestSessionsController_Get(t *testing.T) {
 	}
 	ctrl := newSessionsControllerForTest(stub)
 
-	resp, err := ctrl.Get(ctxWithAccount("acc", "sid"), connect.NewRequest(&node.EmptyMessage{}))
+	resp, err := ctrl.Get(ctxWithAccount("acc", "sid"), connect.NewRequest(&node.ListRequest{}))
 	require.NoError(t, err)
 	assert.Len(t, resp.Msg.Sessions, 1)
 	assert.Equal(t, "sid", resp.Msg.Sessions[0].Id)

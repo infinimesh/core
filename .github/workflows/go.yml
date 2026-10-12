@@ -26,6 +26,9 @@ jobs:
       - name: Verify modules
         run: go mod verify
 
+      - name: Swagger matches proto
+        run: sh scripts/swagger_check.sh
+
       - name: release scripts
         run: sh scripts/release_test.sh
 

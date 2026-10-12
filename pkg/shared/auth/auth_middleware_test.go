@@ -203,10 +203,10 @@ func TestStreamTokenAuth(t *testing.T) {
 	assert.Equal(t, true, ctx.Value(infinimesh.InfinimeshStreamCtxKey))
 
 	_, _, err = interceptor.ConnectStandardAuthMiddleware(context.Background(), []byte("k"), "tok")
-	assert.EqualError(t, err, "rpc error: code = PermissionDenied desc = streaming token is read-only")
+	assert.EqualError(t, err, "permission_denied: streaming token is read-only")
 
 	_, _, err = interceptor.ConnectDeviceAuthMiddleware(context.Background(), []byte("k"), "tok")
-	assert.EqualError(t, err, "rpc error: code = PermissionDenied desc = streaming token is read-only")
+	assert.EqualError(t, err, "permission_denied: streaming token is read-only")
 
 	header := http.Header{"Authorization": []string{"Bearer tok"}}
 	for _, procedure := range []string{

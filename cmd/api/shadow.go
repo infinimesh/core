@@ -29,6 +29,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc/status"
 
+	"github.com/infinimesh/core/pkg/apierr"
 	inf "github.com/infinimesh/core/pkg/shared"
 	pb "github.com/infinimesh/proto/node"
 	devpb "github.com/infinimesh/proto/node/devices"
@@ -42,7 +43,7 @@ type scopeDevices interface {
 }
 
 type scopeNamespaces interface {
-	List(context.Context, *connect.Request[pb.EmptyMessage]) (*connect.Response[nspb.Namespaces], error)
+	List(context.Context, *connect.Request[pb.ListRequest]) (*connect.Response[nspb.Namespaces], error)
 	Get(context.Context, *connect.Request[nspb.Namespace]) (*connect.Response[nspb.Namespace], error)
 }
 
@@ -80,7 +81,7 @@ func (s *ShadowAPI) Get(ctx context.Context, _ *connect.Request[shadow.GetReques
 		pool = append(pool, device)
 	}
 
-	res, err := s.client.Get(ctx, &shadow.GetRequest{Pool: pool})
+	res, err := s.client.Get(ctx, &shadow.GetRequest{Devices: pool, Pool: pool})
 	if err != nil {
 		return nil, err
 	}
@@ -99,9 +100,8 @@ func (s *ShadowAPI) Patch(ctx context.Context, request *connect.Request[shadow.S
 	}
 	log.Debug("Scope", zap.Any("devices", devices_scope))
 
-	_, found := devices_scope[shadow.Device]
-	if !found {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("requested device is outside of token scope"))
+	if err = authorizeShadowWrite(ctx, devices_scope, shadow.GetDevice(), shadow.GetReported() != nil, shadow.GetDesired() != nil); err != nil {
+		return nil, err
 	}
 
 	res, err := s.client.Patch(ctx, shadow)
@@ -122,9 +122,10 @@ func (s *ShadowAPI) Remove(ctx context.Context, request *connect.Request[shadow.
 	}
 	log.Debug("Scope", zap.Any("devices", devices_scope))
 
-	_, found := devices_scope[req.Device]
-	if !found {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("requested device is outside of token scope"))
+	reported := req.GetStateKey() != shadow.StateKey_DESIRED
+	desired := req.GetStateKey() == shadow.StateKey_DESIRED
+	if err = authorizeShadowWrite(ctx, devices_scope, req.GetDevice(), reported, desired); err != nil {
+		return nil, err
 	}
 
 	res, err := s.client.Remove(ctx, req)
@@ -170,7 +171,7 @@ func (s *ShadowAPI) prepareStream(ctx context.Context, req *shadow.StreamShadowR
 		}
 		namespaces = []string{ns}
 	} else {
-		listed, err := s.namespaces.List(ctx, connect.NewRequest(&pb.EmptyMessage{}))
+		listed, err := s.namespaces.List(ctx, connect.NewRequest(&pb.ListRequest{}))
 		if err != nil {
 			return asConnect(err)
 		}
@@ -216,6 +217,21 @@ func (s *ShadowAPI) prepareStream(ctx context.Context, req *shadow.StreamShadowR
 	req.Namespaces = namespaces
 	req.Devices = ids
 	req.Catalog = catalog
+	return nil
+}
+
+func authorizeShadowWrite(ctx context.Context, scope map[string]access.Level, device string, reported, desired bool) error {
+	lvl, ok := scope[device]
+	if !ok {
+		return apierr.New(connect.CodeUnauthenticated, apierr.ReasonDeviceOutOfScope, "requested device is outside of token scope")
+	}
+	post, _ := ctx.Value(inf.InfinimeshPostCtxKey).(bool)
+	if reported && !(post || lvl >= access.Level_MGMT) {
+		return apierr.New(connect.CodePermissionDenied, apierr.ReasonReportedWrite, "reported state requires write access")
+	}
+	if desired && lvl < access.Level_MGMT {
+		return apierr.New(connect.CodePermissionDenied, apierr.ReasonDesiredManage, "desired state requires manage access")
+	}
 	return nil
 }
 

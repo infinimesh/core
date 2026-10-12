@@ -155,7 +155,7 @@ func main() {
 		handlers.AllowedOrigins(corsAllowed),
 		handlers.AllowedHeaders([]string{"Content-Type", "Authorization"}),
 		handlers.AllowedMethods([]string{"GET", "POST", "DELETE", "PUT", "PATCH", "OPTIONS", "HEAD"}),
-	)(gwmux)
+	)(wrapGateway(gwmux, apiserver, secure))
 
 	log.Info("Serving gRPC-Gateway on http://0.0.0.0:8000")
 	log.Fatal("Failed to Listen and Serve Gateway-Server", zap.Error(http.ListenAndServe(":8000", wsproxy.WebsocketProxy(handler))))

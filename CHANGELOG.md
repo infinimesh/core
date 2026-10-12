@@ -8,8 +8,19 @@ All notable changes to this project will be documented in this file.
 - `GET /devices/states/stream` accepts an account token. `namespace` limits the stream to one readable namespace. Omitting it streams every device that account can read. The stream emits `DEVICE_ADDED` and `DEVICE_REMOVED`. Each message has `eventId`. State messages include title, namespace, and tags when the registry has them. A repeated `eventId` is the same event.
 - `only_delta` defaults to false: a state message is the stored shadow with the published change merged in. `only_delta` true sends the published change. `include` limits a state message to `REPORTED`, `DESIRED`, or `CONNECTION`. An empty `include` sends all three. Membership events are sent whole.
 - `POST /devices/token` with `stream` true and an empty device map mints a read-only token for the caller account. `namespace` limits it to one readable namespace. The token opens the shadow streams and no other API.
+- `POST /v1/ingest` accepts reported JSON from a device token that names exactly one device and may post. The body is at most 16 KB. The same device is limited to 60 requests a minute. `GET /v1/ingest/desired` long-polls desired JSON and answers `304` when the `ETag` matches.
+- `POST /v1/devices/token/revoke` denies a device token by its `jti` until that token would have expired.
+- Create requests honour `Idempotency-Key` for 24 hours in the API process.
 
 ### Changed
+- `api.swagger.json` is the file from the pinned `github.com/infinimesh/proto` module. CI rejects a hand-edited copy.
+- REST paths are also served under `/v1`. The previous paths remain. Create is `POST` on the `/v1` path.
+- A device token from `Get` is read-only and expires in 24 hours. A token from `GetByFingerprint` may post reported state and expires in 24 hours. `MakeDevicesToken` uses `post` for reported writes and manage level for desired writes. A requested level of none is not copied from the caller. When `expires_at` and `exp` are both unset, a device token expires in 24 hours. A stream token still omits expiry when both are unset.
+- Reported shadow writes require `post` or manage level. Desired writes require manage level.
+- List methods return one page. `page_size` defaults to 100 and is at most 500. `page_token` is an offset.
+- A shadow stream replays events after `resume_after`. Each event has `sequence`. Reported and desired state versions increment when that side is patched.
+- API errors are Connect errors with an `ErrorInfo` reason on domain `infinimesh.org`.
+- The gateway reads at most 1 MB from a request body and allows 120 requests a minute per client address. It proxies `/v1/ingest` to the API.
 - Plugin queues `plugin.<name>` are durable. Each message carries the device title, namespace, and tags. A queue of that name left from before this change has to be deleted before the shadow service declares it again.
 - The MQTT codec lives in `pkg/mqtt/packet`. The bridge no longer imports `github.com/slntopp/mqtt-go`.
 - The MQTT bridge allows a device to publish `devices/<id>/state/reported` and subscribe to `devices/<id>/state/desired`. QoS 1 and 2 are acknowledged. Desired state is delivered at the subscribed QoS and retried until the client acknowledges it. MQTT 3.1.1 keeps that inflight state for one hour when clean session is 0. MQTT 5 uses the session expiry interval. Both live in the bridge process.

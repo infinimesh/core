@@ -21,8 +21,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"go.uber.org/zap"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -164,7 +162,7 @@ func TestCreate_FailsOn_NoAccessToNamespace(t *testing.T) {
 	res, err := f.ctrl.Create(f.data.ctx, connect.NewRequest(&f.data.create_req))
 	assert.Nil(t, res)
 	assert.Error(t, err)
-	assert.Equal(t, status.Errorf(codes.PermissionDenied, "No Access to Namespace %s", f.data.ns_uuid), err)
+	assert.EqualError(t, err, "permission_denied: No Access to Namespace "+f.data.ns_uuid)
 }
 
 func TestCreate_FailsOn_GenerateFingerprint(t *testing.T) {
@@ -256,7 +254,7 @@ func TestCreateHf_FailsOn_NoAccessToNamespace(t *testing.T) {
 	res, err := f.ctrl.Create(f.data.ctx, connect.NewRequest(&f.data.create_hf_req))
 	assert.Nil(t, res)
 	assert.Error(t, err)
-	assert.Equal(t, status.Errorf(codes.PermissionDenied, "No Access to Namespace %s", f.data.ns_uuid), err)
+	assert.EqualError(t, err, "permission_denied: No Access to Namespace "+f.data.ns_uuid)
 }
 
 func TestCreateHf_FailsOn_CreateDocument(t *testing.T) {
@@ -489,7 +487,7 @@ func TestDelete_FailsOn_AccessLevelAndGet(t *testing.T) {
 
 	assert.Nil(t, res)
 	assert.Error(t, err)
-	assert.Equal(t, "rpc error: code = NotFound desc = Account not found or not enough Access Rights", err.Error())
+	assert.Equal(t, "not_found: Account not found or not enough Access Rights", err.Error())
 }
 
 func TestDelete_FailsOn_AccessLevel_NotEnoughAccess(t *testing.T) {
@@ -510,7 +508,7 @@ func TestDelete_FailsOn_AccessLevel_NotEnoughAccess(t *testing.T) {
 
 	assert.Nil(t, res)
 	assert.Error(t, err)
-	assert.Equal(t, "rpc error: code = PermissionDenied desc = Not enough Access Rights", err.Error())
+	assert.Equal(t, "permission_denied: Not enough Access Rights", err.Error())
 }
 
 func TestDelete_FailsOn_DeleteDocument(t *testing.T) {
@@ -531,7 +529,7 @@ func TestDelete_FailsOn_DeleteDocument(t *testing.T) {
 
 	assert.Nil(t, res)
 	assert.Error(t, err)
-	assert.Equal(t, "rpc error: code = Internal desc = Error while deleting Device", err.Error())
+	assert.Equal(t, "internal: Error while deleting Device", err.Error())
 }
 
 func TestDelete_Success(t *testing.T) {
