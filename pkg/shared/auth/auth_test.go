@@ -3,7 +3,6 @@ package auth_test
 import (
 	"context"
 	"errors"
-	"runtime"
 	"testing"
 	"time"
 
@@ -247,13 +246,20 @@ func TestConnectStandardAuthMiddleware_Success(t *testing.T) {
 	)
 
 	f.mocks.sessions.EXPECT().Check("test", "test").Return(nil)
-	f.mocks.sessions.EXPECT().LogActivity("test", "test", mock.Anything).Return(nil).WaitUntil(time.After(1 * time.Second))
+	logged := make(chan struct{})
+	f.mocks.sessions.EXPECT().LogActivity("test", "test", int64(777)).Run(func(string, string, int64) {
+		close(logged)
+	}).Return(nil)
 
 	ctx, _, res, err := CallUnary(f.interceptor, context.Background(), connect.NewRequest(
 		&node.EmptyMessage{},
 	))
 
-	runtime.Gosched() // To ensure that goroutine is executed
+	select {
+	case <-logged:
+	case <-time.After(2 * time.Second):
+		t.Fatal("LogActivity was not called")
+	}
 
 	assert.Nil(t, res)
 	assert.NoError(t, err)
