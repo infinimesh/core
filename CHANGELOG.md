@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [v3.4.0-rc.2] - 2026-10-12
+
+### Fixed
+- Permission checks run on ArangoDB 3.12. An access edge with `expires_at` of 0 does not expire. An edge whose `expires_at` is in the past is ignored.
+- Compose runs Traefik 2.11.58. The dashboard router is `traefik`. The gRPC router is `api`.
+- LDAP stays off unless `LDAP_CONF` is set.
+- A rule condition that does not compile names the fields `reported`, `desired`, `connected`, `device`, `title`, `tags`, and `ns`.
+- Pairing HTTP is `POST /v1/pairing` and `GET /v1/pairing/connection`.
+
 ### Added
 - A tag `vX.Y.Z-rc.N` publishes each core image under that tag only. It does not move `:latest` or `:vX.Y.Z`. The GitHub release is a pre-release. Notes say it is for testing, not for production. Images from those tags are deleted after 30 days.
 - `http-fs` serves namespace files for the console media page. `GET /{namespace}` lists files, `POST /{namespace}/{name}` uploads a multipart field `file`, and `DELETE /{namespace}/{name}` removes one. `GET /{namespace}/{name}` is the public file link. List, upload, and delete use the account bearer token and the permission graph. Files stay on a local volume unless `HTTP_FS_S3_ENDPOINT` is set. `HTTP_FS_MAX_BYTES` and `HTTP_FS_TYPES` limit size and type. The image is `ghcr.io/infinimesh/core/http-fs`.

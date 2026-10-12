@@ -231,10 +231,13 @@ func (r *infinimeshCommonActionsRepo) Move(ctx context.Context, c InfinimeshCont
 	return nil
 }
 
+// ArangoDB 3.12 rejects `NONE (e. ...)` on path.edges. Zero expires_at does not expire.
+const accessEdgeLive = `FILTER LENGTH(path.edges[* FILTER CURRENT.expires_at > 0 AND CURRENT.expires_at <= DATE_NOW() / 1000]) == 0`
+
 const getWithAccessLevelRoleAndNS = `
 FOR path IN OUTBOUND K_SHORTEST_PATHS @account TO @node
 GRAPH @permissions SORT path.edges[0].level DESC
-    FILTER path.edges NONE (e.expires_at > 0 AND e.expires_at <= DATE_NOW() / 1000)
+    ` + accessEdgeLive + `
     LET perm = path.edges[0]
     LET last = path.edges[-1]
 	RETURN MERGE(
@@ -283,7 +286,7 @@ GRAPH @permissions_graph
 OPTIONS {order: "bfs", uniqueVertices: "global"}
 FILTER IS_SAME_COLLECTION(@@kind, node)
 FILTER edge.level > 0
-FILTER path.edges NONE (e.expires_at > 0 AND e.expires_at <= DATE_NOW() / 1000)
+` + accessEdgeLive + `
 %s
     LET perm = path.edges[0]
     LET last = path.edges[-1]
@@ -439,13 +442,11 @@ func handleDeleteNodeInRecursion(ctx context.Context, log *zap.Logger, db driver
 	return err
 }
 
-const accessEdgeLive = `FILTER path.edges NONE (e.expires_at > 0 AND e.expires_at <= DATE_NOW() / 1000)`
-
 const getWithAccessLevelQuery = `
 FOR path IN OUTBOUND
 K_SHORTEST_PATHS @requestor TO @node
 GRAPH @permissions
-    FILTER path.edges NONE (e.expires_at > 0 AND e.expires_at <= DATE_NOW() / 1000)
+    ` + accessEdgeLive + `
     RETURN path.edges[-1].role == 2 ? path.edges[-1].level : path.edges[0].level
 `
 

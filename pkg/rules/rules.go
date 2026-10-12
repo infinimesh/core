@@ -78,13 +78,15 @@ func newEnv() (*cel.Env, error) {
 	)
 }
 
+const conditionFields = "reported, desired, connected, device, title, tags, ns"
+
 func compile(env *cel.Env, expr string) (cel.Program, error) {
 	ast, iss := env.Compile(expr)
 	if iss.Err() != nil {
-		return nil, iss.Err()
+		return nil, fmt.Errorf("%w; valid fields: %s", iss.Err(), conditionFields)
 	}
 	if ast.OutputType() != cel.BoolType && ast.OutputType() != cel.DynType {
-		return nil, fmt.Errorf("%q must be true or false, not %s", expr, ast.OutputType())
+		return nil, fmt.Errorf("%q must be true or false, not %s; valid fields: %s", expr, ast.OutputType(), conditionFields)
 	}
 	return env.Program(ast)
 }
