@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/infinimesh/core/pkg/apierr"
 	inf "github.com/infinimesh/core/pkg/shared"
 	pb "github.com/infinimesh/proto/node"
 	"github.com/infinimesh/proto/node/access"
@@ -150,3 +151,29 @@ func TestPrepareStreamRegistryUnavailable(t *testing.T) {
 }
 
 func strPtr(s string) *string { return &s }
+
+func TestAuthorizeShadowWrite(t *testing.T) {
+	scope := map[string]access.Level{"dev": access.Level_READ}
+	ctx := context.WithValue(context.Background(), inf.InfinimeshPostCtxKey, true)
+	assert.NoError(t, authorizeShadowWrite(ctx, scope, "dev", true, false))
+	err := authorizeShadowWrite(ctx, scope, "dev", false, true)
+	assert.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	assert.EqualError(t, err, "permission_denied: desired state requires manage access")
+
+	err = authorizeShadowWrite(context.Background(), scope, "dev", true, false)
+	assert.EqualError(t, err, "permission_denied: reported state requires write access")
+
+	mgmt := map[string]access.Level{"dev": access.Level_MGMT}
+	assert.NoError(t, authorizeShadowWrite(context.Background(), mgmt, "dev", true, true))
+
+	err = authorizeShadowWrite(ctx, scope, "other", true, false)
+	assert.EqualError(t, err, "unauthenticated: requested device is outside of token scope")
+}
+
+func TestAsConnectKeepsErrorInfo(t *testing.T) {
+	err := apierr.New(connect.CodePermissionDenied, apierr.ReasonReportedWrite, "reported state requires write access")
+	got := asConnect(err)
+	assert.Equal(t, err, got)
+	got = asConnect(status.Error(codes.NotFound, "missing"))
+	assert.EqualError(t, got, "not_found: missing")
+}

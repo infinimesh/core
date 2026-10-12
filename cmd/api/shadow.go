@@ -239,8 +239,12 @@ func asConnect(err error) error {
 	if err == nil {
 		return nil
 	}
+	var ce *connect.Error
+	if errors.As(err, &ce) {
+		return err
+	}
 	if st, ok := status.FromError(err); ok {
-		return connect.NewError(connect.Code(st.Code()), errors.New(st.Message()))
+		return apierr.Code(connect.Code(st.Code()), st.Message())
 	}
 	return err
 }
