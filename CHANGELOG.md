@@ -6,8 +6,11 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - `GET /devices/states/stream` accepts an account token. `namespace` limits the stream to one readable namespace. Omitting it streams every device that account can read. The stream emits `DEVICE_ADDED` and `DEVICE_REMOVED`. Each message has `eventId`. State messages include title, namespace, and tags when the registry has them. A repeated `eventId` is the same event.
+- `only_delta` defaults to false: a state message is the stored shadow with the published change merged in. `only_delta` true sends the published change. `include` limits a state message to `REPORTED`, `DESIRED`, or `CONNECTION`. An empty `include` sends all three. Membership events are sent whole.
+- `POST /devices/token` with `stream` true and an empty device map mints a read-only token for the caller account. `namespace` limits it to one readable namespace. The token opens the shadow streams and no other API.
 
 ### Changed
+- Plugin queues `plugin.<name>` are durable. Each message carries the device title, namespace, and tags. A queue of that name left from before this change has to be deleted before the shadow service declares it again.
 - The MQTT codec lives in `pkg/mqtt/packet`. The bridge no longer imports `github.com/slntopp/mqtt-go`.
 - The MQTT bridge allows a device to publish `devices/<id>/state/reported` and subscribe to `devices/<id>/state/desired`. QoS 1 and 2 are acknowledged. Desired state is delivered at the subscribed QoS and retried until the client acknowledges it. MQTT 3.1.1 keeps that inflight state for one hour when clean session is 0. MQTT 5 uses the session expiry interval. Both live in the bridge process.
 - MQTT 5 `CONNACK` advertises receive maximum 32, maximum packet size 1 MiB, and topic alias maximum 16. Inbound topic aliases use that server maximum. Desired publishes send content type, response topic, correlation data, and user properties, including on retry. A message expiry is enforced while the message is queued, and an expiry of zero is not stored. The bridge holds at most 32 inbound QoS 2 packet ids for two minutes and answers a further MQTT 5 publish with `PUBREC` `0x93`. A disabled device is disconnected within 30 seconds. A will whose topic is the device's reported topic is stored when the connection drops.
@@ -17,6 +20,9 @@ All notable changes to this project will be documented in this file.
 - Device and account tokens use `github.com/golang-jwt/jwt/v4`. The `v3` module is no longer required.
 - Request logs strip CR and LF from the method, path, and OAuth `state`.
 - Third-party Actions are pinned to a commit. `docker-build` sets `contents: read`.
+
+### Fixed
+- Connection state published on `mqtt.incoming` reaches a shadow stream, including the sync snapshot.
 
 ## [v3.2.0] - 2026-10-11
 

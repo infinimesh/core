@@ -184,6 +184,50 @@ func TestShadowStreamAuth(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestStreamTokenAuth(t *testing.T) {
+	claims := jwt.MapClaims{
+		infinimesh.INFINIMESH_ACCOUNT_CLAIM:   "acc",
+		infinimesh.INFINIMESH_NAMESPACE_CLAIM: "plant",
+		infinimesh.INFINIMESH_NOSESSION_CLAIM: true,
+		infinimesh.INFINIMESH_STREAM_CLAIM:    true,
+	}
+	counter := &countJWT{claims: claims}
+	interceptor := &interceptor{log: zap.NewNop(), jwt: counter, signing_key: []byte("k")}
+
+	ctx, activity, err := interceptor.ConnectShadowStreamMiddleware(context.Background(), []byte("k"), "tok")
+	assert.NoError(t, err)
+	assert.False(t, activity)
+	assert.Equal(t, 2, counter.n)
+	assert.Equal(t, "acc", ctx.Value(infinimesh.InfinimeshAccountCtxKey))
+	assert.Equal(t, "plant", ctx.Value(infinimesh.InfinimeshNamespaceCtxKey))
+	assert.Equal(t, true, ctx.Value(infinimesh.InfinimeshStreamCtxKey))
+
+	_, _, err = interceptor.ConnectStandardAuthMiddleware(context.Background(), []byte("k"), "tok")
+	assert.EqualError(t, err, "rpc error: code = PermissionDenied desc = streaming token is read-only")
+
+	_, _, err = interceptor.ConnectDeviceAuthMiddleware(context.Background(), []byte("k"), "tok")
+	assert.EqualError(t, err, "rpc error: code = PermissionDenied desc = streaming token is read-only")
+
+	header := http.Header{"Authorization": []string{"Bearer tok"}}
+	for _, procedure := range []string{
+		nodeconnect.ShadowServiceStreamShadowProcedure,
+		nodeconnect.ShadowServiceStreamShadowSyncProcedure,
+	} {
+		counter.n = 0
+		err = interceptor.WrapStreamingHandler(func(ctx context.Context, _ connect.StreamingHandlerConn) error {
+			if ctx.Value(infinimesh.InfinimeshAccountCtxKey) != "acc" {
+				return assert.AnError
+			}
+			if ctx.Value(infinimesh.InfinimeshNamespaceCtxKey) != "plant" {
+				return assert.AnError
+			}
+			return nil
+		})(context.Background(), fakeStreamConn{procedure: procedure, header: header})
+		assert.NoError(t, err)
+		assert.Equal(t, 2, counter.n)
+	}
+}
+
 func TestConnectStandardAuthMiddleware_SessionCheckFails(t *testing.T) {
 	claims := jwt.MapClaims{
 		infinimesh.INFINIMESH_ACCOUNT_CLAIM: "acc",

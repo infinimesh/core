@@ -54,21 +54,37 @@ func Setup(Log *zap.Logger, conn *amqp.Connection, ps pubsub.PubSub, fetcher Fet
 	go func(messages chan interface{}) {
 		for msg := range messages {
 			logger.Debug("Received message to Broadcast", zap.Any("msg", msg))
-			shadow, ok := msg.(*pb.Shadow)
-			if !ok {
-				logger.Warn("Message corrupted, couldn't convert to Shadow")
-			}
-			dev := fetcher(shadow.GetDevice())
-			if dev == nil {
-				logger.Warn("Couldn't get Device from Shadow")
-				continue
-			}
-
-			Publish(dev, shadow)
+			handlePluginMessage(msg, fetcher)
 		}
 	}(ps.Sub("mqtt.outgoing", "mqtt.incoming"))
 
 	return nil
+}
+
+var publishPlugin = Publish
+
+func handlePluginMessage(msg any, fetcher FetchDeviceFunc) {
+	shadow, ok := msg.(*pb.Shadow)
+	if !ok || shadow == nil {
+		logger.Warn("Message corrupted, couldn't convert to Shadow")
+		return
+	}
+	dev := fetcher(shadow.GetDevice())
+	if dev == nil {
+		logger.Warn("Couldn't get Device from Shadow")
+		return
+	}
+	out := proto.Clone(shadow).(*pb.Shadow)
+	if title := dev.GetTitle(); title != "" {
+		out.Title = title
+	}
+	if ns := dev.GetAccess().GetNamespace(); ns != "" {
+		out.Namespace = ns
+	}
+	if tags := dev.GetTags(); len(tags) > 0 {
+		out.Tags = append([]string(nil), tags...)
+	}
+	publishPlugin(dev, out)
 }
 
 func Publish(dev *devpb.Device, state *pb.Shadow) {
@@ -85,7 +101,7 @@ func Publish(dev *devpb.Device, state *pb.Shadow) {
 
 func SetupQueue(log *zap.Logger, channel *amqp.Channel, plugin string) (amqp.Queue, error) {
 	queue, err := channel.QueueDeclare(
-		"plugin."+plugin, false, false, false, false, nil,
+		"plugin."+plugin, true, false, false, false, nil,
 	)
 	if err != nil {
 		log.Warn("Error declaring queue", zap.Error(err))

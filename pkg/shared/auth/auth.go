@@ -183,6 +183,11 @@ func (i *interceptor) ConnectStandardAuthMiddleware(_ctx context.Context, signin
 	}
 	log.Debug("Validated token", zap.Any("claims", token))
 
+	if stream, _ := token[infinimesh.INFINIMESH_STREAM_CLAIM].(bool); stream {
+		err = status.Error(codes.PermissionDenied, "streaming token is read-only")
+		return
+	}
+
 	account := token[infinimesh.INFINIMESH_ACCOUNT_CLAIM]
 	if account == nil {
 		err = status.Error(codes.Unauthenticated, "Invalid token format: no requestor ID")
@@ -250,7 +255,29 @@ func (i *interceptor) ConnectShadowStreamMiddleware(ctx context.Context, signing
 	if token[infinimesh.INFINIMESH_DEVICES_CLAIM] != nil {
 		return i.ConnectDeviceAuthMiddleware(ctx, signingKey, tokenString)
 	}
+	if stream, _ := token[infinimesh.INFINIMESH_STREAM_CLAIM].(bool); stream {
+		return i.ConnectStreamTokenMiddleware(ctx, signingKey, tokenString)
+	}
 	return i.ConnectStandardAuthMiddleware(ctx, signingKey, tokenString)
+}
+
+func (i *interceptor) ConnectStreamTokenMiddleware(_ctx context.Context, signingKey []byte, tokenString string) (ctx context.Context, log_activity bool, err error) {
+	token, err := connectValidateToken(i.jwt, signingKey, tokenString)
+	if err != nil {
+		return _ctx, false, status.Error(codes.Unauthenticated, "Invalid token format")
+	}
+	account, ok := token[infinimesh.INFINIMESH_ACCOUNT_CLAIM].(string)
+	if !ok || account == "" {
+		return _ctx, false, status.Error(codes.Unauthenticated, "Invalid token format: no requestor ID")
+	}
+	ctx = context.WithValue(_ctx, infinimesh.InfinimeshAccountCtxKey, account)
+	ctx = context.WithValue(ctx, infinimesh.InfinimeshStreamCtxKey, true)
+	if ns, ok := token[infinimesh.INFINIMESH_NAMESPACE_CLAIM].(string); ok && ns != "" {
+		ctx = context.WithValue(ctx, infinimesh.InfinimeshNamespaceCtxKey, ns)
+	}
+	ctx = metadata.AppendToOutgoingContext(ctx, infinimesh.INFINIMESH_ACCOUNT_CLAIM, account)
+	ctx = metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer "+tokenString)
+	return ctx, false, nil
 }
 
 func (i *interceptor) ConnectDeviceAuthMiddleware(_ctx context.Context, signingKey []byte, tokenString string) (ctx context.Context, log_activity bool, err error) {
@@ -261,6 +288,11 @@ func (i *interceptor) ConnectDeviceAuthMiddleware(_ctx context.Context, signingK
 	}
 	log := i.log.Named("DeviceAuthMiddleware")
 	log.Debug("Validated token", zap.Any("claims", token))
+
+	if stream, _ := token[infinimesh.INFINIMESH_STREAM_CLAIM].(bool); stream {
+		err = status.Error(codes.PermissionDenied, "streaming token is read-only")
+		return
+	}
 
 	devices := token[infinimesh.INFINIMESH_DEVICES_CLAIM]
 	if devices == nil {

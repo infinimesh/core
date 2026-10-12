@@ -72,6 +72,7 @@ func TestStreamShadow_NamespaceFeed(t *testing.T) {
 			Namespace:  "plant",
 			Namespaces: []string{"plant"},
 			Account:    "acc",
+			OnlyDelta:  true,
 			Catalog: []*pb.DeviceMeta{{
 				Device: "dev-a", Title: "Pump", Namespace: "plant", Tags: []string{"water"},
 			}},
@@ -231,6 +232,7 @@ func TestStreamShadow_AccountDirectShare(t *testing.T) {
 		_ = svc.StreamShadow(&pb.StreamShadowRequest{
 			Account:    "acc",
 			Namespaces: []string{"plant"},
+			OnlyDelta:  true,
 		}, st)
 		close(done)
 	}()
@@ -316,7 +318,7 @@ func TestStreamShadow_EmptyNamespaceStaysOpen(t *testing.T) {
 	}
 	done := make(chan struct{})
 	go func() {
-		_ = svc.StreamShadow(&pb.StreamShadowRequest{Namespace: "plant"}, st)
+		_ = svc.StreamShadow(&pb.StreamShadowRequest{Namespace: "plant", OnlyDelta: true}, st)
 		close(done)
 	}()
 

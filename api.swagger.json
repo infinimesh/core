@@ -615,9 +615,22 @@
           },
           {
             "name": "onlyDelta",
+            "description": "When true, each state message is the published change. When false, the stored shadow is sent with that change merged in.",
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "include",
+            "description": "State sections to send: REPORTED, DESIRED, CONNECTION. Empty sends all three. Membership events are unchanged.",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["REPORTED", "DESIRED", "CONNECTION"]
+            },
+            "collectionFormat": "multi"
           },
           {
             "name": "namespace",
@@ -1746,6 +1759,14 @@
         },
         "post": {
           "type": "boolean"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Namespace for a read-only streaming token. Empty covers every namespace the account can read."
+        },
+        "stream": {
+          "type": "boolean",
+          "description": "Mint a read-only token for shadow streams. It cannot call other APIs."
         }
       }
     },

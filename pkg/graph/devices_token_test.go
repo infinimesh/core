@@ -101,6 +101,62 @@ func TestMakeDevicesToken_Success(t *testing.T) {
 	assert.True(t, parsed.Valid)
 }
 
+func TestMakeDevicesToken_Stream(t *testing.T) {
+	ctrl := &DevicesController{
+		InfinimeshBaseController: InfinimeshBaseController{log: zap.NewExample()},
+		ica_repo:                 fakeICA{ok: true, level: access.Level_READ},
+		SIGNING_KEY:              []byte("secret"),
+	}
+	ctx := context.WithValue(context.Background(), inf.InfinimeshAccountCtxKey, schema.ROOT_ACCOUNT_KEY)
+
+	resp, err := ctrl.MakeDevicesToken(ctx, connect.NewRequest(&pb.DevicesTokenRequest{
+		Stream:    true,
+		Namespace: "plant",
+		Exp:       time.Now().Add(time.Hour).Unix(),
+	}))
+	assert.NoError(t, err)
+	parsed, err := jwt.Parse(resp.Msg.GetToken(), func(tk *jwt.Token) (interface{}, error) {
+		return ctrl.SIGNING_KEY, nil
+	})
+	assert.NoError(t, err)
+	claims := parsed.Claims.(jwt.MapClaims)
+	assert.Equal(t, schema.ROOT_ACCOUNT_KEY, claims[inf.INFINIMESH_ACCOUNT_CLAIM])
+	assert.Equal(t, "plant", claims[inf.INFINIMESH_NAMESPACE_CLAIM])
+	assert.Equal(t, true, claims[inf.INFINIMESH_STREAM_CLAIM])
+	assert.Equal(t, true, claims[inf.INFINIMESH_NOSESSION_CLAIM])
+	assert.Nil(t, claims[inf.INFINIMESH_DEVICES_CLAIM])
+	assert.Nil(t, claims[inf.INFINIMESH_ROOT_CLAIM])
+	_, hasExp := claims["exp"]
+	assert.True(t, hasExp)
+
+	resp, err = ctrl.MakeDevicesToken(ctx, connect.NewRequest(&pb.DevicesTokenRequest{Stream: true}))
+	assert.NoError(t, err)
+	parsed, err = jwt.Parse(resp.Msg.GetToken(), func(tk *jwt.Token) (interface{}, error) {
+		return ctrl.SIGNING_KEY, nil
+	})
+	assert.NoError(t, err)
+	claims = parsed.Claims.(jwt.MapClaims)
+	assert.Nil(t, claims[inf.INFINIMESH_NAMESPACE_CLAIM])
+	_, hasExp = claims["exp"]
+	assert.False(t, hasExp)
+
+	denied := &DevicesController{
+		InfinimeshBaseController: InfinimeshBaseController{log: zap.NewExample()},
+		ica_repo:                 fakeICA{ok: true, level: access.Level_NONE},
+		SIGNING_KEY:              []byte("secret"),
+	}
+	_, err = denied.MakeDevicesToken(ctx, connect.NewRequest(&pb.DevicesTokenRequest{Stream: true, Namespace: "plant"}))
+	assert.Error(t, err)
+
+	_, err = ctrl.MakeDevicesToken(ctx, connect.NewRequest(&pb.DevicesTokenRequest{
+		Stream:  true,
+		Devices: map[string]access.Level{"dev1": access.Level_READ},
+	}))
+	assert.Error(t, err)
+	_, err = ctrl.MakeDevicesToken(ctx, connect.NewRequest(&pb.DevicesTokenRequest{Stream: true, Post: true}))
+	assert.Error(t, err)
+}
+
 func TestMakeDevicesToken_NotEnoughAccess(t *testing.T) {
 	ctrl := &DevicesController{
 		InfinimeshBaseController: InfinimeshBaseController{

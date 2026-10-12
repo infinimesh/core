@@ -238,7 +238,7 @@ func (s *ShadowServiceServer) StreamShadow(req *pb.StreamShadowRequest, srv pb.S
 			if ev.Namespace == "" {
 				ev.Namespace = scope.namespace
 			}
-			if err := s.send(ctx, srv, ev, meta); err != nil {
+			if err := s.send(ctx, srv, req, ev, meta); err != nil {
 				log.Warn("Unable to send message", zap.Error(err))
 				return nil
 			}
@@ -256,7 +256,7 @@ func (s *ShadowServiceServer) StreamShadow(req *pb.StreamShadowRequest, srv pb.S
 			log.Warn("Couldn't get current devices Shadow state", zap.Error(err))
 		} else {
 			for _, sh := range r.GetShadows() {
-				if err := s.send(ctx, srv, sh, meta); err != nil {
+				if err := s.send(ctx, srv, req, sh, meta); err != nil {
 					log.Warn("Unable to send message", zap.Error(err))
 				}
 			}
@@ -301,7 +301,7 @@ func (s *ShadowServiceServer) StreamShadow(req *pb.StreamShadowRequest, srv pb.S
 				in, out := deviceTopics(id)
 				go s.ps.Unsub(messages, in, out)
 			}
-			if err := s.send(ctx, srv, incoming, meta); err != nil {
+			if err := s.send(ctx, srv, req, incoming, meta); err != nil {
 				log.Warn("Unable to send message", zap.Error(err))
 				return nil
 			}
@@ -310,7 +310,7 @@ func (s *ShadowServiceServer) StreamShadow(req *pb.StreamShadowRequest, srv pb.S
 		if _, watching := devices[incoming.GetDevice()]; !watching {
 			continue
 		}
-		if err := s.send(ctx, srv, incoming, meta); err != nil {
+		if err := s.send(ctx, srv, req, incoming, meta); err != nil {
 			log.Warn("Unable to send message", zap.Error(err))
 			return nil
 		}
@@ -319,13 +319,105 @@ func (s *ShadowServiceServer) StreamShadow(req *pb.StreamShadowRequest, srv pb.S
 	return nil
 }
 
-func (s *ShadowServiceServer) send(ctx context.Context, srv pb.ShadowService_StreamShadowServer, sh *pb.Shadow, meta map[string]deviceMeta) error {
+func (s *ShadowServiceServer) send(ctx context.Context, srv pb.ShadowService_StreamShadowServer, req *pb.StreamShadowRequest, sh *pb.Shadow, meta map[string]deviceMeta) error {
 	out := proto.Clone(sh).(*pb.Shadow)
+	if out.GetEvent() == pb.ShadowEvent_STATE && req != nil && !req.GetOnlyDelta() {
+		out = s.expand(ctx, out)
+	}
+	if req != nil {
+		applyInclude(out, req.GetInclude())
+	}
 	s.fill(out, meta)
 	if out.EventId == 0 && s.ids != nil {
 		out.EventId = s.ids.Next(ctx)
 	}
 	return srv.Send(out)
+}
+
+func (s *ShadowServiceServer) expand(ctx context.Context, patch *pb.Shadow) *pb.Shadow {
+	base := &pb.Shadow{Device: patch.GetDevice()}
+	loaded, err := s.Get(ctx, &pb.GetRequest{Pool: []string{patch.GetDevice()}})
+	if err == nil && len(loaded.GetShadows()) > 0 && loaded.Shadows[0] != nil {
+		base = loaded.Shadows[0]
+	}
+	if patch.Reported != nil {
+		base.Reported = mergeState(base.Reported, patch.Reported)
+	}
+	if patch.Desired != nil {
+		base.Desired = mergeState(base.Desired, patch.Desired)
+	}
+	if patch.Connection != nil {
+		base.Connection = patch.Connection
+	}
+	base.Device = patch.GetDevice()
+	base.Event = patch.GetEvent()
+	base.EventId = patch.GetEventId()
+	base.Account = patch.GetAccount()
+	if patch.Title != "" {
+		base.Title = patch.Title
+	}
+	if patch.Namespace != "" {
+		base.Namespace = patch.Namespace
+	}
+	if len(patch.Tags) > 0 {
+		base.Tags = append([]string(nil), patch.GetTags()...)
+	}
+	return base
+}
+
+func mergeState(stored, patch *pb.State) *pb.State {
+	if stored == nil || stored.Data == nil {
+		return patch
+	}
+	if patch == nil || patch.Data == nil {
+		return stored
+	}
+	old, err := json.Marshal(stored)
+	if err != nil {
+		return patch
+	}
+	next, err := json.Marshal(patch)
+	if err != nil {
+		return patch
+	}
+	merged, err := MergeJSON(old, next)
+	if err != nil {
+		return patch
+	}
+	var out pb.State
+	if json.Unmarshal(merged, &out) != nil {
+		return patch
+	}
+	return &out
+}
+
+func applyInclude(sh *pb.Shadow, include []pb.StateKey) {
+	if sh == nil || sh.GetEvent() != pb.ShadowEvent_STATE || len(include) == 0 {
+		return
+	}
+	var reported, desired, connection, known bool
+	for _, key := range include {
+		switch key {
+		case pb.StateKey_REPORTED:
+			reported, known = true, true
+		case pb.StateKey_DESIRED:
+			desired, known = true, true
+		case pb.StateKey_CONNECTION:
+			connection, known = true, true
+		}
+	}
+	if !known {
+		return
+	}
+	if !reported {
+		sh.Reported = nil
+	}
+	if !desired {
+		sh.Desired = nil
+	}
+	if !connection {
+		sh.Connection = nil
+	}
 }
 
 func unsub[T chan any](ps pubsub.PubSub, ch chan any) {

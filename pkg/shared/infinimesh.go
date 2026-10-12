@@ -24,8 +24,12 @@ const INFINIMESH_SESSION_CLAIM = "session"
 const INFINIMESH_NOSESSION_CLAIM = "nosession"
 
 const INFINIMESH_DEVICES_CLAIM = "devices"
+const INFINIMESH_STREAM_CLAIM = "stream"
+const INFINIMESH_NAMESPACE_CLAIM = "namespace"
 
 const InfinimeshRootCtxKey = ContextKey(INFINIMESH_ROOT_CLAIM)
 const InfinimeshAccountCtxKey = ContextKey(INFINIMESH_ACCOUNT_CLAIM)
 const InfinimeshSessionCtxKey = ContextKey(INFINIMESH_SESSION_CLAIM)
 const InfinimeshDevicesCtxKey = ContextKey(INFINIMESH_DEVICES_CLAIM)
+const InfinimeshStreamCtxKey = ContextKey(INFINIMESH_STREAM_CLAIM)
+const InfinimeshNamespaceCtxKey = ContextKey(INFINIMESH_NAMESPACE_CLAIM)

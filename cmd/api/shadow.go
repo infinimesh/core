@@ -158,6 +158,9 @@ func (s *ShadowAPI) prepareStream(ctx context.Context, req *shadow.StreamShadowR
 	if s.devices == nil || s.namespaces == nil {
 		return connect.NewError(connect.CodeUnavailable, errors.New("device registry is not available"))
 	}
+	if pinned, ok := ctx.Value(inf.InfinimeshNamespaceCtxKey).(string); ok && pinned != "" {
+		req.Namespace = pinned
+	}
 
 	ns := req.GetNamespace()
 	var namespaces []string
