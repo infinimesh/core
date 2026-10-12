@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	logger "github.com/infinimesh/core/pkg/log"
+	"github.com/infinimesh/core/pkg/observe"
 	pb "github.com/infinimesh/proto/node"
 	hfpb "github.com/infinimesh/proto/pairing"
 	"github.com/infinimesh/proto/plugins"
@@ -73,6 +74,9 @@ func main() {
 	defer func() {
 		_ = log.Sync()
 	}()
+
+	stopTrace := observe.Start("gateway")
+	defer stopTrace()
 
 	log.Info("Starting REST-API Server")
 	log.Info("Registering Endpoints", zap.String("server", apiserver))

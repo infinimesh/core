@@ -329,6 +329,26 @@ func TestServeReconnectResendsInflight(t *testing.T) {
 	}
 }
 
+func TestPublishQuotaDenied(t *testing.T) {
+	var stored int
+	c, _ := startSession(t, packet.ProtocolMQTT5, 0xC2, "cid", packet.ConnectProperties{}, newSessionStore(), deviceHooks{
+		allow:    func() bool { return false },
+		reported: func([]byte, packet.Properties, bool) bool { stored++; return true },
+	})
+	defer c.conn.Close()
+	c.send(packetBytes(t, &packet.Publish{
+		ProtocolLevel: packet.ProtocolMQTT5,
+		QoS:           1,
+		Topic:         reportedTopic("dev"),
+		PacketID:      9,
+		Payload:       []byte(`{"t":1}`),
+	}))
+	ack := c.next().(*packet.Ack)
+	if ack.Kind != packet.PUBACK || ack.Reason != packet.ReasonQuotaExceeded || stored != 0 {
+		t.Fatalf("ack %+v stored %d", ack, stored)
+	}
+}
+
 func TestServeWillOnDrop(t *testing.T) {
 	server, client := net.Pipe()
 	got := make(chan string, 1)

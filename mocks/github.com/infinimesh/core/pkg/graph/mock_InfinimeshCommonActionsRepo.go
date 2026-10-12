@@ -333,6 +333,17 @@ func (_c *MockInfinimeshCommonActionsRepo_GetEdgeCol_Call) RunAndReturn(run func
 }
 
 // Link provides a mock function with given fields: ctx, log, edge, from, to, lvl, role
+func (_m *MockInfinimeshCommonActionsRepo) LinkUntil(ctx context.Context, log *zap.Logger, edge driver.Collection, from graph.InfinimeshGraphNode, to graph.InfinimeshGraphNode, lvl access.Level, role access.Role, expiresAt int64) error {
+	ret := _m.Called(ctx, log, edge, from, to, lvl, role, expiresAt)
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *zap.Logger, driver.Collection, graph.InfinimeshGraphNode, graph.InfinimeshGraphNode, access.Level, access.Role, int64) error); ok {
+		r0 = rf(ctx, log, edge, from, to, lvl, role, expiresAt)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
 func (_m *MockInfinimeshCommonActionsRepo) Link(ctx context.Context, log *zap.Logger, edge driver.Collection, from graph.InfinimeshGraphNode, to graph.InfinimeshGraphNode, lvl access.Level, role access.Role) error {
 	ret := _m.Called(ctx, log, edge, from, to, lvl, role)
 

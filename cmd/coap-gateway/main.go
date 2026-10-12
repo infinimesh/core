@@ -1,0 +1,79 @@
+package main
+
+import (
+	"encoding/json"
+	"net"
+
+	mqttps "github.com/infinimesh/core/pkg/mqtt/pubsub"
+	"github.com/infinimesh/core/pkg/observe"
+	"github.com/infinimesh/core/pkg/pubsub"
+	pb "github.com/infinimesh/proto/shadow"
+	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/spf13/viper"
+	"go.uber.org/zap"
+	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
+)
+
+func main() {
+	viper.AutomaticEnv()
+	viper.SetDefault("COAP_ADDR", ":5683")
+	viper.SetDefault("RABBITMQ_CONN", "amqp://infinimesh:infinimesh@rabbitmq:5672/")
+	log, _ := zap.NewProduction()
+	stop := observe.Start("coap-gateway")
+	defer stop()
+	conn, err := amqp.Dial(viper.GetString("RABBITMQ_CONN"))
+	if err != nil {
+		log.Fatal("rabbitmq", zap.Error(err))
+	}
+	ps, err := mqttps.Setup(log, conn, "mqtt.incoming", "coap.unused", 10)
+	if err != nil {
+		log.Fatal("pubsub", zap.Error(err))
+	}
+	pc, err := net.ListenPacket("udp", viper.GetString("COAP_ADDR"))
+	if err != nil {
+		log.Fatal("udp", zap.Error(err))
+	}
+	log.Info("coap", zap.String("addr", viper.GetString("COAP_ADDR")))
+	serve(pc, func(device string, body []byte) error {
+		return publishReported(ps, device, body)
+	})
+}
+
+func serve(pc net.PacketConn, publish func(device string, body []byte) error) {
+	buf := make([]byte, 64*1024)
+	for {
+		n, addr, err := pc.ReadFrom(buf)
+		if err != nil {
+			return
+		}
+		msg, err := parseCoAP(buf[:n])
+		if err != nil || msg.Code != codePost {
+			continue
+		}
+		id, ok := reportedDevice(msg.Path)
+		code := byte(0x80)
+		if ok {
+			if err := publish(id, msg.Payload); err == nil {
+				code = 0x44
+			}
+		}
+		_, _ = pc.WriteTo(ack(msg, code, nil), addr)
+	}
+}
+
+func publishReported(ps pubsub.PubSub, device string, body []byte) error {
+	var fields map[string]any
+	if err := json.Unmarshal(body, &fields); err != nil {
+		return err
+	}
+	data, err := structpb.NewStruct(fields)
+	if err != nil {
+		return err
+	}
+	ps.TryPub(&pb.Shadow{
+		Device:   device,
+		Reported: &pb.State{Timestamp: timestamppb.Now(), Data: data},
+	}, "mqtt.incoming")
+	return nil
+}

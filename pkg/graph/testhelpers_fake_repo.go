@@ -24,6 +24,9 @@ func (f fakeICARepo) CheckLink(ctx context.Context, edge driver.Collection, from
 func (f fakeICARepo) Link(ctx context.Context, log *zap.Logger, edge driver.Collection, from InfinimeshGraphNode, to InfinimeshGraphNode, lvl access.Level, role access.Role) error {
 	return nil
 }
+func (f fakeICARepo) LinkUntil(ctx context.Context, log *zap.Logger, edge driver.Collection, from InfinimeshGraphNode, to InfinimeshGraphNode, lvl access.Level, role access.Role, expiresAt int64) error {
+	return nil
+}
 func (f fakeICARepo) Move(ctx context.Context, c InfinimeshController, obj InfinimeshGraphNode, edge driver.Collection, ns string) error {
 	return nil
 }

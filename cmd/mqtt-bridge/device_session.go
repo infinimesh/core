@@ -24,10 +24,12 @@ import (
 	"time"
 
 	"github.com/infinimesh/core/pkg/mqtt/packet"
+	"github.com/infinimesh/core/pkg/quota"
 )
 
 var (
 	bridgeSessions      = newSessionStore()
+	publishLimits       = quota.New()
 	retryAfter          = 5 * time.Second
 	enabledCheckAfter   = 30 * time.Second
 	qos2HoldFor         = 2 * time.Minute
@@ -43,6 +45,7 @@ type deviceHooks struct {
 	subscribed func(send func([]byte, packet.Properties))
 	unsub      func()
 	will       func(topic string, payload []byte, retain bool)
+	allow      func() bool
 }
 
 func serveDevice(c net.Conn, deviceID string, cp *packet.Connect, meta connectMeta, store *sessionStore, hooks deviceHooks) {
@@ -343,6 +346,22 @@ func acceptPublish(c net.Conn, write func(func(io.Writer) error) error, level by
 		}
 		_ = write(func(w io.Writer) error { return writeAck(w, level, kindByte, msg.id, packet.ReasonNotAuthorized) })
 		return true
+	}
+	if hooks.allow != nil && !hooks.allow() {
+		if msg.qos == 2 {
+			ack, open := holdQoS2(write, level, sess, msg, false)
+			if !open {
+				return false
+			}
+			if !ack {
+				return true
+			}
+		}
+		if msg.qos == 0 || level != packet.ProtocolMQTT5 {
+			_ = write(func(w io.Writer) error { return writeDisconnect(w, level, packet.ReasonQuotaExceeded) })
+			return false
+		}
+		return ackPublish(write, level, msg, packet.ReasonQuotaExceeded)
 	}
 	if msg.props.HasMessageExpiry && msg.props.MessageExpiry == 0 {
 		if msg.qos == 2 {

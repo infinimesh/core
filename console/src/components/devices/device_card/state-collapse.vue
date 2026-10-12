@@ -76,6 +76,24 @@
       </div>
     </n-collapse-item>
 
+    <n-collapse-item title="OTA" name="ota">
+      <n-grid v-if="ota" responsive="screen">
+        <n-grid-item :span="8">Version</n-grid-item>
+        <n-grid-item :span="16">{{ ota.version }}</n-grid-item>
+        <n-grid-item :span="8">State</n-grid-item>
+        <n-grid-item :span="16">{{ ota.state }}</n-grid-item>
+        <n-grid-item :span="8">Progress</n-grid-item>
+        <n-grid-item :span="16">{{ ota.progress }}</n-grid-item>
+        <n-grid-item :span="8">Error</n-grid-item>
+        <n-grid-item :span="16">{{ ota.error }}</n-grid-item>
+      </n-grid>
+      <n-text v-else depth="3">No reported OTA status.</n-text>
+      <n-space style="margin-top: 8px">
+        <n-input v-model:value="otaVersion" placeholder="Target version" />
+        <n-button type="primary" :disabled="!otaVersion" @click="assignOTA">Assign</n-button>
+      </n-space>
+    </n-collapse-item>
+
     <n-collapse-item title="Patch Desired" name="patch" v-if="patch">
       <template #header-extra>
         <n-button tertiary round type="warning" @click.stop.prevent="handleSubmit" :disabled="validation != 'success'">
@@ -100,6 +118,8 @@ import {
   NIcon,
   NGrid,
   NGridItem,
+  NSpace,
+  NText,
 } from "naive-ui";
 
 import { Shadow } from "infinimesh-proto/build/es/shadow/shadow_pb";
@@ -146,6 +166,17 @@ const reported = computed(() => {
   }
   return state.reported;
 });
+
+const ota = computed(() => {
+  if (!reported.value || !reported.value.data) return null
+  return reported.value.data.ota || null
+})
+const otaVersion = ref("")
+function assignOTA() {
+  const base = desired.value && desired.value.data ? { ...desired.value.data } : {}
+  base.ota = { ...(base.ota || {}), version: otaVersion.value }
+  emit("submit", base)
+}
 
 const desired = computed(() => {
   let state = props.state;

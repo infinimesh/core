@@ -35,10 +35,11 @@ import (
 )
 
 type Access struct {
-	From  driver.DocumentID `json:"_from"`
-	To    driver.DocumentID `json:"_to"`
-	Level access.Level      `json:"level"`
-	Role  access.Role       `json:"role,omitempty"`
+	From      driver.DocumentID `json:"_from"`
+	To        driver.DocumentID `json:"_to"`
+	Level     access.Level      `json:"level"`
+	Role      access.Role       `json:"role,omitempty"`
+	ExpiresAt int64             `json:"expires_at,omitempty"`
 
 	driver.DocumentMeta
 }
@@ -83,6 +84,11 @@ type InfinimeshCommonActionsRepo interface {
 		ctx context.Context, log *zap.Logger, edge driver.Collection,
 		from InfinimeshGraphNode, to InfinimeshGraphNode,
 		lvl access.Level, role access.Role,
+	) error
+	LinkUntil(
+		ctx context.Context, log *zap.Logger, edge driver.Collection,
+		from InfinimeshGraphNode, to InfinimeshGraphNode,
+		lvl access.Level, role access.Role, expiresAt int64,
 	) error
 	Move(ctx context.Context, c InfinimeshController, obj InfinimeshGraphNode, edge driver.Collection, ns string) error
 	AccessLevel(ctx context.Context, requestor InfinimeshGraphNode, node InfinimeshGraphNode) (bool, access.Level)
@@ -145,6 +151,33 @@ func (r *infinimeshCommonActionsRepo) Link(ctx context.Context, log *zap.Logger,
 	return err
 }
 
+func (r *infinimeshCommonActionsRepo) LinkUntil(ctx context.Context, log *zap.Logger, edge driver.Collection, from InfinimeshGraphNode, to InfinimeshGraphNode, lvl access.Level, role access.Role, expiresAt int64) error {
+	log.Debug("Linking two nodes until",
+		zap.Any("from", from.ID()),
+		zap.Any("to", to.ID()),
+		zap.Int64("expires_at", expiresAt),
+	)
+	a := Access{
+		From:      from.ID(),
+		To:        to.ID(),
+		Level:     lvl,
+		Role:      role,
+		ExpiresAt: expiresAt,
+		DocumentMeta: driver.DocumentMeta{
+			Key: from.ID().Key() + "-" + to.ID().Key(),
+		},
+	}
+	if a.Level == access.Level_NONE || expiresAt <= 0 {
+		_, err := edge.RemoveDocument(ctx, a.Key)
+		return err
+	}
+	if _, err := edge.UpdateDocument(ctx, a.DocumentMeta.Key, a); err == nil {
+		return nil
+	}
+	_, err := edge.CreateDocument(ctx, a)
+	return err
+}
+
 func (r *infinimeshCommonActionsRepo) Move(ctx context.Context, c InfinimeshController, obj InfinimeshGraphNode, edge driver.Collection, ns string) error {
 	log := c._log().Named("Move")
 	log.Debug("Move request received", zap.Any("object", obj), zap.String("namespace", ns))
@@ -201,6 +234,7 @@ func (r *infinimeshCommonActionsRepo) Move(ctx context.Context, c InfinimeshCont
 const getWithAccessLevelRoleAndNS = `
 FOR path IN OUTBOUND K_SHORTEST_PATHS @account TO @node
 GRAPH @permissions SORT path.edges[0].level DESC
+    FILTER path.edges NONE (e.expires_at > 0 AND e.expires_at <= DATE_NOW() / 1000)
     LET perm = path.edges[0]
     LET last = path.edges[-1]
 	RETURN MERGE(
@@ -249,6 +283,7 @@ GRAPH @permissions_graph
 OPTIONS {order: "bfs", uniqueVertices: "global"}
 FILTER IS_SAME_COLLECTION(@@kind, node)
 FILTER edge.level > 0
+FILTER path.edges NONE (e.expires_at > 0 AND e.expires_at <= DATE_NOW() / 1000)
 %s
     LET perm = path.edges[0]
     LET last = path.edges[-1]
@@ -404,10 +439,13 @@ func handleDeleteNodeInRecursion(ctx context.Context, log *zap.Logger, db driver
 	return err
 }
 
+const accessEdgeLive = `FILTER path.edges NONE (e.expires_at > 0 AND e.expires_at <= DATE_NOW() / 1000)`
+
 const getWithAccessLevelQuery = `
 FOR path IN OUTBOUND
 K_SHORTEST_PATHS @requestor TO @node
 GRAPH @permissions
+    FILTER path.edges NONE (e.expires_at > 0 AND e.expires_at <= DATE_NOW() / 1000)
     RETURN path.edges[-1].role == 2 ? path.edges[-1].level : path.edges[0].level
 `
 

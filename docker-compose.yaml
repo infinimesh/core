@@ -129,6 +129,37 @@ services:
     volumes:
       - ./oauth2_config.yaml:/oauth2_config.yaml
 
+  coap:
+    image: "ghcr.io/infinimesh/core/coap-gateway:${INFINIMESH_VERSION}"
+    profiles: ["coap"]
+    restart: unless-stopped
+    labels:
+      - traefik.enable=false
+    ports:
+      - "5683:5683/udp"
+    depends_on:
+      - rabbitmq
+    environment:
+      COAP_ADDR: ":5683"
+      RABBITMQ_CONN: amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/
+
+  rules:
+    image: "ghcr.io/infinimesh/core/rules:${INFINIMESH_VERSION}"
+    restart: unless-stopped
+    labels:
+      - traefik.enable=false
+    depends_on:
+      - db
+      - redis
+      - shadow
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL}
+      DB_HOST: db:8529
+      DB_CRED: root:openSesame
+      REDIS_HOST: redis:6379
+      SHADOW_HOST: shadow:8000
+      INF_DEFAULT_ROOT_PASS: infinimesh
+
   shadow:
     image: "ghcr.io/infinimesh/core/shadow:${INFINIMESH_VERSION}"
     restart: unless-stopped

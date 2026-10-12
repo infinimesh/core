@@ -16,6 +16,7 @@ limitations under the License.
 package graph
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"crypto/x509"
@@ -101,6 +102,7 @@ type DevicesController struct {
 
 	scope    ScopePublisher
 	denylist TokenDenylist
+	claims   ClaimTokens
 }
 
 type TokenDenylist interface {
@@ -341,6 +343,7 @@ func (c *DevicesController) Update(ctx context.Context, req *connect.Request[dev
 		return nil, apierr.Code(connect.CodeInvalidArgument, "Device Title cannot be empty")
 	}
 
+	prevTags := append([]string(nil), curr.Msg.GetTags()...)
 	curr.Msg.Tags = dev.Tags
 	curr.Msg.Title = dev.Title
 
@@ -351,6 +354,13 @@ func (c *DevicesController) Update(ctx context.Context, req *connect.Request[dev
 	}
 
 	c.publishScope(ctx, shadowpb.ShadowEvent_DEVICE_ADDED, curr.Msg, "", "")
+	added, removed := diffTags(prevTags, curr.Msg.GetTags())
+	for _, tag := range added {
+		c.publishTag(ctx, shadowpb.ShadowEvent_TAG_ADDED, curr.Msg, tag)
+	}
+	for _, tag := range removed {
+		c.publishTag(ctx, shadowpb.ShadowEvent_TAG_REMOVED, curr.Msg, tag)
+	}
 
 	return curr, nil
 }
@@ -486,6 +496,7 @@ func (c *DevicesController) GetByToken(ctx context.Context, req *connect.Request
 		return nil, apierr.Code(connect.CodeNotFound, "Device not found")
 	}
 	device.Uuid = meta.ID.Key()
+	c.attachNamespace(ctx, &device)
 
 	return connect.NewResponse(&device), nil
 }
@@ -579,7 +590,17 @@ func (c *DevicesController) delete(ctx context.Context, _req *connect.Request[de
 
 const findByFingerprintQuery = `FOR device IN @@devices
 FILTER device.certificate.fingerprint == @fingerprint
+    OR device.certificate.rollover_fingerprint == @fingerprint
 RETURN device`
+
+func fingerprintListed(list [][]byte, fp []byte) bool {
+	for _, item := range list {
+		if bytes.Equal(item, fp) {
+			return true
+		}
+	}
+	return false
+}
 
 func (c *DevicesController) GetByFingerprint(ctx context.Context, req *connect.Request[devpb.GetByFingerprintRequest]) (*connect.Response[devpb.Device], error) {
 	log := c.log.Named("GetByFingerprint")
@@ -607,6 +628,13 @@ func (c *DevicesController) GetByFingerprint(ctx context.Context, req *connect.R
 		return nil, apierr.Code(connect.CodeInternal, "Error executing query")
 	}
 	r.Uuid = meta.ID.Key()
+	if !certificateAccepts(r.Certificate, req.Msg.GetFingerprint()) {
+		if r.Certificate != nil && (r.Certificate.Revoked || fingerprintListed(r.Certificate.RevokedFingerprints, req.Msg.GetFingerprint())) {
+			return nil, apierr.Code(connect.CodePermissionDenied, "certificate revoked")
+		}
+		return nil, apierr.Code(connect.CodeNotFound, "Device not found")
+	}
+	c.attachNamespace(ctx, &r)
 
 	token, err := c._MakeToken(map[string]access.Level{
 		r.GetUuid(): access.Level_READ,
@@ -886,5 +914,22 @@ func (c *DevicesController) publishScope(ctx context.Context, event shadowpb.Sha
 	}
 	if _, err := c.scope.PublishDeviceScope(context.WithoutCancel(ctx), ev); err != nil {
 		c.log.Warn("device scope publish failed", zap.String("device", dev.GetUuid()), zap.Error(err))
+	}
+}
+
+func (c *DevicesController) publishTag(ctx context.Context, event shadowpb.ShadowEvent, dev *devpb.Device, tag string) {
+	if c == nil || c.scope == nil || dev == nil || tag == "" {
+		return
+	}
+	ev := &shadowpb.Shadow{
+		Device:    dev.GetUuid(),
+		Title:     dev.GetTitle(),
+		Namespace: dev.GetAccess().GetNamespace(),
+		Tags:      append([]string(nil), dev.GetTags()...),
+		Event:     event,
+		Tag:       tag,
+	}
+	if _, err := c.scope.PublishDeviceScope(context.WithoutCancel(ctx), ev); err != nil {
+		c.log.Warn("tag scope publish failed", zap.String("device", dev.GetUuid()), zap.String("tag", tag), zap.Error(err))
 	}
 }

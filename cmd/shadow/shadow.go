@@ -33,6 +33,7 @@ import (
 	"github.com/infinimesh/core/pkg/graph/schema"
 	logger "github.com/infinimesh/core/pkg/log"
 	"github.com/infinimesh/core/pkg/mqtt/pubsub"
+	"github.com/infinimesh/core/pkg/observe"
 	"github.com/infinimesh/core/pkg/shadow"
 	fanoutpublisher "github.com/infinimesh/core/pkg/shadow/fanout_publisher"
 	"github.com/infinimesh/core/pkg/shadow/plugins"
@@ -77,6 +78,9 @@ func main() {
 	defer func() {
 		_ = log.Sync()
 	}()
+
+	stopTrace := observe.Start("shadow")
+	defer stopTrace()
 
 	log.Info("Setting up RedisDB Connection")
 	rdb := redis.NewClient(&redis.Options{
@@ -145,7 +149,7 @@ func main() {
 	srv.SetSequencer(shadow.NewRedisSequencer(rdb))
 	shadow.Inbound = srv.Accept
 
-	s := grpc.NewServer()
+	s := grpc.NewServer(grpc.UnaryInterceptor(observe.Unary()), grpc.StreamInterceptor(observe.Stream()))
 	pb.RegisterShadowServiceServer(s, srv)
 
 	healthpb.RegisterHealthServer(s, health.NewServer())

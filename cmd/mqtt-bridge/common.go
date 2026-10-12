@@ -163,6 +163,20 @@ func HandleConn(c net.Conn, connectPacket *packet.Connect, meta connectMeta, dev
 			}()
 			log.Debug("Added Subscription", zap.String("topic", desiredTopic(device.Uuid)), zap.String("device", device.Uuid))
 		},
+		allow: func() bool {
+			q := device.GetQuota()
+			if q == nil {
+				return true
+			}
+			ns := ""
+			if device.GetAccess() != nil {
+				ns = device.GetAccess().GetNamespace()
+			}
+			if !publishLimits.Allow(device.GetUuid(), q.GetDeviceMessagesPerSecond()) {
+				return false
+			}
+			return publishLimits.Allow("ns:"+ns, q.GetNamespaceMessagesPerSecond())
+		},
 		unsub: func() {
 			if back != nil {
 				ps.Unsub(back, "mqtt.outgoing/"+device.Uuid)

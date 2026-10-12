@@ -19,6 +19,7 @@ const PeopleOutline = defineAsyncComponent(() => import("@vicons/ionicons5/Peopl
 const GitNetworkOutline = defineAsyncComponent(() => import("@vicons/ionicons5/GitNetworkOutline"))
 const ImagesOutline = defineAsyncComponent(() => import("@vicons/ionicons5/ImagesOutline"))
 const ExtensionPuzzleOutline = defineAsyncComponent(() => import("@vicons/ionicons5/ExtensionPuzzleOutline"))
+const AlertOutline = defineAsyncComponent(() => import("@vicons/ionicons5/AlertOutline"))
 const ChatbubblesOutline = defineAsyncComponent(() => import("@vicons/ionicons5/ChatbubblesOutline"))
 
 const props = defineProps({
@@ -87,6 +88,11 @@ const menuOptions = ref([
     label: renderLabelLink("Namespaces"),
     key: "Namespaces",
     icon: renderIcon(GitNetworkOutline),
+  },
+  {
+    label: renderLabelLink("Rules", "Rules and Alarms"),
+    key: "Rules",
+    icon: renderIcon(AlertOutline),
   },
   ...services.value,
   {

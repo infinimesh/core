@@ -10,9 +10,10 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-func mountIngest(router *mux.Router, client pb.ShadowServiceClient, key []byte) {
+func mountIngest(router *mux.Router, client pb.ShadowServiceClient, key []byte, rates func(context.Context, string) (float64, float64, string)) {
 	h := &ingest.Handler{
-		Key: key,
+		Key:   key,
+		Quota: rates,
 		Patch: func(ctx context.Context, device string, reported *pb.State) error {
 			_, err := client.Patch(ctx, &pb.Shadow{Device: device, Reported: reported})
 			return err

@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Rules and alarms run in core. CEL conditions read `reported`, `desired`, `connected`, `device`, `title`, `tags`, and `ns`. Actions are log, webhook (HMAC `X-Infinimesh-Signature`), MQTT, and desired state. Alarm state is raised, acked, or cleared, with cooldown, in ArangoDB and Redis. The console page is "Rules and Alarms".
+- Namespace `ota` stores `enabled`, `backend_url`, and `backend` (`hawkBit` or `mender`). Shadow `data.ota` carries `version`, `url`, and `sha256`, and reported state adds `state`, `progress`, and `error`. Tag changes are `TAG_ADDED` and `TAG_REMOVED` on the shadow stream. `POST /v1/devices/states:patchMany` sets desired state by namespace or tag.
+- `BulkCreate`, `IssueClaim`, `Claim`, `RotateCertificate`, and `RevokeCertificate`. A rotated certificate keeps the previous fingerprint valid. `GetByFingerprint` rejects a revoked certificate.
+- Shadow reads with an account or token id are appended to `AuditLog`. `GET /v1/devices/{device}/export` returns the registry entry, the current shadow, and history references. Grants carry `expires_at` and a consent record.
+- `/metrics` on api, shadow, gateway, pairing, console, mqtt-bridge, and rules. `OTEL_EXPORTER_OTLP_ENDPOINT` exports traces. `MQTT_SESSION_STORE=redis` keeps bridge sessions in Redis. Namespace quotas limit devices and message rates on the bridge and on ingest. Zero means no limit.
 - MQTT TLS handshake time is `TLS_HANDSHAKE_TIMEOUT` (default `30s`).
 - An optional ECDSA server certificate (`TLS_EC_CERT_FILE`, `TLS_EC_KEY_FILE`) is served beside the primary certificate. The listener requires TLS 1.2. `hack/server-ec.crt` is a P-256 test certificate with a subject alternative name for localhost.
 - Session tickets last 7 days in the bridge process. A resumed connection is still identified by the client certificate. TLS-PSK needs a terminator such as stunnel. Maximum fragment length is not supported. See `docs/guides/small-devices-tls.md`.

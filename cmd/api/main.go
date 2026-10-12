@@ -16,11 +16,13 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"fmt"
 	"gopkg.in/yaml.v2"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"connectrpc.com/grpchealth"
@@ -31,6 +33,7 @@ import (
 	logger "github.com/infinimesh/core/pkg/log"
 	"github.com/infinimesh/core/pkg/oauth"
 	"github.com/infinimesh/core/pkg/oauth/config"
+	"github.com/infinimesh/core/pkg/observe"
 	auth "github.com/infinimesh/core/pkg/shared/auth"
 	"github.com/infinimesh/proto/node/nodeconnect"
 	"github.com/infinimesh/proto/pairing"
@@ -77,7 +80,7 @@ func init() {
 	viper.SetDefault("INF_DEFAULT_ROOT_PASS", "infinimesh")
 	viper.SetDefault("REDIS_HOST", "redis:6379")
 
-	viper.SetDefault("SERVICES", "accounts,namespaces,sessions,devices,shadow,plugins,internal,oauth")
+	viper.SetDefault("SERVICES", "accounts,namespaces,sessions,devices,shadow,plugins,internal,oauth,rules,audit,grants")
 
 	port = viper.GetString("PORT")
 
@@ -117,6 +120,9 @@ func main() {
 		_ = log.Sync()
 	}()
 
+	stopTrace := observe.Start("api")
+	defer stopTrace()
+
 	log.Info("Connecting to DB", zap.String("URL", arangodbHost))
 	db := schema.InitDB(log, arangodbHost, arangodbCred, rootPass, false)
 	log.Info("DB connection established")
@@ -138,7 +144,7 @@ func main() {
 
 	authInterceptor := auth.NewAuthInterceptor(log, rdb, nil, SIGNING_KEY)
 
-	interceptors := connect.WithInterceptors(authInterceptor)
+	interceptors := connect.WithInterceptors(authInterceptor, observe.Interceptor())
 
 	log.Debug("Registering services", zap.Any("services", services))
 
@@ -203,6 +209,7 @@ func main() {
 		devMod = graph.NewDevicesControllerModule(log, db, pairing.NewPairingServiceClient(conn))
 		devMod.SetSigningKey(SIGNING_KEY)
 		devMod.SetDenylist(auth.NewRedisDenylist(rdb))
+		devMod.SetClaimTokens(graph.NewRedisClaims(rdb))
 
 		path, handler := nodeconnect.NewDevicesServiceHandler(devMod.Handler(), interceptors)
 		router.PathPrefix(path).Handler(handler)
@@ -226,7 +233,13 @@ func main() {
 
 		path, handler := nodeconnect.NewShadowServiceHandler(api, interceptors)
 		router.PathPrefix(path).Handler(handler)
-		mountIngest(router, client, SIGNING_KEY)
+		var rates func(context.Context, string) (float64, float64, string)
+		if devMod != nil {
+			if ctrl, ok := devMod.Handler().(*graph.DevicesController); ok {
+				rates = ctrl.MessageRates
+			}
+		}
+		mountIngest(router, client, SIGNING_KEY, rates)
 	}
 
 	if _, ok := services["plugins"]; ok {
@@ -242,6 +255,39 @@ func main() {
 		is := graph.InternalService{}
 		path, handler := nodeconnect.NewInternalServiceHandler(&is, interceptors)
 		router.PathPrefix(path).Handler(handler)
+	}
+
+	ica := graph.NewInfinimeshCommonActionsRepo(db)
+	if _, ok := services["rules"]; ok {
+		log.Info("Registering rules service")
+		path, handler := nodeconnect.NewRulesServiceHandler(graph.NewRulesController(log, db, ica), interceptors)
+		router.PathPrefix(path).Handler(handler)
+	}
+	if _, ok := services["audit"]; ok {
+		log.Info("Registering audit service")
+		auditCtrl := graph.NewAuditController(log, db, ica)
+		if _, shadowOn := services["shadow"]; shadowOn {
+			viper.SetDefault("SHADOW_HOST", "shadow:8000")
+			conn, err := grpc.Dial(viper.GetString("SHADOW_HOST"), grpc.WithTransportCredentials(insecure.NewCredentials()))
+			if err == nil {
+				auditCtrl.SetShadow(shadowpb.NewShadowServiceClient(conn))
+			}
+		}
+		path, handler := nodeconnect.NewAuditServiceHandler(auditCtrl, interceptors)
+		router.PathPrefix(path).Handler(handler)
+	}
+	if _, ok := services["grants"]; ok {
+		log.Info("Registering grants service")
+		grantsCtrl := graph.NewGrantsController(log, db, ica)
+		path, handler := nodeconnect.NewGrantsServiceHandler(grantsCtrl, interceptors)
+		router.PathPrefix(path).Handler(handler)
+		go func() {
+			tick := time.NewTicker(time.Minute)
+			defer tick.Stop()
+			for range tick.C {
+				grantsCtrl.Expire(context.Background())
+			}
+		}()
 	}
 
 	checker := grpchealth.NewStaticChecker()

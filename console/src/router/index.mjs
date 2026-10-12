@@ -78,6 +78,14 @@ const routes = [
         }
       },
       {
+        path: "rules",
+        name: "Rules",
+        component: () => import("@/views/dashboard/Rules.vue"),
+        meta: {
+          title: "Rules and Alarms",
+        },
+      },
+      {
         path: "plugins",
         name: "Plugins",
         component: () => import("@/views/dashboard/Plugins.vue"),

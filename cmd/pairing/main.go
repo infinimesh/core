@@ -27,6 +27,7 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/mux"
 	logger "github.com/infinimesh/core/pkg/log"
+	"github.com/infinimesh/core/pkg/observe"
 	"github.com/infinimesh/core/pkg/pairing"
 	"github.com/infinimesh/core/pkg/shared/auth"
 	cc "github.com/infinimesh/proto/pairing/pairingconnect"
@@ -65,6 +66,9 @@ func main() {
 		_ = log.Sync()
 	}()
 
+	stopTrace := observe.Start("pairing")
+	defer stopTrace()
+
 	log.Info("Connecting to Redis", zap.String("URL", redisHost))
 	rdb := redis.NewClient(&redis.Options{
 		Addr: redisHost,
@@ -81,7 +85,7 @@ func main() {
 	})
 
 	authInterceptor := auth.NewAuthInterceptor(log, rdb, nil, SIGNING_KEY)
-	interceptors := connect.WithInterceptors(authInterceptor)
+	interceptors := connect.WithInterceptors(authInterceptor, observe.Interceptor())
 
 	pairingServer := pairing.NewPairingServer(log)
 	path, handler := cc.NewPairingServiceHandler(pairingServer, interceptors)

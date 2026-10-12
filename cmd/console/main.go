@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/infinimesh/core/pkg/observe"
 	"github.com/rs/cors"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -61,6 +62,8 @@ func main() {
 	defer func() {
 		_ = log.Sync()
 	}()
+	stopTrace := observe.Start("console")
+	defer stopTrace()
 	log.Debug("Debug enabled")
 
 	mux := http.NewServeMux()

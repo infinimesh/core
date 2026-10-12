@@ -63,11 +63,13 @@ type deviceSession struct {
 	aliasMax   int
 	qos2Max    int
 	qos2Hold   time.Duration
+	persistFor time.Duration
 }
 
 type sessionStore struct {
-	mu   sync.Mutex
-	byID map[string]*deviceSession
+	mu      sync.Mutex
+	byID    map[string]*deviceSession
+	persist sessionPersist
 }
 
 func newSessionStore() *sessionStore {
@@ -83,7 +85,17 @@ func (s *sessionStore) open(deviceID, clientID string, meta connectMeta, now tim
 	defer s.mu.Unlock()
 	key := sessionKey(deviceID, clientID)
 	old := s.byID[key]
-	if meta.cleanStart || old == nil || (!old.expiry.IsZero() && !now.Before(old.expiry)) {
+	if old == nil && s.persist != nil && !meta.cleanStart {
+		if snap, ok := s.persist.load(key); ok {
+			old = snap.device(deviceID, clientID)
+			s.byID[key] = old
+		}
+	}
+	expired := old != nil && !old.expiry.IsZero() && !now.Before(old.expiry)
+	if meta.cleanStart || old == nil || expired {
+		if s.persist != nil && (meta.cleanStart || expired) {
+			s.persist.drop(key)
+		}
 		sess = &deviceSession{
 			deviceID:   deviceID,
 			clientID:   clientID,
@@ -93,6 +105,7 @@ func (s *sessionStore) open(deviceID, clientID string, meta connectMeta, now tim
 			receiveMax: meta.receiveMax,
 			aliases:    map[uint16]string{},
 			aliasMax:   serverTopicAliasMax,
+			persistFor: meta.sessionExpiry,
 		}
 		if meta.receiveMax == 0 {
 			sess.receiveMax = 65535
@@ -106,25 +119,39 @@ func (s *sessionStore) open(deviceID, clientID string, meta connectMeta, now tim
 	}
 	old.aliasMax = serverTopicAliasMax
 	old.aliases = map[uint16]string{}
+	if meta.sessionExpiry > 0 {
+		old.persistFor = meta.sessionExpiry
+	}
 	return true, old
 }
 
 func (s *sessionStore) close(deviceID, clientID string, meta connectMeta, now time.Time) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	key := sessionKey(deviceID, clientID)
 	sess := s.byID[key]
 	if sess == nil {
+		s.mu.Unlock()
 		return
 	}
 	if meta.sessionExpiry <= 0 {
 		delete(s.byID, key)
+		p := s.persist
+		s.mu.Unlock()
+		if p != nil {
+			p.drop(key)
+		}
 		return
 	}
 	sess.mu.Lock()
 	sess.expiry = now.Add(meta.sessionExpiry)
 	sess.keep = true
+	snap := sess.snap()
 	sess.mu.Unlock()
+	p := s.persist
+	s.mu.Unlock()
+	if p != nil {
+		p.save(key, snap, meta.sessionExpiry)
+	}
 }
 
 func (s *deviceSession) allocID() uint16 {

@@ -190,6 +190,17 @@ func (c *NamespacesController) Update(ctx context.Context, req *connect.Request[
 		curr.Config = ns.Config
 		changed = true
 	}
+	if ns.Ota != nil {
+		if ns.Ota.GetEnabled() && ns.Ota.GetBackend() != "hawkBit" && ns.Ota.GetBackend() != "mender" {
+			return nil, apierr.Code(connect.CodeInvalidArgument, "ota backend must be hawkBit or mender")
+		}
+		curr.Ota = ns.Ota
+		changed = true
+	}
+	if ns.Quota != nil {
+		curr.Quota = ns.Quota
+		changed = true
+	}
 
 	if changed {
 		_, err := c.col.ReplaceDocument(ctx, curr.Uuid, curr)

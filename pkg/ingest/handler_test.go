@@ -80,6 +80,32 @@ func TestPostIngest(t *testing.T) {
 	assert.Equal(t, http.StatusTooManyRequests, rr.Code)
 }
 
+func TestPostNamespaceQuota(t *testing.T) {
+	h := &Handler{
+		Key: []byte("secret"),
+		Now: func() time.Time { return time.Unix(10, 0) },
+		Patch: func(context.Context, string, *shadow.State) error {
+			return nil
+		},
+		Quota: func(context.Context, string) (float64, float64, string) {
+			return 1, 0, "ns"
+		},
+	}
+	post := func() int {
+		req := httptest.NewRequest(http.MethodPost, "/v1/ingest", strings.NewReader(`{}`))
+		req.Header.Set("Authorization", "Bearer "+token(t, oneDevice(true, access.Level_READ)))
+		rr := httptest.NewRecorder()
+		h.Post(rr, req)
+		return rr.Code
+	}
+	if post() != http.StatusNoContent {
+		t.Fatal("first post")
+	}
+	if post() != http.StatusTooManyRequests {
+		t.Fatal("second post")
+	}
+}
+
 func TestDesiredNotModified(t *testing.T) {
 	body := []byte(`{"mode":"on"}`)
 	h := &Handler{
