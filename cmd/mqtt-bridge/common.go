@@ -121,7 +121,7 @@ func HandleConn(c net.Conn, connectPacket *packet.Connect, meta connectMeta, dev
 				},
 			}, "mqtt.incoming")
 		},
-		subscribed: func(send func([]byte)) {
+		subscribed: func(send func([]byte, packet.Properties)) {
 			if back == nil {
 				back = ps.Sub()
 			}
@@ -153,7 +153,7 @@ func HandleConn(c net.Conn, connectPacket *packet.Connect, meta connectMeta, dev
 				if err != nil {
 					return
 				}
-				send(payload)
+				send(payload, packet.Properties{})
 			}()
 			log.Debug("Added Subscription", zap.String("topic", desiredTopic(device.Uuid)), zap.String("device", device.Uuid))
 		},
@@ -176,7 +176,7 @@ func HandleConn(c net.Conn, connectPacket *packet.Connect, meta connectMeta, dev
 	}
 }
 
-func handleBackChannel(log *zap.Logger, ch chan interface{}, send func([]byte), connected func()) {
+func handleBackChannel(log *zap.Logger, ch chan interface{}, send func([]byte, packet.Properties), connected func()) {
 	defer log.Debug("BackChannel handler closed")
 	var ts int64 = 0
 	for msg := range ch {
@@ -196,7 +196,7 @@ func handleBackChannel(log *zap.Logger, ch chan interface{}, send func([]byte), 
 			log.Warn("Failed to marshal shadow", zap.Error(err))
 			continue
 		}
-		send(payload)
+		send(payload, packet.Properties{})
 		if connected != nil {
 			connected()
 		}

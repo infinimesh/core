@@ -111,6 +111,19 @@ func TestConnAck311HasNoPropertyByte(t *testing.T) {
 	}
 }
 
+func TestConnAck5AdvertisesServerLimits(t *testing.T) {
+	in := &ConnAck{
+		ProtocolLevel:  ProtocolMQTT5,
+		ReceiveMaximum: 32,
+		MaxPacketSize:  1 << 20,
+		TopicAliasMax:  16,
+	}
+	got := roundTrip(t, in, ProtocolMQTT5).(*ConnAck)
+	if got.ReceiveMaximum != 32 || got.MaxPacketSize != 1<<20 || got.TopicAliasMax != 16 {
+		t.Fatalf("%+v", got)
+	}
+}
+
 func TestConnAck5AssignedClientID(t *testing.T) {
 	in := &ConnAck{ProtocolLevel: ProtocolMQTT5, Reason: CodeAccepted, AssignedClientID: "dev"}
 	got := roundTrip(t, in, ProtocolMQTT5).(*ConnAck)
