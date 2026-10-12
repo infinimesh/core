@@ -114,7 +114,7 @@ async function next() {
                 step.value++
                 break
             case 2:
-                let res = await as.http.post("/handsfree", {
+                let res = await as.http.post("/v1/pairing", {
                     code: 1, payload: [code, token]
                 })
 

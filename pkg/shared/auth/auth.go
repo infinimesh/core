@@ -27,9 +27,9 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc/metadata"
 
-	"github.com/infinimesh/proto/handsfree/handsfreeconnect"
 	"github.com/infinimesh/proto/node/access"
 	"github.com/infinimesh/proto/node/nodeconnect"
+	"github.com/infinimesh/proto/pairing/pairingconnect"
 
 	"github.com/infinimesh/core/pkg/sessions"
 	infinimesh "github.com/infinimesh/core/pkg/shared"
@@ -150,7 +150,7 @@ func (i *interceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) co
 			middleware = i.ConnectShadowStreamMiddleware
 		case strings.HasPrefix(procedure, "/"+nodeconnect.ShadowServiceName):
 			middleware = i.ConnectDeviceAuthMiddleware
-		case procedure == handsfreeconnect.HandsfreeServiceConnectProcedure:
+		case procedure == pairingconnect.PairingServiceConnectProcedure:
 			middleware = i.ConnectBlankMiddleware
 		default:
 			middleware = i.ConnectStandardAuthMiddleware

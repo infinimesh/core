@@ -26,10 +26,10 @@ import (
 	"connectrpc.com/grpchealth"
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/mux"
-	"github.com/infinimesh/core/pkg/handsfree"
 	logger "github.com/infinimesh/core/pkg/log"
+	"github.com/infinimesh/core/pkg/pairing"
 	"github.com/infinimesh/core/pkg/shared/auth"
-	cc "github.com/infinimesh/proto/handsfree/handsfreeconnect"
+	cc "github.com/infinimesh/proto/pairing/pairingconnect"
 	"github.com/rs/cors"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -83,8 +83,8 @@ func main() {
 	authInterceptor := auth.NewAuthInterceptor(log, rdb, nil, SIGNING_KEY)
 	interceptors := connect.WithInterceptors(authInterceptor)
 
-	handsfreeServer := handsfree.NewHandsfreeServer(log)
-	path, handler := cc.NewHandsfreeServiceHandler(handsfreeServer, interceptors)
+	pairingServer := pairing.NewPairingServer(log)
+	path, handler := cc.NewPairingServiceHandler(pairingServer, interceptors)
 	router.PathPrefix(path).Handler(handler)
 
 	checker := grpchealth.NewStaticChecker()

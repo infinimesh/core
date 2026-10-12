@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [v3.3.0] - 2026-10-12
+
 ### Added
 - `GET /devices/states/stream` accepts an account token. `namespace` limits the stream to one readable namespace. Omitting it streams every device that account can read. The stream emits `DEVICE_ADDED` and `DEVICE_REMOVED`. Each message has `eventId`. State messages include title, namespace, and tags when the registry has them. A repeated `eventId` is the same event.
 - `only_delta` defaults to false: a state message is the stored shadow with the published change merged in. `only_delta` true sends the published change. `include` limits a state message to `REPORTED`, `DESIRED`, or `CONNECTION`. An empty `include` sends all three. Membership events are sent whole.
@@ -13,6 +15,7 @@ All notable changes to this project will be documented in this file.
 - Create requests honour `Idempotency-Key` for 24 hours in the API process.
 
 ### Changed
+- Pairing is `infinimesh.pairing.v1.PairingService`. HTTP is `POST /v1/pairing` and `GET /v1/pairing/connection`. `/v1/handsfree`, `/handsfree`, and `/handsfree/connection` remain for one minor release. Device create sends `pairing` instead of `handsfree`.
 - `api.swagger.json` is the file from the pinned `github.com/infinimesh/proto` module. CI rejects a hand-edited copy and runs `buf lint` on that module.
 - REST paths are also served under `/v1`. The previous paths remain. Create is `POST` on the `/v1` path.
 - A device token from `Get` is read-only and expires in 24 hours. A token from `GetByFingerprint` may post reported state and expires in 24 hours. `MakeDevicesToken` uses `post` for reported writes and manage level for desired writes. A requested level of none is not copied from the caller. When `expires_at` and `exp` are both unset, a device token expires in 24 hours. A stream token still omits expiry when both are unset.
@@ -26,7 +29,7 @@ All notable changes to this project will be documented in this file.
 - The MQTT codec lives in `pkg/mqtt/packet`. The bridge no longer imports `github.com/slntopp/mqtt-go`.
 - The MQTT bridge allows a device to publish `devices/<id>/state/reported` and subscribe to `devices/<id>/state/desired`. QoS 1 and 2 are acknowledged. Desired state is delivered at the subscribed QoS and retried until the client acknowledges it. MQTT 3.1.1 keeps that inflight state for one hour when clean session is 0. MQTT 5 uses the session expiry interval. Both live in the bridge process.
 - MQTT 5 `CONNACK` advertises receive maximum 32, maximum packet size 1 MiB, and topic alias maximum 16. Inbound topic aliases use that server maximum. Desired publishes send content type, response topic, correlation data, and user properties, including on retry. A message expiry is enforced while the message is queued, and an expiry of zero is not stored. The bridge holds at most 32 inbound QoS 2 packet ids for two minutes and answers a further MQTT 5 publish with `PUBREC` `0x93`. A disabled device is disconnected within 30 seconds. A will whose topic is the device's reported topic is stored when the connection drops.
-- Compose pins `INFINIMESH_VERSION` to `v3.2.0`, Redis `7.4.11`, ArangoDB `3.12.12`, and Watchtower `1.7.1`. Redis `6379` and AMQP `5672` are not published on the host. ArangoDB and RabbitMQ admin UIs are not routed through Traefik or Caddy. Image builds attach an SBOM and provenance.
+- Compose pins `INFINIMESH_VERSION` to `v3.3.0`, Redis `7.4.11`, ArangoDB `3.12.12`, and Watchtower `1.7.1`. Redis `6379` and AMQP `5672` are not published on the host. ArangoDB and RabbitMQ admin UIs are not routed through Traefik or Caddy. Image builds attach an SBOM and provenance.
 - Console lockfile: `postcss` 8.5.29.
 - Console: `vite` 6.4.4, `vitest` 4.1.11, `vue` 3.5.43, `lodash` 4.18.1. Transitive `lodash-es`, `brace-expansion`, `minimatch`, `linkify-it`, `markdown-it`, `source-map-js`, `glob`, `@babel/runtime`, `cross-spawn`, and `tinypool` are pinned to patched releases.
 - Device and account tokens use `github.com/golang-jwt/jwt/v4`. The `v3` module is no longer required.

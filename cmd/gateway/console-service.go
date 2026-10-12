@@ -44,9 +44,8 @@ func init_cs(log *zap.Logger) {
 	log.Debug("PAIRING", zap.String("value", pairing))
 	if pairing != "" {
 		log.Info("Pairing service is enabled")
-		// Console and the RPC name still use handsfree.
-		enabled["handsfree"] = ""
-		SERVICES_ENABLED_MAP["handsfree"] = pairing
+		enabled["pairing"] = ""
+		SERVICES_ENABLED_MAP["pairing"] = pairing
 	}
 
 	viper.SetDefault("CHATTING", "")

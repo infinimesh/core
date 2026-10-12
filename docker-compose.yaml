@@ -184,7 +184,7 @@ services:
       SIGNING_KEY: "${SIGNING_KEY}"
     labels:
       - traefik.enable=true
-      - traefik.http.routers.pairing.rule=Host(`api.${BASE_DOMAIN}`)&&PathPrefix("/infinimesh.handsfree.")
+      - traefik.http.routers.pairing.rule=Host(`api.${BASE_DOMAIN}`)&&PathPrefix("/infinimesh.pairing.")
       - traefik.http.routers.pairing.entrypoints=grpc
       - traefik.http.services.pairing.loadbalancer.server.port=8000
       - traefik.http.services.pairing.loadbalancer.server.scheme=h2c
