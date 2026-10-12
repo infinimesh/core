@@ -6,4 +6,4 @@ Each action is one of `log`, `webhook`, `mqtt`, or `desired`. A webhook POST inc
 
 Alarm state for a rule and a device is `raised`, `acked`, or `cleared`. `cooldown` is the shortest gap between raises. `repeat` fires the actions again while the alarm stays raised. The `rules` service writes the alarm to ArangoDB `Alarms` and Redis key `rules:alarm:<namespace>:<rule>:<device>`. Ack and clear from the API are read back before the next evaluation.
 
-The console page is "Rules and Alarms".
+The REST gateway serves `GET` and `POST /v1/rules`, `PATCH` and `DELETE /v1/rules/{uuid}`, and `GET /v1/alarms`. `any_state=true` lists every alarm state. The console page is "Rules and Alarms". It creates, edits, and deletes rules, and lists, acks, and clears alarms.

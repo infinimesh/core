@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- The REST gateway serves rules, audit, and grants. `GET /v1/rules`, `GET /v1/alarms`, `GET /v1/audit`, and `GET /v1/grants` reach the API. The console deletes a rule and lists alarms with `any_state`.
+
 ### Added
 - Rules and alarms run in core. CEL conditions read `reported`, `desired`, `connected`, `device`, `title`, `tags`, and `ns`. Actions are log, webhook (HMAC `X-Infinimesh-Signature`), MQTT, and desired state. Alarm state is raised, acked, or cleared, with cooldown, in ArangoDB and Redis. The console page is "Rules and Alarms".
 - Namespace `ota` stores `enabled`, `backend_url`, and `backend` (`hawkBit` or `mender`). Shadow `data.ota` carries `version`, `url`, and `sha256`, and reported state adds `state`, `progress`, and `error`. Tag changes are `TAG_ADDED` and `TAG_REMOVED` on the shadow stream. `POST /v1/devices/states:patchMany` sets desired state by namespace or tag.
