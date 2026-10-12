@@ -8,7 +8,7 @@ Infinimesh is an open source IoT platform you run yourself. It gives you a devic
 
 What you get:
 
-- MQTT 3 and 5, with TLS 1.2 and 1.3
+- MQTT 3.1.1, and MQTT 5 in part, with TLS 1.2 and 1.3
 - Device shadow with reported and desired state
 - Messages from device to cloud and from cloud to device
 - Multi-tenant namespaces with graph-based access control
@@ -46,7 +46,7 @@ Default logins. Change them before you expose anything.
 - ArangoDB: user `root`, password `openSesame` (see `docker-compose.yaml`)
 - RabbitMQ: `infinimesh` / `infinimesh` (from `.env`)
 
-MQTT listens on 1883 (plain) and 8883 (TLS with `hack/server.crt` and `hack/server.key`).
+MQTT listens on 1883 (plain) and 8883 (TLS with `hack/server.crt` and `hack/server.key`). There is no device SDK. Devices use any MQTT client.
 
 ## When not to use it
 
@@ -108,14 +108,17 @@ inf devices state <device-id> --token "$(cat device.token)" --report '{"online":
 
 Create devices in the console, or with `inf devices create <template.json> --crt <cert.pem>`. Run `inf help` and `inf <command> --help` for all flags.
 
-Use the token over MQTT. The username is the device ID, the password is the token:
+The device token is for the API. MQTT needs a client certificate registered on the device. On 8883 the device sends the certificate. On 1883 the username is the device ID and the password is the base64 SHA-256 fingerprint of the certificate, and basic auth must be turned on for the device:
 
 ```bash
+PASS=$(openssl x509 -in device.crt -outform DER | openssl dgst -sha256 -binary | base64)
 mosquitto_pub -h api.${BASE_DOMAIN} -p 1883 \
-  -u <device-id> -P "$(cat device.token)" \
-  -t shadow/devices/<device-id>/desired \
-  -m '{"reboot":true}'
+  -u <device-id> -P "$PASS" \
+  -t shadow/devices/<device-id>/reported \
+  -m '{"online":true}'
 ```
+
+Everything a device publishes is stored as reported state. The bridge does not check topics yet and does not acknowledge QoS 1, so publish with QoS 0. See [docs/device-auth.md](docs/device-auth.md).
 
 ## Documentation
 
