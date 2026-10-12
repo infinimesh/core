@@ -20,6 +20,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/infinimesh/core/pkg/mqtt/acme"
@@ -30,6 +31,8 @@ import (
 // client certificate from the first handshake.
 var tlsHandshakeTimeout = 30 * time.Second
 
+const maxHandshakeTimeout = 2 * time.Minute
+
 func parseHandshakeTimeout(raw string) (time.Duration, error) {
 	d, err := time.ParseDuration(raw)
 	if err != nil {
@@ -38,7 +41,23 @@ func parseHandshakeTimeout(raw string) (time.Duration, error) {
 	if d <= 0 {
 		return 0, errors.New("TLS_HANDSHAKE_TIMEOUT must be positive")
 	}
+	if d > maxHandshakeTimeout {
+		return 0, fmt.Errorf("TLS_HANDSHAKE_TIMEOUT must be at most %s", maxHandshakeTimeout)
+	}
 	return d, nil
+}
+
+func plaintextRequested(raw string) bool {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "1", "true", "t", "yes", "y", "on":
+		return true
+	default:
+		return false
+	}
+}
+
+func plaintextWarning() string {
+	return "MQTT port 1883 is plaintext. Credentials and payloads are visible on the network. Leave MQTT_PLAINTEXT unset to keep it off."
 }
 
 func waitHandshake(conn *tls.Conn, timeout time.Duration) error {

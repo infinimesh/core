@@ -1,6 +1,16 @@
 package main
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
+
+func TestCoAPPlaintextNotice(t *testing.T) {
+	got := coapPlaintextNotice(":5683")
+	if !strings.Contains(got, "no DTLS") || !strings.Contains(got, "private network") {
+		t.Fatal(got)
+	}
+}
 
 func TestParseReportedPost(t *testing.T) {
 	raw := []byte{

@@ -58,7 +58,7 @@ MQTT does not go through Traefik. The bridge terminates TLS on `8883`. The liste
 - `ACME` set to a path: read a Traefik v2 `acme.json` and use the certificate whose domain starts with `mqtt.`
 - `ACME` empty: read `TLS_CERT_FILE` and `TLS_KEY_FILE` (defaults `/cert/tls.crt` and `/cert/tls.key`)
 
-`TLS_EC_CERT_FILE` and `TLS_EC_KEY_FILE`, when both are set, add an ECDSA certificate beside that one. Leave them unset for a public name unless the ECDSA certificate is valid for `mqtt.$BASE_DOMAIN`. `hack/server-ec.crt` is a localhost test certificate. `TLS_HANDSHAKE_TIMEOUT` defaults to `30s`. Session tickets, TLS-PSK, and maximum fragment length are in [guides/small-devices-tls.md](guides/small-devices-tls.md).
+`TLS_EC_CERT_FILE` and `TLS_EC_KEY_FILE`, when both are set, add an ECDSA certificate beside that one. Leave them unset for a public name unless the ECDSA certificate is valid for `mqtt.$BASE_DOMAIN`. `hack/server-ec.crt` is a localhost test certificate. `TLS_HANDSHAKE_TIMEOUT` defaults to `30s` and is at most `2m`. Port 1883 listens only when `MQTT_PLAINTEXT=1`. The local Compose file sets it. This overlay and the Caddy overlay set `MQTT_PLAINTEXT=0`. Session tickets, TLS-PSK, and maximum fragment length are in [guides/small-devices-tls.md](guides/small-devices-tls.md).
 
 `docker-compose.public.yml` adds a router for `mqtt.$BASE_DOMAIN` so Let's Encrypt writes that name into `acme.json`, then sets `ACME=/acme/acme.json` on the bridge. The HTTPS route on that name is forwarded to the bridge's metrics port inside the Docker network. Port 8883 is the MQTT listener.
 

@@ -37,6 +37,7 @@ services:
       - rabbitmq
       - api
     environment:
+      MQTT_PLAINTEXT: "0"
       TLS_CERT_FILE: /caddy-certs/certificates/acme-v02.api.letsencrypt.org-directory/mqtt.${BASE_DOMAIN}/mqtt.${BASE_DOMAIN}.crt
       TLS_KEY_FILE: /caddy-certs/certificates/acme-v02.api.letsencrypt.org-directory/mqtt.${BASE_DOMAIN}/mqtt.${BASE_DOMAIN}.key
     volumes:

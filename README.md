@@ -26,7 +26,7 @@ cp .env.example .env
 docker compose up -d
 ```
 
-Open http://console.127.0.0.1.nip.io
+Open https://console.127.0.0.1.nip.io
 
 It redirects to HTTPS with a local self-signed certificate, so accept the browser warning.
 
@@ -49,7 +49,7 @@ Default logins. Change them before you expose anything.
 - ArangoDB, inside the Compose network: user `root`, password `openSesame`
 - RabbitMQ, inside the Compose network: `infinimesh` / `infinimesh` (from `.env`)
 
-MQTT listens on 1883 (plain) and 8883 (TLS with `hack/server.crt` and `hack/server.key`). `hack/server-ec.crt` is a P-256 certificate with a subject alternative name for localhost. Small-device TLS is in [docs/guides/small-devices-tls.md](docs/guides/small-devices-tls.md).
+MQTT listens on 8883 (TLS with `hack/server.crt` and `hack/server.key`). Plaintext 1883 listens only when `MQTT_PLAINTEXT=1`. The local Compose file sets that. `hack/server-ec.crt` is a P-256 certificate with a subject alternative name for localhost. Small-device TLS is in [docs/guides/small-devices-tls.md](docs/guides/small-devices-tls.md).
 
 ## When not to use it
 

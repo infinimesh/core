@@ -92,6 +92,7 @@ services:
       DEVICES_HOST: api:8000
       SHADOW_HOST: shadow:8000
       SIGNING_KEY: "${SIGNING_KEY}"
+      MQTT_PLAINTEXT: "1"
 
   api:
     image: "ghcr.io/infinimesh/core/api:${INFINIMESH_VERSION}"
@@ -136,6 +137,7 @@ services:
     labels:
       - traefik.enable=false
     ports:
+      # Plaintext UDP. No DTLS in this process. Do not publish this off a private network.
       - "5683:5683/udp"
     depends_on:
       - rabbitmq

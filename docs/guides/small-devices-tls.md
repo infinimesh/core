@@ -1,10 +1,10 @@
 # Small-device TLS
 
-The MQTT bridge terminates TLS on port 8883 with Go's `crypto/tls`. Port 1883 is plaintext. Device identity on 8883 is the SHA-256 fingerprint of the client certificate, including after a session resume. See [device-auth.md](../device-auth.md).
+The MQTT bridge terminates TLS on port 8883 with Go's `crypto/tls`. Port 1883 is plaintext and listens only when `MQTT_PLAINTEXT` is `1`. Device identity on 8883 is the SHA-256 fingerprint of the client certificate, including after a session resume. See [device-auth.md](../device-auth.md).
 
 ## Handshake timeout
 
-`TLS_HANDSHAKE_TIMEOUT` is how long the bridge waits for the TLS handshake after it accepts the TCP connection. The default is `30s`. The value is a Go duration (`30s`, `1m`). Zero, a negative duration, and a number with no unit are rejected and the process exits.
+`TLS_HANDSHAKE_TIMEOUT` is how long the bridge waits for the TLS handshake after it accepts the TCP connection. The default is `30s`. The value is a Go duration (`30s`, `1m`). The maximum is `2m`. Zero, a negative duration, a number with no unit, and a duration above `2m` are rejected and the process exits.
 
 The timer covers `Handshake` only. The MQTT `CONNECT` packet is read after the handshake succeeds.
 
