@@ -6,8 +6,8 @@ Devices can authenticate with tokens (JWT) or TLS client certificates. Tokens ar
 
 1. Create a device and issue a token:
    ```bash
-   inf devices create demo-sensor
-   inf devices token demo-sensor --allow-post > demo-sensor.token
+   inf devices create device.json --crt device.crt
+   inf devices token <device-id> --allow-post > demo-sensor.token
    ```
 
 2. Use the token over MQTT (username = device ID, password = token):
@@ -20,16 +20,16 @@ Devices can authenticate with tokens (JWT) or TLS client certificates. Tokens ar
 
 3. Shadow via CLI:
    ```bash
-   inf shadow set demo-sensor --reported '{"online":true,"temp":21.5}'
-   inf shadow get demo-sensor
+   inf devices state <device-id> --token "$(cat demo-sensor.token)" --report '{"online":true,"temp":21.5}'
+   inf devices state <device-id>
    ```
 
-CLI flag equivalents for MQTT: `inf devices mqtt --device-id demo-sensor --device-token "$(cat demo-sensor.token)" --topic shadow/devices/%s/desired`.
+CLI flag equivalents for MQTT: `inf devices state mqtt --device-id demo-sensor --device-token "$(cat demo-sensor.token)" --topic shadow/devices/%s/desired`.
 
 To read/write via CLI:
 ```bash
-inf shadow get demo-sensor
-inf shadow set demo-sensor --desired '{"threshold":50}'
+inf devices state <device-id>
+inf devices state <device-id> --patch '{"threshold":50}'
 ```
 
 ## Certificate-based auth
