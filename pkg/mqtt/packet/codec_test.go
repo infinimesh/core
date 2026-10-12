@@ -119,6 +119,124 @@ func TestConnAck5AssignedClientID(t *testing.T) {
 	}
 }
 
+func TestConnectFlagBitsAreNotComparedToOne(t *testing.T) {
+	in := &Connect{
+		ProtocolLevel: ProtocolMQTT311,
+		CleanStart:    true,
+		WillFlag:      true,
+		WillQoS:       1,
+		WillRetain:    true,
+		PasswordFlag:  true,
+		UsernameFlag:  true,
+		KeepAlive:     15,
+		ClientID:      "c",
+		WillTopic:     "w",
+		WillMessage:   []byte("m"),
+		Username:      "u",
+		Password:      "p",
+	}
+	var buf bytes.Buffer
+	if _, err := in.WriteTo(&buf); err != nil {
+		t.Fatal(err)
+	}
+	raw := buf.Bytes()
+	// MQTT, level, then the flag byte. Each set flag is its bit value, never 1.
+	nameAt := bytes.Index(raw, []byte("MQTT"))
+	if nameAt < 0 || raw[nameAt+4] != ProtocolMQTT311 || raw[nameAt+5] != 0xEE {
+		t.Fatalf("connect %x", raw)
+	}
+	got := roundTrip(t, in, 0).(*Connect)
+	if !got.CleanStart || !got.WillFlag || got.WillQoS != 1 || !got.WillRetain || !got.UsernameFlag || !got.PasswordFlag {
+		t.Fatalf("%+v", got)
+	}
+	if got.Username != "u" || got.Password != "p" || got.WillTopic != "w" || string(got.WillMessage) != "m" {
+		t.Fatalf("payload %+v", got)
+	}
+}
+
+func TestMQTT5PubAckIncludesReasonByte(t *testing.T) {
+	var buf bytes.Buffer
+	_, err := (&Ack{ProtocolLevel: ProtocolMQTT5, Kind: PUBACK, PacketID: 7}).WriteTo(&buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []byte{0x40, 0x03, 0x00, 0x07, 0x00}
+	if !bytes.Equal(buf.Bytes(), want) {
+		t.Fatalf("puback %x", buf.Bytes())
+	}
+}
+
+func TestPublishTopicAliasIs0x23(t *testing.T) {
+	var buf bytes.Buffer
+	_, err := (&Publish{
+		ProtocolLevel: ProtocolMQTT5,
+		Topic:         "t",
+		Payload:       []byte("a"),
+		Properties:    Properties{HasTopicAlias: true, TopicAlias: 1},
+	}).WriteTo(&buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := buf.Bytes()
+	if !bytes.Contains(raw, []byte{0x23, 0x00, 0x01}) {
+		t.Fatalf("alias %x", raw)
+	}
+	bad := bytes.Replace(raw, []byte{0x23}, []byte{0x22}, 1)
+	if _, err := ReadPacket(bytes.NewReader(bad), ProtocolMQTT5, 0); err == nil {
+		t.Fatal("topic alias maximum was accepted on publish")
+	}
+}
+
+func TestQoS2PublishWritesPacketID(t *testing.T) {
+	var buf bytes.Buffer
+	_, err := (&Publish{
+		ProtocolLevel: ProtocolMQTT311,
+		QoS:           2,
+		Topic:         "ab",
+		PacketID:      0x1234,
+		Payload:       []byte{1},
+	}).WriteTo(&buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := buf.Bytes()
+	if !bytes.Contains(raw, []byte{0x00, 0x02, 'a', 'b', 0x12, 0x34, 1}) {
+		t.Fatalf("publish %x", raw)
+	}
+	if raw[0] != 0x34 {
+		t.Fatalf("fixed header %x", raw[0])
+	}
+}
+
+func TestZeroReceiveMaximumAndPacketSizeRejected(t *testing.T) {
+	base := &Connect{
+		ProtocolLevel: ProtocolMQTT5,
+		CleanStart:    true,
+		ClientID:      "c",
+	}
+	var withZero bytes.Buffer
+	ok := *base
+	ok.Properties.ReceiveMaximum = 1
+	if _, err := ok.WriteTo(&withZero); err != nil {
+		t.Fatal(err)
+	}
+	raw := withZero.Bytes()
+	zeroed := bytes.Replace(raw, []byte{0x21, 0x00, 0x01}, []byte{0x21, 0x00, 0x00}, 1)
+	if _, err := ReadPacket(bytes.NewReader(zeroed), 0, 0); err == nil {
+		t.Fatal("receive maximum 0 accepted")
+	}
+	sized := *base
+	sized.Properties.MaxPacketSize = 1
+	withZero.Reset()
+	if _, err := sized.WriteTo(&withZero); err != nil {
+		t.Fatal(err)
+	}
+	zeroed = bytes.Replace(withZero.Bytes(), []byte{0x27, 0x00, 0x00, 0x00, 0x01}, []byte{0x27, 0x00, 0x00, 0x00, 0x00}, 1)
+	if _, err := ReadPacket(bytes.NewReader(zeroed), 0, 0); err == nil {
+		t.Fatal("maximum packet size 0 accepted")
+	}
+}
+
 func TestPubAckHasFixedHeader(t *testing.T) {
 	var buf bytes.Buffer
 	_, err := (&Ack{ProtocolLevel: ProtocolMQTT311, Kind: PUBACK, PacketID: 7}).WriteTo(&buf)

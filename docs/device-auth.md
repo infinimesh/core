@@ -1,8 +1,12 @@
 # Device Authentication & MQTT
 
-Devices authenticate with a TLS client certificate. Port 8883 requires the certificate. Port 1883 accepts the same certificate's SHA-256 fingerprint, base64-encoded, as the MQTT password. The username is the device id. The device must be enabled, and basic auth must be enabled for 1883.
+infinimesh has no device SDK. A device brings its own MQTT client.
 
-A device token (JWT) is for the HTTP and Connect API. The bridge does not accept that token as the MQTT password.
+Devices authenticate with a TLS client certificate. Port 8883 requires the certificate. Port 1883 accepts the same certificate's SHA-256 fingerprint, base64-encoded, as the MQTT password. The username is the device id. The device must be enabled, and basic auth must be enabled for that device. Turn basic auth on in the console (the lock on the device card) or with `POST /devices/<device-id>/toggle/basic`.
+
+A device token (JWT) is for the HTTP, gRPC and Connect API. The bridge does not accept that token as the MQTT password.
+
+Port 1883 is not encrypted. Anyone who knows the fingerprint can log in. Use it for local tests.
 
 ## Certificate
 
@@ -58,7 +62,7 @@ inf devices state mqtt --device-id demo-sensor --basic "demo-sensor:$FP" \
 
 A device may publish only `devices/<id>/state/reported` and subscribe only to `devices/<id>/state/desired`. `<id>` is that device's id. Wildcards and any other topic, including another device's, are rejected. A publish to `desired` is not stored as reported.
 
-The retain flag is accepted on `reported`. The stored reported state is that payload. Desired state is pushed when the device subscribes, at the QoS granted for that subscription.
+The retain flag is accepted on `reported`. The stored reported state is that payload. Payloads must be JSON objects. Desired state is pushed when the device subscribes, at the QoS granted for that subscription.
 
 `shadow/devices/...` is not a bridge topic.
 
@@ -72,6 +76,7 @@ The bridge reads the client keepalive and closes the connection after one and a 
 
 ## Troubleshooting
 
+- MQTT connection closed right after connect: the certificate is not registered, the device is disabled, or on 1883 the username is not the device id, the password is not the fingerprint, or basic auth is off.
 - 401/permission errors: ensure token includes the device with at least read; reissue with `--allow-post` for writes.
 - Connection refused: check broker host/port and that `docker compose ps` shows `mqtt-bridge` healthy.
 - TLS failures: locally, `--cafile hack/server.crt`. On a public domain the broker certificate is the Let's Encrypt certificate for `mqtt.$BASE_DOMAIN`, so the system CA bundle validates it. See [public-tls.md](public-tls.md).

@@ -443,6 +443,228 @@ func TestMessageExpiryZeroDropsPayload(t *testing.T) {
 	}
 }
 
+func TestMeta311CleanSessionZeroLastsOneHour(t *testing.T) {
+	raw := connectBytes(t, flagsConnect(packet.ProtocolMQTT311, 0xC0, 10, "cid", "dev", "pw", packet.ConnectProperties{}, "", nil))
+	_, meta, err := readConnect(bytes.NewReader(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if meta.cleanStart || meta.sessionExpiry != time.Hour {
+		t.Fatalf("meta %+v", meta)
+	}
+}
+
+func TestMeta5WithoutExpiryDoesNotPersist(t *testing.T) {
+	raw := connectBytes(t, flagsConnect(packet.ProtocolMQTT5, 0xC0, 10, "cid", "dev", "pw", packet.ConnectProperties{}, "", nil))
+	_, meta, err := readConnect(bytes.NewReader(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if meta.sessionExpiry != 0 {
+		t.Fatalf("expiry %s", meta.sessionExpiry)
+	}
+}
+
+func TestEmptyClientID311Rejected(t *testing.T) {
+	server, client := net.Pipe()
+	defer client.Close()
+	go func() {
+		cp, meta, err := readConnect(server)
+		if err != nil {
+			return
+		}
+		serveDevice(server, "dev", cp, meta, newSessionStore(), deviceHooks{})
+	}()
+	raw := connectBytes(t, flagsConnect(packet.ProtocolMQTT311, 0xC0, 0, "", "dev", "pw", packet.ConnectProperties{}, "", nil))
+	if _, err := client.Write(raw); err != nil {
+		t.Fatal(err)
+	}
+	_ = client.SetReadDeadline(time.Now().Add(2 * time.Second))
+	pkt, err := packet.ReadPacket(client, packet.ProtocolMQTT311, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ack := pkt.(*packet.ConnAck)
+	if ack.Reason != packet.CodeIdentifierRejected {
+		t.Fatalf("%+v", ack)
+	}
+}
+
+func TestEmptyClientID5IsAssigned(t *testing.T) {
+	server, client := net.Pipe()
+	defer client.Close()
+	go func() {
+		cp, meta, err := readConnect(server)
+		if err != nil {
+			return
+		}
+		serveDevice(server, "dev", cp, meta, newSessionStore(), deviceHooks{})
+	}()
+	raw := connectBytes(t, flagsConnect(packet.ProtocolMQTT5, 0xC0, 0, "", "dev", "pw", packet.ConnectProperties{}, "", nil))
+	if _, err := client.Write(raw); err != nil {
+		t.Fatal(err)
+	}
+	_ = client.SetReadDeadline(time.Now().Add(2 * time.Second))
+	pkt, err := packet.ReadPacket(client, packet.ProtocolMQTT5, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ack := pkt.(*packet.ConnAck)
+	if ack.Reason != packet.ReasonSuccess || ack.AssignedClientID != "dev" {
+		t.Fatalf("%+v", ack)
+	}
+}
+
+func Test311UnauthorizedQoS1Disconnects(t *testing.T) {
+	n := 0
+	c, _ := startSession(t, packet.ProtocolMQTT311, 0xC2, "cid", packet.ConnectProperties{}, newSessionStore(), deviceHooks{
+		reported: func([]byte, packet.Properties, bool) bool {
+			n++
+			return true
+		},
+	})
+	defer c.conn.Close()
+	c.send(packetBytes(t, &packet.Publish{
+		ProtocolLevel: packet.ProtocolMQTT311,
+		QoS:           1,
+		PacketID:      1,
+		Topic:         desiredTopic("dev"),
+		Payload:       []byte(`{"t":1}`),
+	}))
+	if _, ok := c.next().(*packet.Disconnect); !ok {
+		t.Fatal("expected disconnect")
+	}
+	if n != 0 {
+		t.Fatal("stored")
+	}
+}
+
+func TestQoS0UnauthorizedDisconnects(t *testing.T) {
+	c, _ := startSession(t, packet.ProtocolMQTT5, 0xC2, "cid", packet.ConnectProperties{}, newSessionStore(), deviceHooks{})
+	defer c.conn.Close()
+	c.send(packetBytes(t, &packet.Publish{
+		ProtocolLevel: packet.ProtocolMQTT5,
+		Topic:         desiredTopic("dev"),
+		Payload:       []byte(`{"t":1}`),
+	}))
+	if _, ok := c.next().(*packet.Disconnect); !ok {
+		t.Fatal("expected disconnect")
+	}
+}
+
+func Test311BadJSONQoS1StillAcks(t *testing.T) {
+	n := 0
+	c, _ := startSession(t, packet.ProtocolMQTT311, 0xC2, "cid", packet.ConnectProperties{}, newSessionStore(), deviceHooks{
+		reported: func([]byte, packet.Properties, bool) bool {
+			n++
+			return false
+		},
+	})
+	defer c.conn.Close()
+	c.send(packetBytes(t, &packet.Publish{
+		ProtocolLevel: packet.ProtocolMQTT311,
+		QoS:           1,
+		PacketID:      1,
+		Topic:         reportedTopic("dev"),
+		Payload:       []byte(`not-json`),
+	}))
+	ack := c.next().(*packet.Ack)
+	if ack.Kind != packet.PUBACK || ack.Reason != packet.ReasonSuccess || n != 1 {
+		t.Fatalf("ack %+v calls %d", ack, n)
+	}
+}
+
+func TestDisconnectDoesNotFireWill(t *testing.T) {
+	server, client := net.Pipe()
+	defer client.Close()
+	willed := make(chan struct{}, 1)
+	left := make(chan struct{})
+	go func() {
+		cp, meta, err := readConnect(server)
+		if err != nil {
+			return
+		}
+		serveDevice(server, "dev", cp, meta, newSessionStore(), deviceHooks{
+			connected: func(up bool) {
+				if !up {
+					close(left)
+				}
+			},
+			will: func(string, []byte, bool) { willed <- struct{}{} },
+		})
+	}()
+	raw := connectBytes(t, flagsConnect(packet.ProtocolMQTT311, 0xC6, 0, "cid", "dev", "pw", packet.ConnectProperties{}, reportedTopic("dev"), []byte("gone")))
+	if _, err := client.Write(raw); err != nil {
+		t.Fatal(err)
+	}
+	_ = client.SetReadDeadline(time.Now().Add(2 * time.Second))
+	if _, err := packet.ReadPacket(client, packet.ProtocolMQTT311, 0); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := (&packet.Disconnect{ProtocolLevel: packet.ProtocolMQTT311}).WriteTo(client); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-left:
+	case <-time.After(2 * time.Second):
+		t.Fatal("session did not end")
+	}
+	select {
+	case <-willed:
+		t.Fatal("will fired after disconnect")
+	default:
+	}
+}
+
+func TestMQTT5ExpiryZeroDropsInflight(t *testing.T) {
+	store := newSessionStore()
+	left := make(chan struct{}, 1)
+	hooks := deviceHooks{
+		connected: func(up bool) {
+			if !up {
+				select {
+				case left <- struct{}{}:
+				default:
+				}
+			}
+		},
+		subscribed: func(send func([]byte)) { send([]byte(`{"led":1}`)) },
+	}
+	c, present := startSession(t, packet.ProtocolMQTT5, 0xC0, "cid", packet.ConnectProperties{}, store, hooks)
+	if present {
+		t.Fatal("new session presented")
+	}
+	c.send(packetBytes(t, &packet.Subscribe{
+		ProtocolLevel: packet.ProtocolMQTT5,
+		PacketID:      1,
+		Filters:       []packet.Subscription{{Topic: desiredTopic("dev"), QoS: 1}},
+	}))
+	if _, ok := c.next().(*packet.SubAck); !ok {
+		t.Fatal("suback")
+	}
+	if _, ok := c.next().(*packet.Publish); !ok {
+		t.Fatal("publish")
+	}
+	if _, err := (&packet.Disconnect{ProtocolLevel: packet.ProtocolMQTT5}).WriteTo(c.conn); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-left:
+	case <-time.After(2 * time.Second):
+		t.Fatal("session did not end")
+	}
+	c.conn.Close()
+	c, present = startSession(t, packet.ProtocolMQTT5, 0xC0, "cid", packet.ConnectProperties{}, store, hooks)
+	defer c.conn.Close()
+	if present {
+		t.Fatal("expiry 0 resumed the session")
+	}
+	_ = c.conn.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
+	if _, err := packet.ReadPacket(c.conn, packet.ProtocolMQTT5, 0); err == nil {
+		t.Fatal("inflight was resent")
+	}
+}
+
 func TestBadJSONIsNotStored(t *testing.T) {
 	n := 0
 	c, _ := startSession(t, packet.ProtocolMQTT5, 0xC2, "cid", packet.ConnectProperties{}, newSessionStore(), deviceHooks{

@@ -108,7 +108,7 @@ inf devices state <device-id> --token "$(cat device.token)" --report '{"online":
 
 Create devices in the console, or with `inf devices create <template.json> --crt <cert.pem>`. Run `inf help` and `inf <command> --help` for all flags.
 
-MQTT on 1883 uses the device id as the username and the base64-encoded certificate fingerprint as the password. Port 8883 uses the client certificate. Topic rules, QoS, and session behaviour are in [docs/device-auth.md](docs/device-auth.md).
+The device token is for the API. MQTT needs a client certificate registered on the device. On 8883 the device sends the certificate. On 1883 the username is the device id and the password is the base64 SHA-256 fingerprint of the certificate, and basic auth must be turned on for the device. Topic rules, QoS, and session behaviour are in [docs/device-auth.md](docs/device-auth.md).
 
 ```bash
 mosquitto_pub -h api.${BASE_DOMAIN} -p 1883 \
