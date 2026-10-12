@@ -127,6 +127,12 @@ func main() {
 		log.Fatal("Failed to register ShadowService gateway", zap.Error(err))
 	}
 
+	log.Info("Registering Rules, Audit, and Grants Services")
+	err = registerRulesAuditGrants(context.Background(), gwmux, apiserver, opts)
+	if err != nil {
+		log.Fatal("Failed to register Rules, Audit, or Grants gateway", zap.Error(err))
+	}
+
 	log.Info("Registering Plugins Service")
 	err = plugins.RegisterPluginsServiceHandlerFromEndpoint(context.Background(), gwmux, apiserver, opts)
 	if err != nil {
@@ -163,6 +169,16 @@ func main() {
 
 	log.Info("Serving gRPC-Gateway on http://0.0.0.0:8000")
 	log.Fatal("Failed to Listen and Serve Gateway-Server", zap.Error(http.ListenAndServe(":8000", wsproxy.WebsocketProxy(handler))))
+}
+
+func registerRulesAuditGrants(ctx context.Context, mux *runtime.ServeMux, target string, opts []grpc.DialOption) error {
+	if err := pb.RegisterRulesServiceHandlerFromEndpoint(ctx, mux, target, opts); err != nil {
+		return err
+	}
+	if err := pb.RegisterAuditServiceHandlerFromEndpoint(ctx, mux, target, opts); err != nil {
+		return err
+	}
+	return pb.RegisterGrantsServiceHandlerFromEndpoint(ctx, mux, target, opts)
 }
 
 func buildTLSConfig(secure bool, caFile string, log *zap.Logger) (*tls.Config, error) {

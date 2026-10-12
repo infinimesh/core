@@ -22,7 +22,10 @@
         <n-tr v-for="rule in rules" :key="rule.uuid">
           <td>{{ rule.name }}</td>
           <td>{{ rule.when }}</td>
-          <td><n-button size="small" @click="edit(rule)">Edit</n-button></td>
+          <td>
+            <n-button size="small" @click="edit(rule)">Edit</n-button>
+            <n-button size="small" @click="remove(rule)">Delete</n-button>
+          </td>
         </n-tr>
       </tbody>
     </n-table>
@@ -89,7 +92,7 @@ async function load() {
   try {
     const listed = await app.http.get("/v1/rules", { params: { namespace: namespace.value } })
     rules.value = listed.data.rules || []
-    const raised = await app.http.get("/v1/alarms", { params: { namespace: namespace.value, anyState: true } })
+    const raised = await app.http.get("/v1/alarms", { params: { namespace: namespace.value, any_state: true } })
     alarms.value = raised.data.alarms || []
   } catch (err) {
     message.error(err.message)
@@ -116,6 +119,19 @@ async function save() {
       await app.http.post("/v1/rules", body)
     }
     message.success("Rule saved")
+    await load()
+  } catch (err) {
+    message.error(err.message)
+  }
+}
+
+async function remove(rule) {
+  try {
+    await app.http.delete(`/v1/rules/${encodeURIComponent(rule.uuid)}`)
+    if (form.value.uuid === rule.uuid) {
+      form.value = { uuid: "", name: "", when: "", clear: "", cooldown: "", webhook: "" }
+    }
+    message.success("Rule deleted")
     await load()
   } catch (err) {
     message.error(err.message)
