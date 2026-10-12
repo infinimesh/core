@@ -1,6 +1,6 @@
 # Device shadow
 
-`GET /devices/states/stream` follows reported state, desired state, and connection.
+`GET /devices/states/stream` follows reported state, desired state, and connection. Connection state published on `mqtt.incoming` is delivered to the device stream. A sync snapshot includes the stored connection.
 
 A device token streams the devices in that token. An account token streams the devices that account can read. `namespace` limits an account token to one readable namespace. Leaving it empty streams every namespace the account can read.
 

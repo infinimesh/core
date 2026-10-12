@@ -123,10 +123,14 @@ consume:
 			continue
 		}
 		log.Debug("Received message from RabbitMQ", zap.Any("shadow", &shadow))
-		if shadow.EventId == 0 && shadowsvc.Inbound != nil {
-			shadowsvc.Inbound(shadow)
-		}
-		ps.TryPub(shadow, topic, topic+"/"+shadow.Device)
+		Deliver(ps, topic, shadow)
 		msg.Ack(false)
 	}
+}
+
+func Deliver(bus pubsub.PubSub, topic string, shadow *pb.Shadow) {
+	if shadow.EventId == 0 && shadowsvc.Inbound != nil {
+		shadowsvc.Inbound(shadow)
+	}
+	bus.TryPub(shadow, topic, topic+"/"+shadow.Device)
 }

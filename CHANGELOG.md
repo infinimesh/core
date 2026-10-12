@@ -21,6 +21,9 @@ All notable changes to this project will be documented in this file.
 - Request logs strip CR and LF from the method, path, and OAuth `state`.
 - Third-party Actions are pinned to a commit. `docker-build` sets `contents: read`.
 
+### Fixed
+- Connection state published on `mqtt.incoming` reaches a shadow stream, including the sync snapshot.
+
 ## [v3.2.0] - 2026-10-11
 
 ### Changed
