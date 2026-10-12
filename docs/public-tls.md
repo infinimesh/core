@@ -103,7 +103,7 @@ Public clients use `api.$BASE_DOMAIN` on port 443. Traefik and Caddy send these 
 Log in with the CLI against port 443:
 
 ```bash
-inf login --api api.example.com:443 --username root --password 'your-root-password'
+inf login --api api.example.com:443 --username infinimesh --password 'your-admin-password'
 ```
 
 The CLI uses TLS unless you pass `--insecure`, and it skips certificate verification. A host with no port, including an `https://` URL, is dialed on port 8000. Port 8000 here is plaintext h2c, and the public overlays do not publish it.
