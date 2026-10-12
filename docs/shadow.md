@@ -11,3 +11,5 @@ Each message has `eventId`. The same id is the same event, including after a ret
 `only_delta` defaults to false. A state message is then the stored shadow with the published change merged in. `only_delta` true sends that published change. `include` limits a state message to `REPORTED`, `DESIRED`, or `CONNECTION`. An empty `include` sends all three. Membership events are sent whole.
 
 `GET /devices/states`, `PATCH /devices/states`, and key removal still require a device token.
+
+`POST /devices/token` with `stream` true and an empty device map mints a read-only token for the caller account. `namespace` limits that token to one namespace the account can read. The token opens `GET /devices/states/stream` and the sync stream. It is rejected by every other API.

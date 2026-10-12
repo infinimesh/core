@@ -18,7 +18,7 @@ require (
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.31.0
-	github.com/infinimesh/proto v0.0.0-20261012115432-05e608feff68
+	github.com/infinimesh/proto v0.0.0-20261012115519-b45e41d2b11c
 	github.com/prometheus/client_golang v1.18.0
 	github.com/rabbitmq/amqp091-go v1.14.0
 	github.com/rs/cors v1.11.1

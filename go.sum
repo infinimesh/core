@@ -61,8 +61,8 @@ github.com/grpc-ecosystem/grpc-gateway/v2 v2.31.0 h1:Bd7KaOxzULLxtZ/K5s1aLbWhR0+
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.31.0/go.mod h1:nN7ts3dFXKtCZWc//yfkpcQNKJABg16/uDVAZpLDalo=
 github.com/hashicorp/hcl v1.0.0 h1:0Anlzjpi4vEasTeNFn2mLJgTSwt0+6sfsiTG8qcWGx4=
 github.com/hashicorp/hcl v1.0.0/go.mod h1:E5yfLk+7swimpb2L/Alb/PJmXilQ/rhwaUYs4T20WEQ=
-github.com/infinimesh/proto v0.0.0-20261012115432-05e608feff68 h1:baV0fkCUBijLCAzoLp9BekCRHjOBLU8xnIso/3/4SvM=
-github.com/infinimesh/proto v0.0.0-20261012115432-05e608feff68/go.mod h1:Oz7g8xm2m3PHHnMEm0rB4VHaSd0z3eXotlF/tbuz/lQ=
+github.com/infinimesh/proto v0.0.0-20261012115519-b45e41d2b11c h1:bet/1w3DXyqUyMrCCdN5RWzCTOlU77icSDWqdpzcXhw=
+github.com/infinimesh/proto v0.0.0-20261012115519-b45e41d2b11c/go.mod h1:Oz7g8xm2m3PHHnMEm0rB4VHaSd0z3eXotlF/tbuz/lQ=
 github.com/kr/pretty v0.3.1 h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE=
 github.com/kr/pretty v0.3.1/go.mod h1:hoEshYVHaxMs3cyo3Yncou5ZscifuDolrwPKZanG3xk=
 github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=

@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 - `GET /devices/states/stream` accepts an account token. `namespace` limits the stream to one readable namespace. Omitting it streams every device that account can read. The stream emits `DEVICE_ADDED` and `DEVICE_REMOVED`. Each message has `eventId`. State messages include title, namespace, and tags when the registry has them. A repeated `eventId` is the same event.
 - `only_delta` defaults to false: a state message is the stored shadow with the published change merged in. `only_delta` true sends the published change. `include` limits a state message to `REPORTED`, `DESIRED`, or `CONNECTION`. An empty `include` sends all three. Membership events are sent whole.
+- `POST /devices/token` with `stream` true and an empty device map mints a read-only token for the caller account. `namespace` limits it to one readable namespace. The token opens the shadow streams and no other API.
 
 ### Changed
 - The MQTT codec lives in `pkg/mqtt/packet`. The bridge no longer imports `github.com/slntopp/mqtt-go`.

@@ -606,6 +606,27 @@ func (c *DevicesController) MakeDevicesToken(ctx context.Context, _req *connect.
 
 	acc := *NewBlankAccountDocument(requestor)
 
+	if req.GetStream() {
+		if len(req.GetDevices()) > 0 {
+			return nil, status.Error(codes.InvalidArgument, "a streaming token has no device list")
+		}
+		if req.GetPost() {
+			return nil, status.Error(codes.InvalidArgument, "a streaming token is read-only")
+		}
+		ns := req.GetNamespace()
+		if ns != "" {
+			ok, level := c.ica_repo.AccessLevel(ctx, &acc, NewBlankNamespaceDocument(ns))
+			if !ok || level < access.Level_READ {
+				return nil, status.Errorf(codes.PermissionDenied, "Not enough Access Rights to namespace: %s", ns)
+			}
+		}
+		token_string, err := c._MakeStreamToken(requestor, ns, req.GetExp())
+		if err != nil {
+			return nil, status.Error(codes.Internal, "Failed to issue token")
+		}
+		return connect.NewResponse(&pb.TokenResponse{Token: token_string}), nil
+	}
+
 	for uuid := range req.GetDevices() {
 		ok, level := c.ica_repo.AccessLevel(ctx, &acc, NewBlankDeviceDocument(uuid))
 		if !ok {
@@ -635,6 +656,21 @@ func (c *DevicesController) _MakeToken(devices map[string]access.Level, exp int6
 	claims[inf.INFINIMESH_DEVICES_CLAIM] = devices
 	claims["exp"] = exp
 
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(c.SIGNING_KEY)
+}
+
+func (c *DevicesController) _MakeStreamToken(account, namespace string, exp int64) (string, error) {
+	claims := jwt.MapClaims{}
+	claims[inf.INFINIMESH_ACCOUNT_CLAIM] = account
+	claims[inf.INFINIMESH_NOSESSION_CLAIM] = true
+	claims[inf.INFINIMESH_STREAM_CLAIM] = true
+	if namespace != "" {
+		claims[inf.INFINIMESH_NAMESPACE_CLAIM] = namespace
+	}
+	if exp > 0 {
+		claims["exp"] = exp
+	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(c.SIGNING_KEY)
 }

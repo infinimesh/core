@@ -128,6 +128,20 @@ func TestPrepareStreamNamespaceDenied(t *testing.T) {
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 }
 
+func TestPrepareStreamStreamTokenPinsNamespace(t *testing.T) {
+	devices := &fakeScopeDevices{devices: []*devpb.Device{{Uuid: "a", Title: "Pump"}}}
+	namespaces := &fakeScopeNamespaces{}
+	api := &ShadowAPI{devices: devices, namespaces: namespaces}
+	ctx := context.WithValue(context.Background(), inf.InfinimeshAccountCtxKey, "acc")
+	ctx = context.WithValue(ctx, inf.InfinimeshNamespaceCtxKey, "plant")
+	req := &shadow.StreamShadowRequest{Namespace: "other"}
+	assert.NoError(t, api.prepareStream(ctx, req))
+	assert.Equal(t, "plant", namespaces.got)
+	assert.Equal(t, "plant", devices.namespace)
+	assert.Equal(t, "plant", req.Namespace)
+	assert.Equal(t, []string{"plant"}, req.Namespaces)
+}
+
 func TestPrepareStreamRegistryUnavailable(t *testing.T) {
 	api := &ShadowAPI{}
 	ctx := context.WithValue(context.Background(), inf.InfinimeshAccountCtxKey, "acc")

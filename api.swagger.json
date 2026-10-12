@@ -1759,6 +1759,14 @@
         },
         "post": {
           "type": "boolean"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Namespace for a read-only streaming token. Empty covers every namespace the account can read."
+        },
+        "stream": {
+          "type": "boolean",
+          "description": "Mint a read-only token for shadow streams. It cannot call other APIs."
         }
       }
     },
