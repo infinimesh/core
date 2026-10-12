@@ -10,26 +10,16 @@ See [prerequisites.md](prerequisites.md) for OS-specific installs. You need:
 - OpenSSL (for self-signed certs if you need TLS for MQTT)
 - MQTT client for testing (e.g., `mosquitto-clients`)
 
-Platform defaults use `BASE_DOMAIN=infinimesh.local` (see `.env`). Adjust to something that resolves to your machine (e.g., `127.0.0.1.nip.io`) to avoid editing `/etc/hosts`.
+The default `BASE_DOMAIN=127.0.0.1.nip.io` (see `.env.example`) resolves to `127.0.0.1`, so the stack works locally with no `/etc/hosts` edits. For real use, set `BASE_DOMAIN` to your own domain. See [public-tls.md](public-tls.md).
 
-## Hostname setup
-
-If not using a wildcard DNS like `127.0.0.1.nip.io`, add entries to `/etc/hosts`:
-
-```
-127.0.0.1 api.infinimesh.local
-127.0.0.1 console.infinimesh.local
-127.0.0.1 traefik.infinimesh.local
-127.0.0.1 media.infinimesh.local
-127.0.0.1 mqtt.infinimesh.local
-```
+If your network blocks nip.io (some DNS resolvers drop answers that point to private addresses), set `BASE_DOMAIN` to a name of your own and add `api`, `console`, `traefik`, `media` and `mqtt` under it to `/etc/hosts`, pointing at `127.0.0.1`.
 
 ## Bring up the stack
 
 ```bash
 git clone https://github.com/infinimesh/core.git
 cd core
-# .env.example pins INFINIMESH_VERSION to the current release
+cp .env.example .env
 docker compose up -d
 ```
 
@@ -67,4 +57,4 @@ Change these for anything beyond local testing.
 
 ## Public domain
 
-`infinimesh.local` does not get a Let's Encrypt certificate. For a public name, Traefik or Caddy, and TLS for the device registry and MQTT, see [public-tls.md](public-tls.md).
+`127.0.0.1.nip.io` does not get a Let's Encrypt certificate. For a public name, Traefik or Caddy, and TLS for the device registry and MQTT, see [public-tls.md](public-tls.md).

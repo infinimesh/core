@@ -1,6 +1,6 @@
 # Public domain with Let's Encrypt
 
-Single-host Docker Compose on a name you control. `BASE_DOMAIN=infinimesh.local` stays on the self-signed pair in `hack/server.crt` and `hack/server.key`. Let's Encrypt will not issue a certificate for that name.
+Single-host Docker Compose on a name you control. The default `BASE_DOMAIN=127.0.0.1.nip.io` is for local use only and stays on the self-signed pair in `hack/server.crt` and `hack/server.key`. For real use, set `BASE_DOMAIN` to your own domain as below.
 
 Two proxies terminate HTTPS for the console, API, and the other HTTP hostnames:
 
