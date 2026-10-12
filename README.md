@@ -127,7 +127,7 @@ mosquitto_pub -h api.${BASE_DOMAIN} -p 1883 \
 - [docs/installation.md](docs/installation.md): prerequisites and Docker Compose setup
 - [docs/public-tls.md](docs/public-tls.md): Traefik or Caddy with Let's Encrypt on a public domain
 - [docs/device-auth.md](docs/device-auth.md): device tokens, certificates and MQTT
-- [api.swagger.json](api.swagger.json): API schema, copied from the pinned [proto](https://github.com/infinimesh/proto) module. `sh scripts/swagger_check.sh` fails if the copy drifts.
+- [api.swagger.json](api.swagger.json): API schema, copied from the pinned [proto](https://github.com/infinimesh/proto) module. `sh scripts/swagger_check.sh` fails if the copy drifts. `sh scripts/buf_lint_pin.sh` lints that module.
 
 ## Checks
 
