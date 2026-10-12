@@ -15,5 +15,6 @@ This folder contains the living, text-based docs for the platform. Start here:
 - [Reads, export, and partner access](data-access.md) — audit log, device export, and expiring grants.
 - [Production on Kubernetes](production-on-kubernetes.md) — Helm, metrics, and external databases.
 - [CoAP ingest](coap.md) — reported state from UDP CoAP.
+- [Files](http-fs.md) — namespace files and avatars on `http-fs`.
 
 For API reference, see `api.swagger.json`. That file is the copy from the pinned [github.com/infinimesh/proto](https://github.com/infinimesh/proto) module.

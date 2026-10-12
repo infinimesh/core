@@ -39,6 +39,7 @@ Images come from GHCR. Set `INFINIMESH_VERSION` in `.env` to pin a release.
 Other services:
 
 - API (gRPC, Connect, REST): `http://api.${BASE_DOMAIN}`
+- Media files: `https://media.${BASE_DOMAIN}`
 - Traefik dashboard: `http://traefik.${BASE_DOMAIN}`
 
 ArangoDB and RabbitMQ stay on the Compose network. Their admin UIs are not routed through Traefik or Caddy. Redis `6379` and AMQP `5672` are not published on the host. The public overlay can bind AMQP to `127.0.0.1`.

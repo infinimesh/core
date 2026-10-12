@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- `http-fs` serves namespace files for the console media page. `GET /{namespace}` lists files, `POST /{namespace}/{name}` uploads a multipart field `file`, and `DELETE /{namespace}/{name}` removes one. `GET /{namespace}/{name}` is the public file link. List, upload, and delete use the account bearer token and the permission graph. Files stay on a local volume unless `HTTP_FS_S3_ENDPOINT` is set. `HTTP_FS_MAX_BYTES` and `HTTP_FS_TYPES` limit size and type. The image is `ghcr.io/infinimesh/core/http-fs`.
+
 ## [v3.4.0-rc.1] - 2026-10-12
 
 ### Fixed
