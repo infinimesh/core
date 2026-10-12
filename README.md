@@ -1,210 +1,138 @@
-# Infinimesh IoT Platform
+# Infinimesh
 
-Infinimesh is an open IoT platform for device registry, auth, shadow sync, MQTT bridge, and REST/gRPC/Connect APIs. It is multi-tenant, graph-based for fine-grained access, and runs anywhere (Kubernetes/Docker) with no vendor lock-in.
+[![Go Report Card](https://goreportcard.com/badge/github.com/infinimesh/core)](https://goreportcard.com/report/github.com/infinimesh/core)
+[![Release](https://img.shields.io/github/v/release/infinimesh/core)](https://github.com/infinimesh/core/releases)
+[![License](https://img.shields.io/github/license/infinimesh/core)](LICENSE)
 
-Our APIs (REST / gRPC / ConnectRPC) are considered beta and may change. Infinimesh already includes:
+Infinimesh is an open source IoT platform you run yourself. It gives you a device registry, device auth, a device shadow (digital twin), an MQTT bridge, and REST, gRPC and Connect APIs. It runs on Docker Compose or Kubernetes.
 
-- **MQTT 3 & 5 support**
-- **State management (digital twin)**
-- **Graph-based permission management**
-- **TLS 1.2 / 1.3 support**
-- **Device-to-Cloud and Cloud-to-Device messages**
-- **Enhanced UI**
-- **k8s and Docker environments**
+What you get:
+
+- MQTT 3 and 5, with TLS 1.2 and 1.3
+- Device shadow with reported and desired state
+- Messages from device to cloud and from cloud to device
+- Multi-tenant namespaces with graph-based access control
+- A web console
+- Docker Compose and Kubernetes setups
+
+The APIs are beta. They may still change between releases.
+
+## Quickstart
+
+You need Docker with Docker Compose.
+
+```bash
+git clone https://github.com/infinimesh/core.git
+cd core
+cp .env.example .env
+docker compose up -d
+```
+
+Images come from GHCR. Set `INFINIMESH_VERSION` in `.env` to pin a release.
+
+`BASE_DOMAIN` in `.env` is the root host for all services. The default is `infinimesh.local`. Set it to `127.0.0.1.nip.io` and you do not need to touch `/etc/hosts`. If you keep the default, add these names to `/etc/hosts`: `console`, `api`, `traefik`, `db`, `rbmq` and `media`, each followed by `.infinimesh.local`.
+
+Then open:
+
+- Console: `http://console.${BASE_DOMAIN}`
+- API (gRPC, Connect, REST): `http://api.${BASE_DOMAIN}`
+- Traefik dashboard: `http://traefik.${BASE_DOMAIN}`
+- ArangoDB UI: `http://db.${BASE_DOMAIN}`
+- RabbitMQ management: `http://rbmq.${BASE_DOMAIN}`
+
+Default logins. Change them before you expose anything.
+
+- Platform admin: user `root`, password from `INF_DEFAULT_ROOT_PASS` (`infinimesh` by default)
+- ArangoDB: user `root`, password `openSesame` (see `docker-compose.yaml`)
+- RabbitMQ: `infinimesh` / `infinimesh` (from `.env`)
+
+MQTT listens on 1883 (plain) and 8883 (TLS with `hack/server.crt` and `hack/server.key`).
+
+## When not to use it
+
+- You want a fully managed cloud service and do not want to run servers.
+- You need stable, frozen APIs today. Ours are still beta.
+- You only have a few devices and one user. A plain MQTT broker is simpler.
+
+## CLI (inf)
+
+The CLI lives in [infinimesh/inf-cli](https://github.com/infinimesh/inf-cli). There are no prebuilt packages right now (no Homebrew tap, Snap, AUR or release downloads). Install it with Go 1.27 or newer:
+
+```bash
+go install github.com/infinimesh/inf-cli@latest
+```
+
+`go install` names the binary `inf-cli`. The docs call it `inf`, so add an alias or rename it:
+
+```bash
+mv "$(go env GOPATH)/bin/inf-cli" "$(go env GOPATH)/bin/inf"
+```
+
+Or build from source:
+
+```bash
+git clone https://github.com/infinimesh/inf-cli.git
+cd inf-cli
+go build -o inf .
+```
+
+A short session against the local stack:
+
+```bash
+API=http://api.${BASE_DOMAIN}:8000
+
+# log in as root
+inf login --api "$API" --username root --password infinimesh --insecure
+
+# list namespaces and devices
+inf namespaces list
+inf devices list
+
+# issue a device token that may post state
+inf devices token <device-id> --allow-post > device.token
+
+# report state for the device
+inf devices state <device-id> --token "$(cat device.token)" --report '{"online":true,"temp":21.5}'
+```
+
+Create devices in the console, or with `inf devices create <template.json> --crt <cert.pem>`. Run `inf help` and `inf <command> --help` for all flags.
+
+Use the token over MQTT. The username is the device ID, the password is the token:
+
+```bash
+mosquitto_pub -h api.${BASE_DOMAIN} -p 1883 \
+  -u <device-id> -P "$(cat device.token)" \
+  -t shadow/devices/<device-id>/desired \
+  -m '{"reboot":true}'
+```
 
 ## Documentation
 
-The old wiki was removed; see `docs/` in this repo:
-
-- docs/installation.md — prerequisites and Docker Compose quickstart
-- docs/public-tls.md — Traefik or Caddy with Let's Encrypt on a public domain
-- docs/device-auth.md — device tokens/certs and MQTT usage
-- API schema: `api.swagger.json`
-
-## Build status
-
-[![Go Report Card](https://goreportcard.com/badge/github.com/infinimesh/core)](https://goreportcard.com/report/github.com/infinimesh/core)
+- [docs/installation.md](docs/installation.md): prerequisites and Docker Compose setup
+- [docs/public-tls.md](docs/public-tls.md): Traefik or Caddy with Let's Encrypt on a public domain
+- [docs/device-auth.md](docs/device-auth.md): device tokens, certificates and MQTT
+- [api.swagger.json](api.swagger.json): API schema
 
 ## Releases
 
-Current version: `v3.2.0` (see `CHANGELOG.md`).
+Current version: `v3.2.0`. See [CHANGELOG.md](CHANGELOG.md) and [Releases](https://github.com/infinimesh/core/releases).
 
-Pushing a tag `vX.Y.Z` or `vX.Y.Z-rN` on `main` publishes `ghcr.io/infinimesh/core/<service>` for `api`, `console`, `gateway`, `mqtt-bridge`, `pairing`, and `shadow`. Each tag is also published as `:latest`. A revision tag publishes the base version `:vX.Y.Z` as well. The GitHub release body is the matching `## [tag]` section in `CHANGELOG.md`. The same tag on [platform-operator](https://github.com/infinimesh/platform-operator) publishes `ghcr.io/infinimesh/platform-operator`.
+A tag `vX.Y.Z` or `vX.Y.Z-rN` on `main` publishes `ghcr.io/infinimesh/core/<service>` for `api`, `console`, `gateway`, `mqtt-bridge`, `pairing` and `shadow`. Each tag is also published as `:latest`. A revision tag also publishes the base version `:vX.Y.Z`. The GitHub release text is the matching `## [tag]` section in `CHANGELOG.md`. The same tag on [platform-operator](https://github.com/infinimesh/platform-operator) publishes `ghcr.io/infinimesh/platform-operator`.
 
 ## Repositories
 
-- [core](https://github.com/infinimesh/core) — this platform
-- [proto](https://github.com/infinimesh/proto) — gRPC, Connect, and OpenAPI schemas (`github.com/infinimesh/proto`)
-- [inf-cli](https://github.com/infinimesh/inf-cli) — `inf` command
-- [operator](https://github.com/infinimesh/platform-operator) — Kubernetes operator
-- [k8s](https://github.com/infinimesh/k8s) — cluster install recipes
-- [website](https://github.com/infinimesh/website) — public site at [infinimesh.org](https://infinimesh.org/)
-- [addons](https://github.com/infinimesh/addons) — connectors (Redis stream, Elasticsearch, Snowflake, SAP HANA, RedisTimeSeries, cloud storage). Module `github.com/infinimesh/addons`
+- [core](https://github.com/infinimesh/core): this platform
+- [proto](https://github.com/infinimesh/proto): gRPC, Connect and OpenAPI schemas. Regenerate with `buf generate` there.
+- [inf-cli](https://github.com/infinimesh/inf-cli): the `inf` command
+- [platform-operator](https://github.com/infinimesh/platform-operator): Kubernetes operator
+- [k8s](https://github.com/infinimesh/k8s): cluster install recipes
+- [addons](https://github.com/infinimesh/addons): connectors for Redis streams, Elasticsearch, Snowflake, SAP HANA, RedisTimeSeries and cloud storage
+- [website](https://github.com/infinimesh/website): the site at [infinimesh.org](https://infinimesh.org/)
 
-## Protobufs
+## Contributing
 
-Schemas and generated stubs live in [github.com/infinimesh/proto](https://github.com/infinimesh/proto). This module depends on that repository. Regenerate with `buf generate` in that repo.
+See [CONTRIBUTING.md](CONTRIBUTING.md). Questions and bugs go to [GitHub issues](https://github.com/infinimesh/core/issues).
 
-## Community
+## License
 
-You can reach out to the community via Discord.
-
-![](http://invidget.switchblade.xyz/801798988163448832)
-
-## Quickstart (Docker Compose)
-
-- Prereqs: Docker + Docker Compose. `BASE_DOMAIN` (from `.env`) is the root host used for all services (e.g., `console.${BASE_DOMAIN}`, `api.${BASE_DOMAIN}`). Default is `infinimesh.local`; change it to something that resolves to your machine (e.g., `127.0.0.1.nip.io`) to avoid editing `/etc/hosts`.
-- Hostnames: the stack expects `console.${BASE_DOMAIN}`, `api.${BASE_DOMAIN}`, `traefik.${BASE_DOMAIN}`, `db.${BASE_DOMAIN}`, `rbmq.${BASE_DOMAIN}`, and `media.${BASE_DOMAIN}` to resolve to your host. For a quick local run with the default `infinimesh.local`, add them to `/etc/hosts`.
-- Copy `.env.example` to `.env` before the first start.
-- Start the platform: `docker compose up -d` (images come from GHCR; set `INFINIMESH_VERSION` in `.env` to pin a release).
-- Access:
-  - Console UI: http://console.${BASE_DOMAIN}
-  - API (gRPC/Connect/REST): http://api.${BASE_DOMAIN}
-  - Traefik dashboard: http://traefik.${BASE_DOMAIN}
-  - ArangoDB UI: http://db.${BASE_DOMAIN}
-  - RabbitMQ management: http://rbmq.${BASE_DOMAIN}
-- Default credentials (change these for anything beyond local testing):
-  - Platform admin: user `root`, password from `INF_DEFAULT_ROOT_PASS` (`infinimesh` by default in `.env`/`docker-compose.yaml`).
-  - ArangoDB: user `root`, password `openSesame` (see `docker-compose.yaml`).
-  - RabbitMQ: user/password from `.env` (`infinimesh` / `infinimesh` by default).
-- MQTT endpoints: 1883 (plain), 8883 (TLS using `hack/server.crt`/`server.key`). Use the tokens issued via the console/CLI to authenticate clients.
-
-### CLI Walkthrough (inf)
-
-Install the CLI from https://github.com/infinimesh/inf-cli (or prebuilt package), then:
-
-```bash
-# point the CLI at the local stack (h2c on port 8000)
-API=http://api.${BASE_DOMAIN}:8000
-
-# 1) Login as root (default password is INF_DEFAULT_ROOT_PASS from .env)
-inf login --api ${API} --username root --password infinimesh --insecure
-
-# 2) Create and switch to a namespace
-inf namespaces create demo --title "Demo"
-inf namespaces use demo
-
-# 3) Create a device and issue a token for it
-inf devices create demo-sensor
-inf devices token demo-sensor --name local --scopes shadow:rw > demo-sensor.token
-
-# 4) Set shadow state via CLI (reported example)
-inf shadow set demo-sensor --reported '{"online":true,"temp":21.5}'
-inf shadow get demo-sensor
-
-# 5) Use the issued token for MQTT
-mosquitto_pub -h api.${BASE_DOMAIN} -p 1883 \
-  -u demo-sensor -P "$(cat demo-sensor.token)" \
-  -t shadow/devices/demo-sensor/desired \
-  -m '{"reboot":true}'
-
-Notes:
-- The CLI now accepts `--api` as a URL or host; it defaults missing ports to `:8000`, which matches the `api` service exposed by Traefik.
-- MQTT flags support bearer-style auth (`--device-id/--device-token`) in addition to basic auth or certs; the default topic template is `shadow/devices/%s/desired` where `%s` is replaced by the device ID.
-```
-
-Run `inf help` and `inf <command> --help` if your CLI version uses slightly different flags; the flow above is the expected minimal path: login, pick a namespace, create device, get a token, set/query shadow, and bridge over MQTT.
-
-
-## CLI
-
-### Usage
-
-Start with `inf help` and `inf help login` ;)
-
-### Homebrew
-
-See [macOS](#macos).
-
-### Snap
-
-Just run
-
-```shell
-snap install inf
-```
-
-and see usage [usage](#usage)
-
-### Linux
-
-#### `.deb` (Debian, Ubuntu, etc.)
-
-1. Go to [CLI Releases](https://github.com/infinimesh/inf-cli/releases)
-2. Get `.deb` package for your CPU arch (`arm64` or `x86_64`)
-3. `dpkg -i path/to/.deb`
-
-If you're using some other arch, let us know, we'll add it to the build. Meanwhile - try [building from source](#build-from-source)
-
-Then see usage [usage](#usage)
-
-#### `.rpm` (RedHat, CentOS, Fedora, etc.)
-
-1. Go to [CLI Releases](https://github.com/infinimesh/inf-cli/releases)
-2. Get `.rpm` package for your CPU arch (`arm64` or `x86_64`)
-3. `yum localinstall path/to/.rpm` or `dnf install path/to/.rpm`
-
-If you're using some other arch, let us know, we'll add it to the build. Meanwhile - try [building from source](#build-from-source)
-
-Then see usage [usage](#usage)
-
-#### AUR (Arch Linux, Manjaro, etc.)
-
-If you have `yaourt` or `yay` package must be found automatically by label `inf-bin`
-
-Otherwise,
-
-1. `git clone https://aur.archlinux.org/packages/inf-bin`
-2. `cd inf-bin`
-3. `makepkg -i`
-
-Then see usage [usage](#usage)
-
-#### Others
-
-If you're using other package manager or have none, you can download prebuilt binary in `.tar.gz` archive for `arm64` or `x86_64`, unpack it and put `inf` binary to `/usr/bin` or your `$PATH/bin`.
-
-If you're using some other arch, let us know, we'll add it to the build. Meanwhile - try [building from source](#build-from-source)
-
-Then see usage [usage](#usage)
-
-### macOS
-
-If you're using [**Homebrew**](https://brew.sh):
-
-```shell
-brew tap infinimesh/inf
-brew install inf
-```
-
-You're good to go!
-
-Then see usage [usage](#usage)
-
-If you don't have [**Homebrew**](https://brew.sh), consider using it ;), otherwise you can get prebuilt binary from [CLI Releases page](https://github.com/infinimesh/inf-cli/releases) as an `.tar.gz` archive.
-
-```shell
-# if you have wget then
-wget https://github.com/infinimesh/inf-cli/releases/download/version/inf-version-darwin-arch.tar.gz
-# if you don't, just download it
-tar -xvzf #inf-version-darwin-arch.tar.gz
-# move binary to /usr/local/bin or alike
-mv #inf-version-darwin-arch/inf /usr/local/bin
-```
-
-You're good to go!
-
-Then see usage [usage](#usage)
-
-### Windows
-
-1. Go to [CLI Releases](https://github.com/infinimesh/inf-cli/releases)
-2. Get prebuilt binary from [CLI Releases page](https://github.com/infinimesh/inf-cli/releases) as an `.zip` archive.
-3. Unpack it
-4. Put it somewhere in `$PATH`
-
-Then see usage [usage](#usage)
-
-### Build From Source
-
-See [CLI repo](https://github.com/infinimesh/inf-cli) for source and instructions.
+Apache 2.0. See [LICENSE](LICENSE).
