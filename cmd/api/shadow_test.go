@@ -83,8 +83,12 @@ func TestPrepareStreamAccountNamespace(t *testing.T) {
 		Account:    "other",
 		Devices:    []string{"evil"},
 		Namespaces: []string{"other"},
+		OnlyDelta:  true,
+		Include:    []shadow.StateKey{shadow.StateKey_CONNECTION},
 	}
 	assert.NoError(t, api.prepareStream(ctx, req))
+	assert.True(t, req.GetOnlyDelta())
+	assert.Equal(t, []shadow.StateKey{shadow.StateKey_CONNECTION}, req.GetInclude())
 	assert.Equal(t, "plant", namespaces.got)
 	assert.Equal(t, "plant", devices.namespace)
 	assert.Equal(t, "acc", req.Account)

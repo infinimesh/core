@@ -8,4 +8,6 @@ An account stream emits `DEVICE_ADDED` for the devices present at subscribe, and
 
 Each message has `eventId`. The same id is the same event, including after a retry. State messages include `title`, `namespace`, and `tags` when the registry has them.
 
+`only_delta` defaults to false. A state message is then the stored shadow with the published change merged in. `only_delta` true sends that published change. `include` limits a state message to `REPORTED`, `DESIRED`, or `CONNECTION`. An empty `include` sends all three. Membership events are sent whole.
+
 `GET /devices/states`, `PATCH /devices/states`, and key removal still require a device token.

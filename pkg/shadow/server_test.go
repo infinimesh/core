@@ -360,8 +360,9 @@ func TestStreamShadow_Success_ServerClosed(t *testing.T) {
 	done := make(chan bool, 1)
 	go func(done chan bool) {
 		err := f.service.StreamShadow(&pb.StreamShadowRequest{
-			Devices: []string{f.data.uuid},
-			Sync:    true,
+			Devices:   []string{f.data.uuid},
+			Sync:      true,
+			OnlyDelta: true,
 		}, f.mocks.srv)
 		assert.NoError(t, err)
 		done <- true
