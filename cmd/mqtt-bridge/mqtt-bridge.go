@@ -24,11 +24,9 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"time"
 
 	"github.com/infinimesh/core/pkg/graph/schema"
 	inflog "github.com/infinimesh/core/pkg/log"
-	"github.com/infinimesh/core/pkg/mqtt/acme"
 	"github.com/infinimesh/core/pkg/mqtt/metrics"
 	"github.com/infinimesh/core/pkg/mqtt/packet"
 	mqttps "github.com/infinimesh/core/pkg/mqtt/pubsub"
@@ -71,10 +69,12 @@ var (
 	devicesHost string
 	shadowHost  string
 
-	RabbitMQConn string
-	acme_path    string
-	tlsCertFile  string
-	tlsKeyFile   string
+	RabbitMQConn  string
+	acme_path     string
+	tlsCertFile   string
+	tlsKeyFile    string
+	tlsECCertFile string
+	tlsECKeyFile  string
 
 	ps pubsub.PubSub
 
@@ -94,6 +94,9 @@ func init() {
 	viper.SetDefault("ACME", "")
 	viper.SetDefault("TLS_CERT_FILE", "/cert/tls.crt")
 	viper.SetDefault("TLS_KEY_FILE", "/cert/tls.key")
+	viper.SetDefault("TLS_EC_CERT_FILE", "")
+	viper.SetDefault("TLS_EC_KEY_FILE", "")
+	viper.SetDefault("TLS_HANDSHAKE_TIMEOUT", "30s")
 	viper.SetDefault("DEBUG", false)
 	viper.SetDefault("SIGNING_KEY", "seeeecreet")
 	viper.SetDefault("BUFFER_CAPACITY", 10)
@@ -104,6 +107,8 @@ func init() {
 	acme_path = viper.GetString("ACME")
 	tlsCertFile = viper.GetString("TLS_CERT_FILE")
 	tlsKeyFile = viper.GetString("TLS_KEY_FILE")
+	tlsECCertFile = viper.GetString("TLS_EC_CERT_FILE")
+	tlsECKeyFile = viper.GetString("TLS_EC_KEY_FILE")
 	debug = viper.GetBool("DEBUG")
 	buffer_capacity = viper.GetInt("BUFFER_CAPACITY")
 }
@@ -118,15 +123,13 @@ func main() {
 	http.Handle("/metrics", promhttp.Handler())
 	go http.ListenAndServe(":2112", nil)
 
-	var serverCert tls.Certificate
-	var err error
-	if acme_path != "" {
-		serverCert, err = acme.Load(acme_path)
-	} else {
-		//openssl req -new -newkey rsa:4096 -x509 -sha256 -days 30 -nodes -out server.crt -keyout server.key
-		serverCert, err = tls.LoadX509KeyPair(tlsCertFile, tlsKeyFile)
+	timeout, err := parseHandshakeTimeout(viper.GetString("TLS_HANDSHAKE_TIMEOUT"))
+	if err != nil {
+		log.Fatal("Invalid TLS handshake timeout", zap.Error(err))
 	}
+	tlsHandshakeTimeout = timeout
 
+	certs, err := loadServerCerts(acme_path, tlsCertFile, tlsKeyFile, tlsECCertFile, tlsECKeyFile)
 	if err != nil {
 		log.Fatal("Error loading server certificate", zap.Error(err))
 	}
@@ -165,10 +168,7 @@ func main() {
 		log.Fatal("Error setting up pubsub", zap.Error(err))
 	}
 
-	tlsl, err := tls.Listen("tcp", ":8883", &tls.Config{
-		Certificates: []tls.Certificate{serverCert},
-		ClientAuth:   tls.RequireAnyClientCert, // Any Client Cert is OK in terms of what the go TLS package checks, further validation, e.g. if the cert belongs to a registered device, is performed in the VerifyPeerCertificate function
-	})
+	tlsl, err := tls.Listen("tcp", ":8883", serverTLSConfig(certs))
 	if err != nil {
 		panic(err)
 	}
@@ -206,20 +206,8 @@ func main() {
 					return
 				}
 
-				timeout := time.Second * 30
-				errChannel := make(chan error, 2)
-				go func() {
-					errChannel <- conn.Handshake()
-				}()
-				select {
-				case err := <-errChannel:
-					if err != nil {
-						log.Info("Handshake failed", zap.Error(err))
-						metrics.TlsFailedToAcceptTotal.Inc()
-						return
-					}
-				case <-time.After(timeout):
-					LogErrorAndClose(c, errors.New("handshake failed due to timeout"))
+				if err := waitHandshake(conn, tlsHandshakeTimeout); err != nil {
+					LogErrorAndClose(c, err)
 					metrics.TlsFailedToAcceptTotal.Inc()
 					return
 				}
@@ -232,14 +220,12 @@ func main() {
 				}
 				log.Debug("ConnectPacket", zap.String("client", connectPacket.ClientID))
 
-				if len(conn.ConnectionState().PeerCertificates) == 0 {
-					LogErrorAndClose(conn, errors.New("no certificate given"))
+				fingerprint, err := clientFingerprint(conn)
+				if err != nil {
+					LogErrorAndClose(conn, err)
 					metrics.TlsDeviceAuthFailedTotal.Inc()
 					return
 				}
-
-				rawcert := conn.ConnectionState().PeerCertificates[0].Raw
-				fingerprint := getFingerprint(rawcert)
 				log.Debug("Fingerprint", zap.Binary("fingerprint", fingerprint))
 
 				device, err := GetByFingerprintAndVerify(fingerprint, func(device *devpb.Device) bool {

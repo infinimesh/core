@@ -44,6 +44,8 @@ mosquitto_pub -h api.${BASE_DOMAIN} -p 1883 \
 
 On a public domain the broker certificate is the Let's Encrypt certificate for `mqtt.$BASE_DOMAIN`, so the system CA bundle validates it. See [public-tls.md](public-tls.md).
 
+The listener requires TLS 1.2. Handshake time, an optional ECDSA server certificate, session tickets, TLS-PSK, and maximum fragment length are in [guides/small-devices-tls.md](guides/small-devices-tls.md). `hack/server.crt` has no subject alternative name. Strict clients use `hack/server-ec.crt` locally.
+
 ## API token
 
 The CLI uses a device token against the API, not against MQTT:
@@ -85,4 +87,4 @@ The bridge reads the client keepalive and closes the connection after one and a 
 - MQTT connection closed right after connect: the certificate is not registered, the device is disabled, or on 1883 the username is not the device id, the password is not the fingerprint, or basic auth is off.
 - 401/permission errors: ensure token includes the device with at least read; reissue with `--allow-post` for writes.
 - Connection refused: check broker host/port and that `docker compose ps` shows `mqtt-bridge` healthy.
-- TLS failures: locally, `--cafile hack/server.crt`. On a public domain the broker certificate is the Let's Encrypt certificate for `mqtt.$BASE_DOMAIN`, so the system CA bundle validates it. See [public-tls.md](public-tls.md).
+- TLS failures: locally, `--cafile hack/server.crt`, or `hack/server-ec.crt` when the client requires a subject alternative name. On a public domain the broker certificate is the Let's Encrypt certificate for `mqtt.$BASE_DOMAIN`, so the system CA bundle validates it. See [public-tls.md](public-tls.md) and [guides/small-devices-tls.md](guides/small-devices-tls.md).

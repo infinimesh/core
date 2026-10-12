@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- MQTT TLS handshake time is `TLS_HANDSHAKE_TIMEOUT` (default `30s`).
+- An optional ECDSA server certificate (`TLS_EC_CERT_FILE`, `TLS_EC_KEY_FILE`) is served beside the primary certificate. The listener requires TLS 1.2. `hack/server-ec.crt` is a P-256 test certificate with a subject alternative name for localhost.
+- Session tickets last 7 days in the bridge process. A resumed connection is still identified by the client certificate. TLS-PSK needs a terminator such as stunnel. Maximum fragment length is not supported. See `docs/guides/small-devices-tls.md`.
+
 ## [v3.3.0] - 2026-10-12
 
 ### Added
