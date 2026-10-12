@@ -1,4 +1,4 @@
-import { inject, nextTick } from "vue";
+import { inject } from "vue";
 import { defineStore } from "pinia";
 import {
   check_token_expired,

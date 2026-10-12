@@ -21,7 +21,7 @@ describe("router", () => {
     });
 
     window.PLATFORM_NAME = "infinimesh";
-    const wrapper = mount(TestComponent, {
+    mount(TestComponent, {
       global: {
         plugins: [router, pinia],
       },

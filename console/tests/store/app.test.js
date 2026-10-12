@@ -1,4 +1,4 @@
-import { describe, test, expect, vi } from "vitest";
+import { describe, test, expect, vi, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import { useAppStore } from "@/store/app";
 import { defineComponent, markRaw } from "vue";
@@ -19,9 +19,10 @@ pinia.use(({ store }) => {
 
 describe("store/app", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     setActivePinia(createPinia());
 
-    const wrapper = mount(TestComponent, {
+    mount(TestComponent, {
       global: {
         plugins: [pinia],
       },

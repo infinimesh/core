@@ -1,4 +1,4 @@
-import { expect, test, describe, vi } from "vitest";
+import { expect, test, describe, vi, beforeEach } from "vitest";
 import {
   check_offline,
   check_token_expired,
@@ -10,6 +10,10 @@ import { ConnectError, Code } from "@connectrpc/connect";
 
 const check_offline_store = { offline: vi.fn() };
 const check_token_expired_store = { logout: vi.fn() };
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 describe("check_offline", () => {
   test("check is online", () => {

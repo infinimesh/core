@@ -25,7 +25,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/arangodb/go-driver"
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/infinimesh/core/pkg/graph/schema"
 	inf "github.com/infinimesh/core/pkg/shared"
 	"github.com/infinimesh/proto/handsfree"

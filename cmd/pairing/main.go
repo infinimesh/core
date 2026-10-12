@@ -75,7 +75,7 @@ func main() {
 	router := mux.NewRouter()
 	router.Use(func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			log.Debug("Request", zap.String("method", r.Method), zap.String("path", r.URL.Path))
+			log.Debug("Request", zap.String("method", logger.SingleLine(r.Method)), zap.String("path", logger.SingleLine(r.URL.Path)))
 			h.ServeHTTP(w, r)
 		})
 	})

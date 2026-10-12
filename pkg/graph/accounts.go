@@ -24,7 +24,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/arangodb/go-driver"
 	"github.com/go-redis/redis/v8"
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/infinimesh/core/pkg/credentials"
 	"github.com/infinimesh/core/pkg/graph/schema"
 	"github.com/infinimesh/core/pkg/sessions"
