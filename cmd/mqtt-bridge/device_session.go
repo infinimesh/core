@@ -16,12 +16,13 @@ limitations under the License.
 package main
 
 import (
+	"errors"
 	"io"
 	"net"
 	"sync"
 	"time"
 
-	"github.com/slntopp/mqtt-go/packet"
+	"github.com/infinimesh/core/pkg/mqtt/packet"
 )
 
 var (
@@ -30,7 +31,7 @@ var (
 )
 
 type deviceHooks struct {
-	reported   func(payload []byte, props mqttProps, retain bool) bool
+	reported   func(payload []byte, props packet.Properties, retain bool) bool
 	connected  func(up bool)
 	enabled    func() bool
 	subscribed func(send func([]byte))
@@ -38,13 +39,13 @@ type deviceHooks struct {
 	will       func(topic string, payload []byte, retain bool)
 }
 
-func serveDevice(c net.Conn, deviceID string, cp *packet.ConnectControlPacket, meta connectMeta, store *sessionStore, hooks deviceHooks) {
-	level := cp.VariableHeader.ProtocolLevel
-	clientID := cp.ConnectPayload.ClientID
+func serveDevice(c net.Conn, deviceID string, cp *packet.Connect, meta connectMeta, store *sessionStore, hooks deviceHooks) {
+	level := cp.ProtocolLevel
+	clientID := cp.ClientID
 	assigned := ""
 	if clientID == "" {
-		if !meta.cleanStart && level != protoLevel5 {
-			_ = writeConnAck(c, level, false, mqtt311IdentifierReject, "")
+		if !meta.cleanStart && level != packet.ProtocolMQTT5 {
+			_ = writeConnAck(c, level, false, packet.CodeIdentifierRejected, "")
 			return
 		}
 		clientID = deviceID
@@ -54,7 +55,7 @@ func serveDevice(c net.Conn, deviceID string, cp *packet.ConnectControlPacket, m
 		meta.receiveMax = 65535
 	}
 	present, sess := store.open(deviceID, clientID, meta, time.Now())
-	if err := writeConnAck(c, level, present, reasonSuccess, assigned); err != nil {
+	if err := writeConnAck(c, level, present, packet.ReasonSuccess, assigned); err != nil {
 		return
 	}
 	if hooks.connected != nil {
@@ -104,7 +105,7 @@ func serveDevice(c net.Conn, deviceID string, cp *packet.ConnectControlPacket, m
 	last := time.Now()
 	for {
 		if hooks.enabled != nil && !hooks.enabled() {
-			_ = write(func(w io.Writer) error { return writeDisconnect(w, level, reasonNotAuthorized) })
+			_ = write(func(w io.Writer) error { return writeDisconnect(w, level, packet.ReasonNotAuthorized) })
 			return
 		}
 		deadline := time.Time{}
@@ -124,7 +125,7 @@ func serveDevice(c net.Conn, deviceID string, cp *packet.ConnectControlPacket, m
 			unclean = true
 			return
 		}
-		typ, flags, body, err := readFrame(c)
+		pkt, err := packet.ReadPacket(c, level, 0)
 		if err != nil {
 			if ne, ok := err.(net.Error); ok && ne.Timeout() {
 				if meta.keepAlive > 0 && time.Since(last) >= meta.keepAlive+meta.keepAlive/2 {
@@ -136,141 +137,70 @@ func serveDevice(c net.Conn, deviceID string, cp *packet.ConnectControlPacket, m
 				sess.mu.Unlock()
 				for _, msg := range due {
 					if msg.rel {
-						_ = write(func(w io.Writer) error { return writeAck(w, level, packet.PUBREL, msg.id, reasonSuccess) })
+						_ = write(func(w io.Writer) error { return writeAck(w, level, packet.PUBREL, msg.id, packet.ReasonSuccess) })
 						continue
 					}
 					_ = write(func(w io.Writer) error { return writePub(w, level, msg) })
 				}
 				continue
 			}
+			var pe packet.ProtocolError
+			if errors.As(err, &pe) {
+				_ = write(func(w io.Writer) error { return writeDisconnect(w, level, packet.ReasonMalformed) })
+				return
+			}
 			unclean = true
 			return
 		}
 		last = time.Now()
-		if meta.maxPacketSize > 0 && len(body)+5 > meta.maxPacketSize {
-			_ = write(func(w io.Writer) error { return writeDisconnect(w, level, reasonPacketTooLarge) })
+		if meta.maxPacketSize > 0 && packet.PacketRemain(pkt)+5 > meta.maxPacketSize {
+			_ = write(func(w io.Writer) error { return writeDisconnect(w, level, packet.ReasonPacketTooLarge) })
 			return
 		}
-		switch typ {
-		case packet.PINGREQ:
+		switch p := pkt.(type) {
+		case *packet.PingReq:
 			if err := write(func(w io.Writer) error { return writePingResp(w) }); err != nil {
 				unclean = true
 				return
 			}
-		case packet.DISCONNECT:
+		case *packet.Disconnect:
 			return
-		case packet.PUBLISH:
-			msg, err := parsePublish(level, flags, body)
-			if err != nil {
-				_ = write(func(w io.Writer) error { return writeDisconnect(w, level, reasonMalformed) })
+		case *packet.Publish:
+			if !acceptPublish(c, write, level, deviceID, sess, hooks, pubFrom(p)) {
 				return
 			}
-			if !acceptPublish(c, write, level, deviceID, sess, hooks, msg) {
-				return
-			}
-		case packet.PUBACK:
-			id, _, err := parseAck(body)
-			if err != nil {
-				_ = write(func(w io.Writer) error { return writeDisconnect(w, level, reasonMalformed) })
-				return
-			}
-			sess.mu.Lock()
-			sess.ack(id)
-			next, ok := sess.popPending()
-			sess.mu.Unlock()
-			sendQueued(next, ok)
-		case packet.PUBREC:
-			id, _, err := parseAck(body)
-			if err != nil {
-				_ = write(func(w io.Writer) error { return writeDisconnect(w, level, reasonMalformed) })
-				return
-			}
-			sess.mu.Lock()
-			_, ok := sess.markPubRel(id)
-			sess.mu.Unlock()
-			if ok {
-				_ = write(func(w io.Writer) error { return writeAck(w, level, packet.PUBREL, id, reasonSuccess) })
-			}
-		case packet.PUBREL:
-			if flags != 0x02 {
-				_ = write(func(w io.Writer) error { return writeDisconnect(w, level, reasonMalformed) })
-				return
-			}
-			id, _, err := parseAck(body)
-			if err != nil {
-				_ = write(func(w io.Writer) error { return writeDisconnect(w, level, reasonMalformed) })
-				return
-			}
-			sess.mu.Lock()
-			_, known := sess.inQoS2[id]
-			if known {
-				delete(sess.inQoS2, id)
-			}
-			sess.mu.Unlock()
-			reason := reasonSuccess
-			if !known && level == protoLevel5 {
-				reason = 0x92
-			}
-			if err := write(func(w io.Writer) error { return writeAck(w, level, packet.PUBCOMP, id, reason) }); err != nil {
+		case *packet.Ack:
+			if err := handleAck(write, level, sess, sendQueued, p); err != nil {
 				unclean = true
 				return
 			}
-		case packet.PUBCOMP:
-			id, _, err := parseAck(body)
-			if err != nil {
-				_ = write(func(w io.Writer) error { return writeDisconnect(w, level, reasonMalformed) })
-				return
-			}
-			sess.mu.Lock()
-			sess.ack(id)
-			next, ok := sess.popPending()
-			sess.mu.Unlock()
-			sendQueued(next, ok)
-		case packet.SUBSCRIBE:
-			if flags != 0x02 {
-				_ = write(func(w io.Writer) error { return writeDisconnect(w, level, reasonMalformed) })
-				return
-			}
-			req, err := parseSubscribe(level, body)
-			if err != nil {
-				_ = write(func(w io.Writer) error { return writeDisconnect(w, level, reasonMalformed) })
-				return
-			}
-			codes := make([]byte, len(req.subs))
+		case *packet.Subscribe:
+			codes := make([]byte, len(p.Filters))
 			want := false
-			for i, sub := range req.subs {
-				if classifyTopic(sub.topic, deviceID) != topicDesired {
-					if level == protoLevel5 {
-						codes[i] = reasonNotAuthorized
+			for i, sub := range p.Filters {
+				if classifyTopic(sub.Topic, deviceID) != topicDesired {
+					if level == packet.ProtocolMQTT5 {
+						codes[i] = packet.ReasonNotAuthorized
 					} else {
-						codes[i] = reasonUnspecified
+						codes[i] = packet.ReasonUnspecified
 					}
 					continue
 				}
-				codes[i] = sub.qos
+				codes[i] = sub.QoS
 				sess.mu.Lock()
-				sess.subQoS = int(sub.qos)
+				sess.subQoS = int(sub.QoS)
 				sess.mu.Unlock()
 				want = true
 			}
-			if err := write(func(w io.Writer) error { return writeSubAck(w, level, req.id, codes) }); err != nil {
+			if err := write(func(w io.Writer) error { return writeSubAck(w, level, p.PacketID, codes) }); err != nil {
 				unclean = true
 				return
 			}
 			if want && hooks.subscribed != nil {
 				hooks.subscribed(sendDesired)
 			}
-		case packet.UNSUBSCRIBE:
-			if flags != 0x02 {
-				_ = write(func(w io.Writer) error { return writeDisconnect(w, level, reasonMalformed) })
-				return
-			}
-			id, topics, err := parseUnsub(level, body)
-			if err != nil {
-				_ = write(func(w io.Writer) error { return writeDisconnect(w, level, reasonMalformed) })
-				return
-			}
-			for _, topic := range topics {
+		case *packet.Unsubscribe:
+			for _, topic := range p.Topics {
 				if classifyTopic(topic, deviceID) == topicDesired {
 					sess.mu.Lock()
 					sess.subQoS = -1
@@ -280,32 +210,75 @@ func serveDevice(c net.Conn, deviceID string, cp *packet.ConnectControlPacket, m
 					}
 				}
 			}
-			if err := write(func(w io.Writer) error { return writeUnsubAck(w, level, id, len(topics)) }); err != nil {
+			if err := write(func(w io.Writer) error { return writeUnsubAck(w, level, p.PacketID, len(p.Topics)) }); err != nil {
 				unclean = true
 				return
 			}
 		default:
-			_ = write(func(w io.Writer) error { return writeDisconnect(w, level, reasonMalformed) })
+			_ = write(func(w io.Writer) error { return writeDisconnect(w, level, packet.ReasonMalformed) })
 			return
 		}
 	}
 }
 
+func handleAck(write func(func(io.Writer) error) error, level byte, sess *deviceSession, sendQueued func(pubMsg, bool), p *packet.Ack) error {
+	switch p.Kind {
+	case packet.PUBACK:
+		sess.mu.Lock()
+		sess.ack(p.PacketID)
+		next, ok := sess.popPending()
+		sess.mu.Unlock()
+		sendQueued(next, ok)
+	case packet.PUBREC:
+		sess.mu.Lock()
+		_, ok := sess.markPubRel(p.PacketID)
+		sess.mu.Unlock()
+		if ok {
+			_ = write(func(w io.Writer) error {
+				return writeAck(w, level, packet.PUBREL, p.PacketID, packet.ReasonSuccess)
+			})
+		}
+	case packet.PUBREL:
+		sess.mu.Lock()
+		_, known := sess.inQoS2[p.PacketID]
+		if known {
+			delete(sess.inQoS2, p.PacketID)
+		}
+		sess.mu.Unlock()
+		reason := packet.ReasonSuccess
+		if !known && level == packet.ProtocolMQTT5 {
+			reason = packet.ReasonPacketIDNotFound
+		}
+		if err := write(func(w io.Writer) error {
+			return writeAck(w, level, packet.PUBCOMP, p.PacketID, reason)
+		}); err != nil {
+			return err
+		}
+	case packet.PUBCOMP:
+		sess.mu.Lock()
+		sess.ack(p.PacketID)
+		next, ok := sess.popPending()
+		sess.mu.Unlock()
+		sendQueued(next, ok)
+	}
+	return nil
+}
+
 func acceptPublish(c net.Conn, write func(func(io.Writer) error) error, level byte, deviceID string, sess *deviceSession, hooks deviceHooks, msg pubMsg) bool {
 	sess.mu.Lock()
-	if msg.props.hasAlias {
-		if sess.aliasMax == 0 || msg.props.topicAlias == 0 || int(msg.props.topicAlias) > sess.aliasMax {
+	if msg.props.HasTopicAlias {
+		if sess.aliasMax == 0 || msg.props.TopicAlias == 0 || int(msg.props.TopicAlias) > sess.aliasMax {
 			sess.mu.Unlock()
-			_ = write(func(w io.Writer) error { return writeDisconnect(w, level, reasonTopicAliasInvalid) })
+			_ = write(func(w io.Writer) error { return writeDisconnect(w, level, packet.ReasonTopicAliasInvalid) })
 			return false
 		}
 		if msg.topic != "" {
-			sess.aliases[msg.props.topicAlias] = msg.topic
-		} else if topic, ok := sess.aliases[msg.props.topicAlias]; ok {
+			sess.aliases[msg.props.TopicAlias] = msg.topic
+		} else if topic, ok := sess.aliases[msg.props.TopicAlias]; ok {
 			msg.topic = topic
 		} else {
 			sess.mu.Unlock()
-			_ = write(func(w io.Writer) error { return writeDisconnect(w, level, reasonTopicAliasInvalid) })
+			_ = write(func(w io.Writer) error { return writeDisconnect(w, level, packet.ReasonTopicAliasInvalid) })
 			return false
 		}
 	}
@@ -321,52 +294,52 @@ func acceptPublish(c net.Conn, write func(func(io.Writer) error) error, level by
 
 	kind := classifyTopic(msg.topic, deviceID)
 	if kind != topicReported {
-		if msg.qos == 0 || level != protoLevel5 {
-			_ = write(func(w io.Writer) error { return writeDisconnect(w, level, reasonNotAuthorized) })
+		if msg.qos == 0 || level != packet.ProtocolMQTT5 {
+			_ = write(func(w io.Writer) error { return writeDisconnect(w, level, packet.ReasonNotAuthorized) })
 			return false
 		}
 		kindByte := packet.PUBACK
 		if msg.qos == 2 {
 			kindByte = packet.PUBREC
 		}
-		_ = write(func(w io.Writer) error { return writeAck(w, level, byte(kindByte), msg.id, reasonNotAuthorized) })
+		_ = write(func(w io.Writer) error { return writeAck(w, level, kindByte, msg.id, packet.ReasonNotAuthorized) })
 		return true
 	}
-	if msg.props.hasExpiry && msg.props.messageExpiry == 0 {
-		return ackPublish(write, level, msg, reasonSuccess)
+	if msg.props.HasMessageExpiry && msg.props.MessageExpiry == 0 {
+		return ackPublish(write, level, msg, packet.ReasonSuccess)
 	}
 	if !dupQoS2 && hooks.reported != nil {
 		if !hooks.reported(msg.payload, msg.props, msg.retain) {
-			return ackPublish(write, level, msg, reasonPayloadInvalid)
+			return ackPublish(write, level, msg, packet.ReasonPayloadInvalid)
 		}
 	}
-	return ackPublish(write, level, msg, reasonSuccess)
+	return ackPublish(write, level, msg, packet.ReasonSuccess)
 }
 
 func ackPublish(write func(func(io.Writer) error) error, level byte, msg pubMsg, reason byte) bool {
 	switch msg.qos {
 	case 0:
-		if reason != reasonSuccess {
+		if reason != packet.ReasonSuccess {
 			_ = write(func(w io.Writer) error { return writeDisconnect(w, level, reason) })
 			return false
 		}
 		return true
 	case 1:
-		if level != protoLevel5 {
-			reason = reasonSuccess
+		if level != packet.ProtocolMQTT5 {
+			reason = packet.ReasonSuccess
 		}
 		return write(func(w io.Writer) error { return writeAck(w, level, packet.PUBACK, msg.id, reason) }) == nil
 	case 2:
-		if level != protoLevel5 && reason != reasonSuccess {
+		if level != packet.ProtocolMQTT5 && reason != packet.ReasonSuccess {
 			_ = write(func(w io.Writer) error { return writeDisconnect(w, level, reason) })
 			return false
 		}
-		if level != protoLevel5 {
-			reason = reasonSuccess
+		if level != packet.ProtocolMQTT5 {
+			reason = packet.ReasonSuccess
 		}
 		return write(func(w io.Writer) error { return writeAck(w, level, packet.PUBREC, msg.id, reason) }) == nil
 	default:
-		_ = write(func(w io.Writer) error { return writeDisconnect(w, level, reasonQoSNotSupported) })
+		_ = write(func(w io.Writer) error { return writeDisconnect(w, level, packet.ReasonQoSNotSupported) })
 		return false
 	}
 }

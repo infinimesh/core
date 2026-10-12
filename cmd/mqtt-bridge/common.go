@@ -23,10 +23,10 @@ import (
 
 	structpb "github.com/golang/protobuf/ptypes/struct"
 	"github.com/infinimesh/core/pkg/mqtt/metrics"
+	"github.com/infinimesh/core/pkg/mqtt/packet"
 	"github.com/infinimesh/core/pkg/pubsub"
 	devpb "github.com/infinimesh/proto/node/devices"
 	pb "github.com/infinimesh/proto/shadow"
-	"github.com/slntopp/mqtt-go/packet"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -53,19 +53,19 @@ func GetByFingerprintAndVerify(fingerprint []byte, cb VerifyDeviceFunc) (device 
 // ACK Packet needs to be sent to prevent MQTT Client sending CONN packets further
 func LogErrorAndClose(c net.Conn, err error) {
 	log.Warn("Closing connection on error", zap.Error(err))
-	_ = writeConnAck(c, protoLevel311, false, 0x01, "")
+	_ = writeConnAck(c, packet.ProtocolMQTT311, false, packet.CodeUnacceptableProto, "")
 	c.Close()
 }
 
 // HandleConn - note: Connection is expected to be valid & legitimate at this point
-func HandleConn(c net.Conn, connectPacket *packet.ConnectControlPacket, meta connectMeta, device *devpb.Device) {
-	log := log.Named(device.GetUuid()).Named(connectPacket.ConnectPayload.ClientID)
+func HandleConn(c net.Conn, connectPacket *packet.Connect, meta connectMeta, device *devpb.Device) {
+	log := log.Named(device.GetUuid()).Named(connectPacket.ClientID)
 	defer log.Debug("Client disconnected")
 	log.Debug(
 		"Client connected", zap.String("device", device.Uuid),
-		zap.Int("protocol_level", int(connectPacket.VariableHeader.ProtocolLevel)),
-		zap.String("protocol", connectPacket.VariableHeader.ProtocolName),
-		zap.Int("QoS", connectPacket.VariableHeader.ConnectFlags.WillQoS),
+		zap.Int("protocol_level", int(connectPacket.ProtocolLevel)),
+		zap.String("protocol", connectPacket.ProtocolName),
+		zap.Int("QoS", int(connectPacket.WillQoS)),
 	)
 
 	var back chan interface{}
@@ -108,7 +108,7 @@ func HandleConn(c net.Conn, connectPacket *packet.ConnectControlPacket, meta con
 			}
 			return device.Enabled
 		},
-		reported: func(payload []byte, _ mqttProps, _ bool) bool {
+		reported: func(payload []byte, _ packet.Properties, _ bool) bool {
 			return storeReported(payload)
 		},
 		connected: func(up bool) {
@@ -117,7 +117,7 @@ func HandleConn(c net.Conn, connectPacket *packet.ConnectControlPacket, meta con
 				Connection: &pb.ConnectionState{
 					Connected: up,
 					Timestamp: timestamppb.Now(),
-					ClientId:  connectPacket.ConnectPayload.ClientID,
+					ClientId:  connectPacket.ClientID,
 				},
 			}, "mqtt.incoming")
 		},

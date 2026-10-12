@@ -4,7 +4,7 @@ import (
 	"encoding/base64"
 	"testing"
 
-	"github.com/slntopp/mqtt-go/packet"
+	"github.com/infinimesh/core/pkg/mqtt/packet"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -12,11 +12,9 @@ func TestVerifyBasicAuth(t *testing.T) {
 	user := "user"
 	pass := []byte{0x01, 0x02}
 	payload := base64.StdEncoding.EncodeToString(pass)
-	p := &packet.ConnectControlPacket{
-		ConnectPayload: packet.ConnectPayload{
-			Username: user,
-			Password: payload,
-		},
+	p := &packet.Connect{
+		Username: user,
+		Password: payload,
 	}
 	fp, err := verifyBasicAuth(p)
 	assert.NoError(t, err)
@@ -24,7 +22,7 @@ func TestVerifyBasicAuth(t *testing.T) {
 }
 
 func TestVerifyBasicAuth_MissingFields(t *testing.T) {
-	p := &packet.ConnectControlPacket{}
+	p := &packet.Connect{}
 	_, err := verifyBasicAuth(p)
 	assert.Error(t, err)
 }
