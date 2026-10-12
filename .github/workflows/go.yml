@@ -29,6 +29,16 @@ jobs:
       - name: Swagger matches proto
         run: sh scripts/swagger_check.sh
 
+      - name: Install buf
+        run: |
+          curl -sSL -o /usr/local/bin/buf \
+            "https://github.com/bufbuild/buf/releases/download/v1.55.1/buf-$(uname -s)-$(uname -m)"
+          chmod +x /usr/local/bin/buf
+          buf --version
+
+      - name: buf lint pinned proto
+        run: sh scripts/buf_lint_pin.sh
+
       - name: release scripts
         run: sh scripts/release_test.sh
 

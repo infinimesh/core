@@ -72,6 +72,16 @@ grep -q "pnpm@9" "$console_df" || {
   exit 1
 }
 
+sh -n "$root/scripts/buf_lint_pin.sh"
+grep -q 'sh scripts/buf_lint_pin.sh' "$root/.github/workflows/go.yml" || {
+  echo "go.yml must lint the pinned proto module" >&2
+  exit 1
+}
+grep -q 'bufbuild/buf/releases/download/v1.55.1/' "$root/.github/workflows/go.yml" || {
+  echo "go.yml must install buf 1.55.1" >&2
+  exit 1
+}
+
 go_ver=$(awk '/^go / { print $2; exit }' "$root/go.mod")
 major=${go_ver%.*}
 for f in "$root"/Dockerfiles/*/Dockerfile; do

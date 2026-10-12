@@ -1,6 +1,6 @@
 # API versioning
 
-The schema lives in [github.com/infinimesh/proto](https://github.com/infinimesh/proto). `api.swagger.json` in this repo is a copy of that module. `sh scripts/swagger_check.sh` fails when the copy drifts.
+The schema lives in [github.com/infinimesh/proto](https://github.com/infinimesh/proto). `api.swagger.json` in this repo is a copy of that module. `sh scripts/swagger_check.sh` fails when the copy drifts. `sh scripts/buf_lint_pin.sh` runs `buf lint` on that module. `buf breaking` runs in the proto repository, against the latest tag or the pull request base when there is no tag.
 
 Protobuf packages are `infinimesh.*.v1`. REST methods are under `/v1`, and the previous path stays as an alias for one minor release. Create is `POST` on the `/v1` path. `exp`, `inf`, and `GetRequest.pool` remain, marked deprecated, beside `expires_at`, `infinite`, `devices`, and `device`.
 

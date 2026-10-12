@@ -13,7 +13,7 @@ All notable changes to this project will be documented in this file.
 - Create requests honour `Idempotency-Key` for 24 hours in the API process.
 
 ### Changed
-- `api.swagger.json` is the file from the pinned `github.com/infinimesh/proto` module. CI rejects a hand-edited copy.
+- `api.swagger.json` is the file from the pinned `github.com/infinimesh/proto` module. CI rejects a hand-edited copy and runs `buf lint` on that module.
 - REST paths are also served under `/v1`. The previous paths remain. Create is `POST` on the `/v1` path.
 - A device token from `Get` is read-only and expires in 24 hours. A token from `GetByFingerprint` may post reported state and expires in 24 hours. `MakeDevicesToken` uses `post` for reported writes and manage level for desired writes. A requested level of none is not copied from the caller. When `expires_at` and `exp` are both unset, a device token expires in 24 hours. A stream token still omits expiry when both are unset.
 - Reported shadow writes require `post` or manage level. Desired writes require manage level.
