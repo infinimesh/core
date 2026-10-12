@@ -21,7 +21,7 @@
         <n-grid-item span="24 300:24 500:10 600:12 1000:12">
           <n-space justify="end" align="flex-end" style="height: 100%;">
             <device-create />
-            <device-register v-if="console_services.handsfree != undefined" />
+            <device-register v-if="console_services.pairing != undefined" />
           </n-space>
         </n-grid-item>
       </n-grid>

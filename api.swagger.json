@@ -1,16 +1,10 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "handsfree/handsfree.proto",
-    "version": "version not set"
+    "title": "Infinimesh API",
+    "version": "1.0.0"
   },
   "tags": [
-    {
-      "name": "HandsfreeService"
-    },
-    {
-      "name": "ShadowService"
-    },
     {
       "name": "AccountsService"
     },
@@ -24,8 +18,14 @@
       "name": "SessionsService"
     },
     {
+      "name": "ShadowService"
+    },
+    {
       "name": "InternalService",
       "description": "not revenue"
+    },
+    {
+      "name": "PairingService"
     },
     {
       "name": "PluginsService"
@@ -1226,7 +1226,7 @@
     },
     "/handsfree": {
       "post": {
-        "operationId": "HandsfreeService_Send2",
+        "operationId": "PairingService_Send3",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -1252,13 +1252,13 @@
           }
         ],
         "tags": [
-          "HandsfreeService"
+          "PairingService"
         ]
       }
     },
     "/handsfree/connection": {
       "get": {
-        "operationId": "HandsfreeService_Connect2",
+        "operationId": "PairingService_Connect3",
         "responses": {
           "200": {
             "description": "A successful response.(streaming responses)",
@@ -1301,7 +1301,7 @@
           }
         ],
         "tags": [
-          "HandsfreeService"
+          "PairingService"
         ]
       }
     },
@@ -3466,7 +3466,7 @@
     },
     "/v1/handsfree": {
       "post": {
-        "operationId": "HandsfreeService_Send",
+        "operationId": "PairingService_Send2",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -3492,13 +3492,13 @@
           }
         ],
         "tags": [
-          "HandsfreeService"
+          "PairingService"
         ]
       }
     },
     "/v1/handsfree/connection": {
       "get": {
-        "operationId": "HandsfreeService_Connect",
+        "operationId": "PairingService_Connect2",
         "responses": {
           "200": {
             "description": "A successful response.(streaming responses)",
@@ -3541,7 +3541,7 @@
           }
         ],
         "tags": [
-          "HandsfreeService"
+          "PairingService"
         ]
       }
     },
@@ -4025,6 +4025,87 @@
         ],
         "tags": [
           "NamespacesService"
+        ]
+      }
+    },
+    "/v1/pairing": {
+      "post": {
+        "operationId": "PairingService_Send",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ControlPacket"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1ControlPacket"
+            }
+          }
+        ],
+        "tags": [
+          "PairingService"
+        ]
+      }
+    },
+    "/v1/pairing/connection": {
+      "get": {
+        "operationId": "PairingService_Connect",
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "$ref": "#/definitions/v1ControlPacket"
+                },
+                "error": {
+                  "$ref": "#/definitions/rpcStatus"
+                }
+              },
+              "title": "Stream result of v1ControlPacket"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "appId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "payload",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          }
+        ],
+        "tags": [
+          "PairingService"
         ]
       }
     },
@@ -4649,8 +4730,8 @@
           "type": "string",
           "title": "Namespace to put device under"
         },
-        "handsfree": {
-          "$ref": "#/definitions/v1HandsfreeCreate"
+        "pairing": {
+          "$ref": "#/definitions/v1PairingCreate"
         }
       }
     },
@@ -5063,20 +5144,6 @@
         }
       }
     },
-    "v1HandsfreeCreate": {
-      "type": "object",
-      "properties": {
-        "code": {
-          "type": "string"
-        },
-        "payload": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      }
-    },
     "v1LDAPProviders": {
       "type": "object",
       "properties": {
@@ -5178,6 +5245,20 @@
           "items": {
             "type": "object",
             "$ref": "#/definitions/v1Node"
+          }
+        }
+      }
+    },
+    "v1PairingCreate": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "payload": {
+          "type": "array",
+          "items": {
+            "type": "string"
           }
         }
       }

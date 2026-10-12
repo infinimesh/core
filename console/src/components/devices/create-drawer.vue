@@ -41,7 +41,7 @@
           <n-radio-group v-model:value="mode" name="device_credentials_mode">
             <n-tooltip trigger="hover">
               <template #trigger>
-                <n-radio-button value="handsfree" key="handsfree" label="Handsfree" />
+                <n-radio-button value="pairing" key="pairing" label="Pairing" />
               </template>
               Use Authorization code from device to obtain it's pre-installed certificate
             </n-tooltip>
@@ -59,9 +59,9 @@
             </n-tooltip>
           </n-radio-group>
         </n-form-item>
-        <!-- Handsfree certificate obtain -->
-        <n-form-item label="Code" path="handsfree.code" v-if="mode == 'handsfree'">
-          <Code @update:value="(v) => model.handsfree.code = v.code" />
+        <!-- Pairing certificate obtain -->
+        <n-form-item label="Code" path="pairing.code" v-if="mode == 'pairing'">
+          <Code @update:value="(v) => model.pairing.code = v.code" />
         </n-form-item>
         <!-- Certificate upload -->
         <n-form-item label="Certificate" path="device.certificate.pemData" v-if="mode == 'certificate'">
@@ -115,7 +115,7 @@ const CloudUploadOutline = defineAsyncComponent(() => import("@vicons/ionicons5/
 const Code = defineAsyncComponent(() => import("@/components/devices/register_modal/code.vue"))
 
 const show = ref(false);
-const handsfree = ref(false);
+const pairing = ref(false);
 const mode = ref('certificate')
 
 watch(
@@ -159,7 +159,7 @@ const rules = ref({
     },
   },
   namespace: [{ required: true, message: "Please select namespace" }],
-  handsfree: {
+  pairing: {
     code: [{ required: false, message: "Please enter the auth code" }]
   }
 });
@@ -178,29 +178,29 @@ function reset() {
     },
     namespace: nss.selected == "all" ? null : nss.selected,
   };
-  handsfree.value = false
+  pairing.value = false
 }
 
 watch(mode, (mode) => {
   model.value.device.certificate = {pemData: ""}
 
-  if (mode == 'handsfree') {
+  if (mode == 'pairing') {
     rules.value.device.certificate.pemData[0].required = false
-    rules.value.handsfree.code[0].required = true
+    rules.value.pairing.code[0].required = true
 
-    model.value.handsfree = { code: "" }
+    model.value.pairing = { code: "" }
 
     return
   } else if (mode == 'certificate') {
     rules.value.device.certificate.pemData[0].required = true
-    rules.value.handsfree.code[0].required = false
+    rules.value.pairing.code[0].required = false
 
-    delete model.value.handsfree
+    delete model.value.pairing
   } else if (mode == 'soft') {
     rules.value.device.certificate.pemData[0].required = false
-    rules.value.handsfree.code[0].required = false
+    rules.value.pairing.code[0].required = false
 
-    delete model.value.handsfree
+    delete model.value.pairing
     delete model.value.device.certificate
   }
 

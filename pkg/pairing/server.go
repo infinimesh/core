@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package handsfree
+package pairing
 
 import (
 	"context"
@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	pb "github.com/infinimesh/proto/handsfree"
+	pb "github.com/infinimesh/proto/pairing"
 	"go.uber.org/zap"
 )
 
@@ -38,14 +38,14 @@ type Connection struct {
 	App     string
 }
 
-type HandsfreeServer struct {
+type PairingServer struct {
 	log *zap.Logger
 	db  map[string](*Connection)
 }
 
-func NewHandsfreeServer(log *zap.Logger) *HandsfreeServer {
-	return &HandsfreeServer{
-		log: log.Named("HandsfreeServer"), db: make(map[string]*Connection),
+func NewPairingServer(log *zap.Logger) *PairingServer {
+	return &PairingServer{
+		log: log.Named("PairingServer"), db: make(map[string]*Connection),
 	}
 }
 
@@ -62,7 +62,7 @@ begin:
 	return r
 }
 
-func (s *HandsfreeServer) Send(ctx context.Context, req *connect.Request[pb.ControlPacket]) (*connect.Response[pb.ControlPacket], error) {
+func (s *PairingServer) Send(ctx context.Context, req *connect.Request[pb.ControlPacket]) (*connect.Response[pb.ControlPacket], error) {
 	log := s.log.Named("Send")
 
 	packet := req.Msg
@@ -88,7 +88,7 @@ func (s *HandsfreeServer) Send(ctx context.Context, req *connect.Request[pb.Cont
 	return res, nil
 }
 
-func (s *HandsfreeServer) Connect(ctx context.Context, req *connect.Request[pb.ConnectionRequest], srv *connect.ServerStream[pb.ControlPacket]) error {
+func (s *PairingServer) Connect(ctx context.Context, req *connect.Request[pb.ConnectionRequest], srv *connect.ServerStream[pb.ControlPacket]) error {
 	log := s.log.Named("Connect")
 
 	connReq := req.Msg

@@ -25,8 +25,8 @@ import (
 	"strings"
 
 	logger "github.com/infinimesh/core/pkg/log"
-	hfpb "github.com/infinimesh/proto/handsfree"
 	pb "github.com/infinimesh/proto/node"
+	hfpb "github.com/infinimesh/proto/pairing"
 	"github.com/infinimesh/proto/plugins"
 	"github.com/tmc/grpc-websocket-proxy/wsproxy"
 
@@ -142,9 +142,9 @@ func main() {
 		log.Fatal("Failed to register ConsoleServices service", zap.Error(err))
 	}
 
-	if e, ok := SERVICES_ENABLED_MAP["handsfree"]; ok {
+	if e, ok := SERVICES_ENABLED_MAP["pairing"]; ok {
 		log.Info("Pairing enabled, registering Gateway")
-		err = hfpb.RegisterHandsfreeServiceHandlerFromEndpoint(context.Background(), gwmux, e, opts)
+		err = hfpb.RegisterPairingServiceHandlerFromEndpoint(context.Background(), gwmux, e, opts)
 		if err != nil {
 			log.Fatal("Failed to register pairing service gateway", zap.Error(err))
 		}

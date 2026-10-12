@@ -15,8 +15,6 @@ What you get:
 - A web console
 - Docker Compose and Kubernetes setups
 
-The APIs are beta. They may still change between releases.
-
 ## Quickstart
 
 You need Docker with Docker Compose.
@@ -56,7 +54,6 @@ MQTT listens on 1883 (plain) and 8883 (TLS with `hack/server.crt` and `hack/serv
 ## When not to use it
 
 - You want a fully managed cloud service and do not want to run servers.
-- You need stable, frozen APIs today. Ours are still beta.
 - You only have a few devices and one user. A plain MQTT broker is simpler.
 
 ## CLI (inf)

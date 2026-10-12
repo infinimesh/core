@@ -32,10 +32,10 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/infinimesh/core/pkg/graph/schema"
 	inf "github.com/infinimesh/core/pkg/shared"
-	"github.com/infinimesh/proto/handsfree"
 	pb "github.com/infinimesh/proto/node"
 	access "github.com/infinimesh/proto/node/access"
 	devpb "github.com/infinimesh/proto/node/devices"
+	"github.com/infinimesh/proto/pairing"
 	shadowpb "github.com/infinimesh/proto/shadow"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -90,7 +90,7 @@ type DevicesController struct {
 	InfinimeshBaseController
 
 	col driver.Collection // Devices Collection
-	hfc handsfree.HandsfreeServiceClient
+	hfc pairing.PairingServiceClient
 
 	ns2dev  driver.Collection // Namespaces to Devices permissions edge collection
 	acc2dev driver.Collection // Accounts to Devices permissions edge collection
@@ -121,7 +121,7 @@ func (c *DevicesController) SetScopePublisher(p ScopePublisher) {
 
 func NewDevicesController(
 	log *zap.Logger, db driver.Database,
-	hfc handsfree.HandsfreeServiceClient,
+	hfc pairing.PairingServiceClient,
 	ica InfinimeshCommonActionsRepo,
 ) *DevicesController {
 	ctx := context.TODO()
@@ -177,8 +177,8 @@ func (c *DevicesController) Create(ctx context.Context, _req *connect.Request[de
 		return connect.NewResponse(&cached), nil
 	}
 
-	if req.Handsfree != nil {
-		resp, err := c._HandsfreeCreate(ctx, req)
+	if req.Pairing != nil {
+		resp, err := c._PairingCreate(ctx, req)
 		if err == nil && resp != nil {
 			saveIdem(_req.Header(), "devices.create", resp.Msg)
 		}
@@ -234,8 +234,8 @@ func (c *DevicesController) Create(ctx context.Context, _req *connect.Request[de
 	return resp, nil
 }
 
-func (c *DevicesController) _HandsfreeCreate(ctx context.Context, req *devpb.CreateRequest) (*connect.Response[devpb.CreateResponse], error) {
-	log := c.log.Named("HandsfreeCreate")
+func (c *DevicesController) _PairingCreate(ctx context.Context, req *devpb.CreateRequest) (*connect.Response[devpb.CreateResponse], error) {
+	log := c.log.Named("PairingCreate")
 	log.Debug("Request received")
 
 	requestor := ctx.Value(inf.InfinimeshAccountCtxKey).(string)
@@ -284,17 +284,17 @@ func (c *DevicesController) _HandsfreeCreate(ctx context.Context, req *devpb.Cre
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
-	cp, err := c.hfc.Send(ctx, &handsfree.ControlPacket{
-		Payload: append([]string{req.GetHandsfree().GetCode(), device.Uuid}, req.GetHandsfree().GetPayload()...),
+	cp, err := c.hfc.Send(ctx, &pairing.ControlPacket{
+		Payload: append([]string{req.GetPairing().GetCode(), device.Uuid}, req.GetPairing().GetPayload()...),
 	})
 	if err != nil {
-		log.Warn("Couldn't obtain certificate from Handsfree", zap.Error(err))
+		log.Warn("Couldn't obtain certificate from Pairing", zap.Error(err))
 		return cleanup(err)
 	}
 
 	if len(cp.GetPayload()) == 0 {
-		log.Warn("Handsfree connection Payload is empty")
-		return cleanup(fmt.Errorf("issue with Handsfree Payload: is empty"))
+		log.Warn("Pairing connection Payload is empty")
+		return cleanup(fmt.Errorf("issue with Pairing Payload: is empty"))
 	}
 
 	dev.Certificate = &devpb.Certificate{

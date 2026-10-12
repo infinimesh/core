@@ -32,8 +32,8 @@ import (
 	"github.com/infinimesh/core/pkg/oauth"
 	"github.com/infinimesh/core/pkg/oauth/config"
 	auth "github.com/infinimesh/core/pkg/shared/auth"
-	"github.com/infinimesh/proto/handsfree"
 	"github.com/infinimesh/proto/node/nodeconnect"
+	"github.com/infinimesh/proto/pairing"
 	"github.com/infinimesh/proto/plugins/pluginsconnect"
 	shadowpb "github.com/infinimesh/proto/shadow"
 	"github.com/rs/cors"
@@ -200,7 +200,7 @@ func main() {
 			log.Fatal("Failed to connect to pairing", zap.String("address", host), zap.Error(err))
 		}
 
-		devMod = graph.NewDevicesControllerModule(log, db, handsfree.NewHandsfreeServiceClient(conn))
+		devMod = graph.NewDevicesControllerModule(log, db, pairing.NewPairingServiceClient(conn))
 		devMod.SetSigningKey(SIGNING_KEY)
 		devMod.SetDenylist(auth.NewRedisDenylist(rdb))
 

@@ -10,14 +10,14 @@ import (
 	"github.com/google/uuid"
 	driver_mocks "github.com/infinimesh/core/mocks/github.com/arangodb/go-driver"
 	graph_mocks "github.com/infinimesh/core/mocks/github.com/infinimesh/core/pkg/graph"
-	handsfree_mocks "github.com/infinimesh/core/mocks/github.com/infinimesh/proto/handsfree"
+	pairing_mocks "github.com/infinimesh/core/mocks/github.com/infinimesh/proto/pairing"
 	"github.com/infinimesh/core/pkg/graph"
 	"github.com/infinimesh/core/pkg/graph/schema"
 	inf "github.com/infinimesh/core/pkg/shared"
-	"github.com/infinimesh/proto/handsfree"
 	"github.com/infinimesh/proto/node"
 	"github.com/infinimesh/proto/node/access"
 	devpb "github.com/infinimesh/proto/node/devices"
+	"github.com/infinimesh/proto/pairing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"go.uber.org/zap"
@@ -33,7 +33,7 @@ type devicesControllerFixture struct {
 		ns2dev  *driver_mocks.MockCollection
 		acc2dev *driver_mocks.MockCollection
 
-		hfc      *handsfree_mocks.MockHandsfreeServiceClient
+		hfc      *pairing_mocks.MockPairingServiceClient
 		ica_repo *graph_mocks.MockInfinimeshCommonActionsRepo
 	}
 
@@ -59,7 +59,7 @@ func newDevicesControllerFixture(t *testing.T) *devicesControllerFixture {
 	f.mocks.acc2dev = driver_mocks.NewMockCollection(t)
 	f.mocks.db.On("Collection", context.TODO(), schema.DEVICES_COL).Return(f.mocks.col, nil)
 
-	f.mocks.hfc = handsfree_mocks.NewMockHandsfreeServiceClient(t)
+	f.mocks.hfc = pairing_mocks.NewMockPairingServiceClient(t)
 	f.mocks.ica_repo = graph_mocks.NewMockInfinimeshCommonActionsRepo(t)
 	f.mocks.ica_repo.On("GetEdgeCol", context.TODO(), schema.NS2DEV).Return(f.mocks.ns2dev, nil)
 	f.mocks.ica_repo.On("GetEdgeCol", context.TODO(), schema.ACC2DEV).Return(f.mocks.acc2dev, nil)
@@ -120,7 +120,7 @@ cgSqKFgDFRxlHXLo9TZnxyBrIvN/siE+ZQI=
 			Config:       &structpb.Struct{},
 		},
 		Namespace: f.data.ns_uuid,
-		Handsfree: &devpb.HandsfreeCreate{
+		Pairing: &devpb.PairingCreate{
 			Code:    "123456",
 			Payload: []string{f.data.cert},
 		},
@@ -348,14 +348,14 @@ func TestCreateHf_FailsOn_EmptyPayloadAndDelete(t *testing.T) {
 
 	f.mocks.ica_repo.On("AccessLevelAndGet", f.data.ctx, mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
 
-	f.mocks.hfc.On("Send", f.data.ctx, mock.Anything).Return(&handsfree.ControlPacket{
+	f.mocks.hfc.On("Send", f.data.ctx, mock.Anything).Return(&pairing.ControlPacket{
 		Payload: []string{},
 	}, nil)
 
 	res, err := f.ctrl.Create(f.data.ctx, connect.NewRequest(&f.data.create_hf_req))
 	assert.NotNil(t, res)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "issue with Handsfree Payload: is empty")
+	assert.Contains(t, err.Error(), "issue with Pairing Payload: is empty")
 }
 
 func TestCreateHf_FailsOn_GenerateFingerprint(t *testing.T) {
@@ -389,7 +389,7 @@ func TestCreateHf_FailsOn_GenerateFingerprint(t *testing.T) {
 	).Return(nil)
 
 	app_id := "some-app"
-	f.mocks.hfc.On("Send", f.data.ctx, mock.Anything).Return(&handsfree.ControlPacket{
+	f.mocks.hfc.On("Send", f.data.ctx, mock.Anything).Return(&pairing.ControlPacket{
 		Payload: []string{"invalid cert"},
 		AppId:   &app_id,
 	}, nil)
@@ -431,7 +431,7 @@ func TestCreateHf_FailsOn_ReplaceDocument(t *testing.T) {
 	).Return(nil)
 
 	app_id := "some-app"
-	f.mocks.hfc.On("Send", f.data.ctx, mock.Anything).Return(&handsfree.ControlPacket{
+	f.mocks.hfc.On("Send", f.data.ctx, mock.Anything).Return(&pairing.ControlPacket{
 		Payload: []string{f.data.cert},
 		AppId:   &app_id,
 	}, nil)
@@ -460,7 +460,7 @@ func TestCreateHf_Success(t *testing.T) {
 	).Return(nil)
 
 	app_id := "some-app"
-	f.mocks.hfc.On("Send", f.data.ctx, mock.Anything).Return(&handsfree.ControlPacket{
+	f.mocks.hfc.On("Send", f.data.ctx, mock.Anything).Return(&pairing.ControlPacket{
 		Payload: []string{f.data.cert},
 		AppId:   &app_id,
 	}, nil)

@@ -2,8 +2,8 @@ package graph
 
 import (
 	"github.com/arangodb/go-driver"
-	"github.com/infinimesh/proto/handsfree"
 	"github.com/infinimesh/proto/node/nodeconnect"
+	"github.com/infinimesh/proto/pairing"
 	"go.uber.org/zap"
 )
 
@@ -35,7 +35,7 @@ func (m *devicesControllerModule) SetDenylist(d TokenDenylist) {
 }
 
 func NewDevicesControllerModule(log *zap.Logger, db driver.Database,
-	hfc handsfree.HandsfreeServiceClient) DevicesControllerModule {
+	hfc pairing.PairingServiceClient) DevicesControllerModule {
 	return &devicesControllerModule{
 		handler: NewDevicesController(log, db, hfc, NewInfinimeshCommonActionsRepo(db)),
 	}

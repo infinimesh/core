@@ -98,7 +98,7 @@ Recreate `mqtt` after changing them.
 
 In this Compose stack the device registry is the `api` service. `mqtt`, `shadow`, and `gateway` dial `api:8000` with plaintext gRPC on the Docker network (`DEVICES_HOST`, `REGISTRY_HOST`). That port is not the public TLS endpoint.
 
-Public clients use `api.$BASE_DOMAIN` on port 443. Traefik and Caddy send these path prefixes to `api`: `/infinimesh.node.`, `/infinimesh.shadow`, `/infinimesh.plugins`, `/oauth`. The console and the REST front go to `gateway`, and `gateway` dials `api` inside the network. Pairing (`/infinimesh.handsfree.`) is included on HTTPS in both public overlays. In the base file it is only on the plaintext `:8000` entrypoint.
+Public clients use `api.$BASE_DOMAIN` on port 443. Traefik and Caddy send these path prefixes to `api`: `/infinimesh.node.`, `/infinimesh.shadow`, `/infinimesh.plugins`, `/oauth`. The console and the REST front go to `gateway`, and `gateway` dials `api` inside the network. Pairing (`/infinimesh.pairing.`) is included on HTTPS in both public overlays. In the base file it is only on the plaintext `:8000` entrypoint.
 
 Log in with the CLI against port 443:
 

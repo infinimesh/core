@@ -29,9 +29,9 @@ packages:
     github.com/infinimesh/proto/plugins:
         interfaces:
             PluginsServiceClient:
-    github.com/infinimesh/proto/handsfree:
+    github.com/infinimesh/proto/pairing:
         interfaces:
-            HandsfreeServiceClient:
+            PairingServiceClient:
     
     # Foreign Packages
     github.com/go-redis/redis/v8:
