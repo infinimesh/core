@@ -8,7 +8,7 @@ Infinimesh is an open source IoT platform you run yourself. It gives you a devic
 
 What you get:
 
-- MQTT 3.1.1, and MQTT 5 in part, with TLS 1.2 and 1.3
+- MQTT 3.1.1 and 5, with TLS 1.2 and 1.3
 - Device shadow with reported and desired state
 - Messages from device to cloud and from cloud to device
 - Multi-tenant namespaces with graph-based access control
@@ -30,23 +30,23 @@ docker compose up -d
 
 Images come from GHCR. Set `INFINIMESH_VERSION` in `.env` to pin a release.
 
-`BASE_DOMAIN` in `.env` is the root host for all services. The default is `infinimesh.local`. Set it to `127.0.0.1.nip.io` and you do not need to touch `/etc/hosts`. If you keep the default, add these names to `/etc/hosts`: `console`, `api`, `traefik`, `db`, `rbmq` and `media`, each followed by `.infinimesh.local`.
+`BASE_DOMAIN` in `.env` is the root host for all services. The default is `infinimesh.local`. Set it to `127.0.0.1.nip.io` and you do not need to touch `/etc/hosts`. If you keep the default, add these names to `/etc/hosts`: `console`, `api`, `traefik` and `media`, each followed by `.infinimesh.local`.
 
 Then open:
 
 - Console: `http://console.${BASE_DOMAIN}`
 - API (gRPC, Connect, REST): `http://api.${BASE_DOMAIN}`
 - Traefik dashboard: `http://traefik.${BASE_DOMAIN}`
-- ArangoDB UI: `http://db.${BASE_DOMAIN}`
-- RabbitMQ management: `http://rbmq.${BASE_DOMAIN}`
+
+ArangoDB and RabbitMQ stay on the Compose network. Their admin UIs are not routed through Traefik or Caddy. Redis `6379` and AMQP `5672` are not published on the host. The public overlay can bind AMQP to `127.0.0.1`.
 
 Default logins. Change them before you expose anything.
 
 - Platform admin: user `root`, password from `INF_DEFAULT_ROOT_PASS` (`infinimesh` by default)
-- ArangoDB: user `root`, password `openSesame` (see `docker-compose.yaml`)
-- RabbitMQ: `infinimesh` / `infinimesh` (from `.env`)
+- ArangoDB, inside the Compose network: user `root`, password `openSesame`
+- RabbitMQ, inside the Compose network: `infinimesh` / `infinimesh` (from `.env`)
 
-MQTT listens on 1883 (plain) and 8883 (TLS with `hack/server.crt` and `hack/server.key`). There is no device SDK. Devices use any MQTT client.
+MQTT listens on 1883 (plain) and 8883 (TLS with `hack/server.crt` and `hack/server.key`).
 
 ## When not to use it
 
@@ -108,17 +108,14 @@ inf devices state <device-id> --token "$(cat device.token)" --report '{"online":
 
 Create devices in the console, or with `inf devices create <template.json> --crt <cert.pem>`. Run `inf help` and `inf <command> --help` for all flags.
 
-The device token is for the API. MQTT needs a client certificate registered on the device. On 8883 the device sends the certificate. On 1883 the username is the device ID and the password is the base64 SHA-256 fingerprint of the certificate, and basic auth must be turned on for the device:
+The device token is for the API. MQTT needs a client certificate registered on the device. On 8883 the device sends the certificate. On 1883 the username is the device id and the password is the base64 SHA-256 fingerprint of the certificate, and basic auth must be turned on for the device. Topic rules, QoS, and session behaviour are in [docs/device-auth.md](docs/device-auth.md).
 
 ```bash
-PASS=$(openssl x509 -in device.crt -outform DER | openssl dgst -sha256 -binary | base64)
 mosquitto_pub -h api.${BASE_DOMAIN} -p 1883 \
-  -u <device-id> -P "$PASS" \
-  -t shadow/devices/<device-id>/reported \
-  -m '{"online":true}'
+  -u <device-id> -P "$(base64 < fingerprint.bin)" \
+  -t devices/<device-id>/state/reported \
+  -m '{"temp":21.5}'
 ```
-
-Everything a device publishes is stored as reported state. The bridge does not check topics yet and does not acknowledge QoS 1, so publish with QoS 0. See [docs/device-auth.md](docs/device-auth.md).
 
 ## Documentation
 

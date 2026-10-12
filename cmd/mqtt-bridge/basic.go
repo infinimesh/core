@@ -16,13 +16,11 @@ limitations under the License.
 package main
 
 import (
-	"errors"
 	"fmt"
 	"net"
 
 	"github.com/infinimesh/core/pkg/mqtt/metrics"
 	devpb "github.com/infinimesh/proto/node/devices"
-	"github.com/slntopp/mqtt-go/packet"
 	"go.uber.org/zap"
 )
 
@@ -39,21 +37,13 @@ func HandleTCPConnections(tcp net.Listener) {
 		log.Debug("Connection Accepted", zap.String("remote", conn.RemoteAddr().String()))
 
 		go func(conn net.Conn) {
-			p, err := packet.ReadPacket(conn, 0)
+			connectPacket, meta, err := readConnect(conn)
 			if err != nil {
 				LogErrorAndClose(conn, fmt.Errorf("error while reading connect packet: %v", err))
 				metrics.ConnNotAnMqttPacketTotal.Inc()
 				return
 			}
-			log.Debug("ControlPacket", zap.Any("packet", p))
-
-			connectPacket, ok := p.(*packet.ConnectControlPacket)
-			if !ok {
-				LogErrorAndClose(conn, errors.New("first packet isn't ConnectControlPacket"))
-				metrics.ConnNotAnMqttPacketTotal.Inc()
-				return
-			}
-			log.Debug("ConnectPacket", zap.Any("packet", p))
+			log.Debug("ConnectPacket", zap.String("client", connectPacket.ClientID))
 
 			var fingerprint []byte
 			fingerprint, err = verifyBasicAuth(connectPacket)
@@ -66,8 +56,8 @@ func HandleTCPConnections(tcp net.Listener) {
 			log.Debug("Fingerprint", zap.ByteString("fingerprint", fingerprint))
 
 			device, err := GetByFingerprintAndVerify(fingerprint, func(device *devpb.Device) bool {
-				if device.GetUuid() != connectPacket.ConnectPayload.Username {
-					log.Warn("Failed to verify client as the device UUID doesn't match Basic Auth Username", zap.String("uuid", device.Uuid), zap.String("device", device.Title), zap.String("username", connectPacket.ConnectPayload.Username))
+				if device.GetUuid() != connectPacket.Username {
+					log.Warn("Failed to verify client as the device UUID doesn't match Basic Auth Username", zap.String("uuid", device.Uuid), zap.String("device", device.Title), zap.String("username", connectPacket.Username))
 					return false
 				} else if !device.BasicEnabled {
 					log.Warn("Failed to verify client as the device is not enabled for Basic Auth", zap.String("uuid", device.Uuid))
@@ -86,7 +76,7 @@ func HandleTCPConnections(tcp net.Listener) {
 				return
 			}
 
-			go HandleConn(conn, connectPacket, device)
+			go HandleConn(conn, connectPacket, meta, device)
 		}(conn)
 	}
 }

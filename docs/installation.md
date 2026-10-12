@@ -20,8 +20,6 @@ If not using a wildcard DNS like `127.0.0.1.nip.io`, add entries to `/etc/hosts`
 127.0.0.1 api.infinimesh.local
 127.0.0.1 console.infinimesh.local
 127.0.0.1 traefik.infinimesh.local
-127.0.0.1 rbmq.infinimesh.local
-127.0.0.1 db.infinimesh.local
 127.0.0.1 media.infinimesh.local
 127.0.0.1 mqtt.infinimesh.local
 ```
@@ -31,7 +29,7 @@ If not using a wildcard DNS like `127.0.0.1.nip.io`, add entries to `/etc/hosts`
 ```bash
 git clone https://github.com/infinimesh/core.git
 cd core
-# optional: set INFINIMESH_VERSION in .env to pin an image tag
+# .env.example pins INFINIMESH_VERSION to the current release
 docker compose up -d
 ```
 
@@ -40,14 +38,14 @@ Services and URLs:
 - Console UI: http://console.${BASE_DOMAIN}
 - API (gRPC/Connect/REST via Traefik): http://api.${BASE_DOMAIN}
 - Traefik dashboard: http://traefik.${BASE_DOMAIN}
-- ArangoDB: http://db.${BASE_DOMAIN}
-- RabbitMQ UI: http://rbmq.${BASE_DOMAIN}
+
+ArangoDB and RabbitMQ are reachable by the other containers. Their admin UIs are not published. Redis and AMQP have no host ports in the base file.
 
 ## Default credentials (for local only)
 
 - Platform root user: `root` / `infinimesh` (from `INF_DEFAULT_ROOT_PASS` in `.env`)
-- ArangoDB: `root` / `openSesame`
-- RabbitMQ: `infinimesh` / `infinimesh`
+- ArangoDB, on the Compose network: `root` / `openSesame`
+- RabbitMQ, on the Compose network: `infinimesh` / `infinimesh`
 
 Change these for anything beyond local testing.
 

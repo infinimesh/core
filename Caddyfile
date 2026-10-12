@@ -47,14 +47,6 @@ api.{$BASE_DOMAIN} {
 	}
 }
 
-rbmq.{$BASE_DOMAIN} {
-	reverse_proxy rabbitmq:15672
-}
-
-db.{$BASE_DOMAIN} {
-	reverse_proxy db:8529
-}
-
 media.{$BASE_DOMAIN} {
 	reverse_proxy http-fs:8000
 }

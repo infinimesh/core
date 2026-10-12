@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Changed
+- The MQTT codec lives in `pkg/mqtt/packet`. The bridge no longer imports `github.com/slntopp/mqtt-go`.
+- The MQTT bridge allows a device to publish `devices/<id>/state/reported` and subscribe to `devices/<id>/state/desired`. QoS 1 and 2 are acknowledged. Desired state is delivered at the subscribed QoS and retried until the client acknowledges it. MQTT 3.1.1 keeps that inflight state for one hour when clean session is 0. MQTT 5 uses the session expiry interval. Both live in the bridge process.
+- MQTT 5 CONNECT and PUBLISH reason codes, session expiry, message expiry, topic aliases, receive maximum, maximum packet size, content type, response topic, correlation data, and user properties are read. A will whose topic is the device's reported topic is stored when the connection drops.
+- Compose pins `INFINIMESH_VERSION` to `v3.2.0`, Redis `7.4.11`, ArangoDB `3.12.12`, and Watchtower `1.7.1`. Redis `6379` and AMQP `5672` are not published on the host. ArangoDB and RabbitMQ admin UIs are not routed through Traefik or Caddy. Image builds attach an SBOM and provenance.
 - Console lockfile: `postcss` 8.5.29.
 - Console: `vite` 6.4.4, `vitest` 4.1.11, `vue` 3.5.43, `lodash` 4.18.1. Transitive `lodash-es`, `brace-expansion`, `minimatch`, `linkify-it`, `markdown-it`, `source-map-js`, `glob`, `@babel/runtime`, `cross-spawn`, and `tinypool` are pinned to patched releases.
 - Device and account tokens use `github.com/golang-jwt/jwt/v4`. The `v3` module is no longer required.

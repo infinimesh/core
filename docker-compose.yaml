@@ -3,7 +3,7 @@ services:
 
   # Optional auto-updater for production deployments (opt-in via profiles)
   watchtower:
-    image: containrrr/watchtower
+    image: containrrr/watchtower:1.7.1
     command: --interval 30 --cleanup
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -61,12 +61,7 @@ services:
   rabbitmq:
     image: rabbitmq:3.9-management
     labels:
-      - traefik.http.routers.rabbitmq.rule=Host(`rbmq.${BASE_DOMAIN}`)
-      - traefik.http.routers.rabbitmq.entrypoints=https
-      - traefik.http.routers.rabbitmq.tls.certresolver=letsencrypt
-      - traefik.http.services.rabbitmq.loadbalancer.server.port=15672
-    ports:
-     - 5672:5672
+      - traefik.enable=false
     environment:
       RABBITMQ_DEFAULT_USER: "${RABBITMQ_USER}"
       RABBITMQ_DEFAULT_PASS: "${RABBITMQ_PASS}"
@@ -146,23 +141,18 @@ services:
       SIGNING_KEY: "${SIGNING_KEY}"
 
   redis:
-    image: redis:latest
+    image: redis:7.4.11
     labels:
       - traefik.enable=false
-    ports:
-      - 6379:6379
     command: [ "redis-server", "--appendonly", "yes" ]
 
   db:
-    image: arangodb/arangodb:latest
+    image: arangodb:3.12.12
     restart: always
     environment:
       ARANGO_ROOT_PASSWORD: openSesame
     labels:
-      - traefik.http.routers.db.rule=Host(`db.${BASE_DOMAIN}`)
-      - traefik.http.routers.db.entrypoints=https
-      - traefik.http.routers.db.tls.certresolver=letsencrypt
-      - traefik.http.services.db.loadbalancer.server.port=8529
+      - traefik.enable=false
     volumes:
       - data:/var/lib/arangodb3
 

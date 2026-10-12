@@ -19,15 +19,13 @@ Point these names at the host. A wildcard record covers them.
 | `api.$BASE_DOMAIN` | REST, Connect, and gRPC for the device registry |
 | `mqtt.$BASE_DOMAIN` | Certificate name for MQTT. Clients use port 8883 |
 | `media.$BASE_DOMAIN` | http-fs |
-| `rbmq.$BASE_DOMAIN` | RabbitMQ management |
-| `db.$BASE_DOMAIN` | ArangoDB |
 | `traefik.$BASE_DOMAIN` | Traefik dashboard. Unused with Caddy |
 
 Open TCP 80, 443, and 8883.
 
-The base compose file also publishes plaintext MQTT `1883`, gRPC `8000`, AMQP `5672`, Redis `6379`, and metrics `2112` on every interface. `docker-compose.public.yml` and `docker-compose.caddy.yml` drop `1883`, `8000`, `6379`, and `2112` from the public interface and bind AMQP to `127.0.0.1`.
+The base compose file publishes plaintext MQTT `1883`, gRPC `8000`, and metrics `2112` on every interface. It does not publish Redis `6379` or AMQP `5672`. `docker-compose.public.yml` and `docker-compose.caddy.yml` drop `1883`, `8000`, and `2112` from the public interface and bind AMQP to `127.0.0.1`.
 
-`db.$BASE_DOMAIN` and `rbmq.$BASE_DOMAIN` stay on HTTPS. Restrict those names when the host is on the internet. Change the root, ArangoDB, and RabbitMQ passwords in `.env` before that. The values in `.env.example` are for a local machine.
+ArangoDB and RabbitMQ admin UIs are not routed. Change the root, ArangoDB, and RabbitMQ passwords before the host is on the internet. The values in `.env.example` are for a local machine.
 
 ## Shared setup
 
@@ -49,7 +47,7 @@ chmod 600 letsencrypt/acme.json
 
 ## Traefik
 
-Traefik 2.10 listens on 80 and 443. Port 80 redirects to HTTPS. The `letsencrypt` resolver uses the TLS-ALPN challenge, so 443 must reach this host. Routers for `console`, `api`, `traefik`, `rbmq`, `db`, and `media` request certificates.
+Traefik 2.10 listens on 80 and 443. Port 80 redirects to HTTPS. The `letsencrypt` resolver uses the TLS-ALPN challenge, so 443 must reach this host. Routers for `console`, `api`, `traefik`, and `media` request certificates.
 
 ```bash
 docker compose -f docker-compose.yaml -f docker-compose.public.yml up -d
@@ -116,7 +114,7 @@ Devices connect to `mqtt.$BASE_DOMAIN` port `8883`. The listener requires a clie
 mosquitto_pub --cafile /etc/ssl/certs/ca-certificates.crt \
   --cert device.crt --key device.key \
   -h mqtt.example.com -p 8883 --tls-version tlsv1.2 \
-  -t shadow/devices/demo-sensor/reported \
+  -t devices/demo-sensor/state/reported \
   -m '{"temp":21.5}'
 ```
 

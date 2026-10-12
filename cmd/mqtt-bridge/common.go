@@ -18,15 +18,15 @@ package main
 import (
 	"context"
 	"errors"
-	"io"
 	"net"
+	"sync"
 
 	structpb "github.com/golang/protobuf/ptypes/struct"
 	"github.com/infinimesh/core/pkg/mqtt/metrics"
+	"github.com/infinimesh/core/pkg/mqtt/packet"
 	"github.com/infinimesh/core/pkg/pubsub"
 	devpb "github.com/infinimesh/proto/node/devices"
 	pb "github.com/infinimesh/proto/shadow"
-	"github.com/slntopp/mqtt-go/packet"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -53,144 +53,81 @@ func GetByFingerprintAndVerify(fingerprint []byte, cb VerifyDeviceFunc) (device 
 // ACK Packet needs to be sent to prevent MQTT Client sending CONN packets further
 func LogErrorAndClose(c net.Conn, err error) {
 	log.Warn("Closing connection on error", zap.Error(err))
-	resp := packet.ConnAckControlPacket{
-		FixedHeader: packet.FixedHeader{
-			ControlPacketType: packet.CONNACK,
-		},
-		VariableHeader: packet.ConnAckVariableHeader{},
-	}
-	resp.WriteTo(c)
+	_ = writeConnAck(c, packet.ProtocolMQTT311, false, packet.CodeUnacceptableProto, "")
 	c.Close()
 }
 
 // HandleConn - note: Connection is expected to be valid & legitimate at this point
-func HandleConn(c net.Conn, connectPacket *packet.ConnectControlPacket, device *devpb.Device) {
-	log := log.Named(device.GetUuid()).Named(connectPacket.ConnectPayload.ClientID)
-
+func HandleConn(c net.Conn, connectPacket *packet.Connect, meta connectMeta, device *devpb.Device) {
+	log := log.Named(device.GetUuid()).Named(connectPacket.ClientID)
 	defer log.Debug("Client disconnected")
-
 	log.Debug(
 		"Client connected", zap.String("device", device.Uuid),
-		zap.Int("protocol_level", int(connectPacket.VariableHeader.ProtocolLevel)),
-		zap.String("protocol", connectPacket.VariableHeader.ProtocolName),
-		zap.Int("QoS", connectPacket.VariableHeader.ConnectFlags.WillQoS),
+		zap.Int("protocol_level", int(connectPacket.ProtocolLevel)),
+		zap.String("protocol", connectPacket.ProtocolName),
+		zap.Int("QoS", int(connectPacket.WillQoS)),
 	)
-	// TODO ignore/compare this ID with the given ID from the verify function
 
-	//TODO : MQTT CONNACK Properties need to add here
-	resp := packet.ConnAckControlPacket{
-		FixedHeader: packet.FixedHeader{
-			ControlPacketType: packet.CONNACK,
-		},
-		VariableHeader: packet.ConnAckVariableHeader{},
-	}
-
-	if len(connectPacket.ConnectPayload.ClientID) <= 0 {
-		resp.VariableHeader.ConnAckProperties.AssignedClientID = device.Uuid
-	}
-	// Only open Back-channel after conn packet was received
-
-	// Create empty subscription
-	backChannel := ps.Sub()
-	defer unsub(ps, backChannel)
-
-	_, err := resp.WriteTo(c)
-	if err != nil {
-		log.Warn("Failed to write Connection Acknowlegement", zap.Error(err))
-		return
-	}
-
-	metrics.ActiveConnectionsTotal.Inc()
-	ps.TryPub(&pb.Shadow{
-		Device: device.Uuid,
-		Connection: &pb.ConnectionState{
-			Connected: true,
-			Timestamp: timestamppb.Now(),
-			ClientId:  connectPacket.ConnectPayload.ClientID,
-		},
-	}, "mqtt.incoming")
-
-	defer func() {
-		metrics.ActiveConnectionsTotal.Dec()
-		ps.TryPub(&pb.Shadow{
-			Device: device.Uuid,
-			Connection: &pb.ConnectionState{
-				Connected: false,
-				Timestamp: timestamppb.Now(),
-				ClientId:  connectPacket.ConnectPayload.ClientID,
-			},
-		}, "mqtt.incoming")
-	}()
-
+	var back chan interface{}
+	var forward sync.Once
 	token := device.GetToken()
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "authorization", "Bearer "+token)
-	for {
-		device, err = client.GetByToken(ctx, device)
-		if err != nil {
-			log.Warn("Can't retrieve device status from registry", zap.Error(err))
-		}
-		if !device.Enabled {
-			log.Debug("Device is disabled, disconnecting", zap.String("device", device.Uuid), zap.Bool("enabled", device.Enabled))
-			err = c.Close()
-			log.Warn("Error closing connection", zap.Error(err))
-			break
-		}
+	metrics.ActiveConnectionsTotal.Inc()
+	defer metrics.ActiveConnectionsTotal.Dec()
 
-		p, err := packet.ReadPacket(c, connectPacket.VariableHeader.ProtocolLevel)
-		if err != nil {
-			if err == io.EOF {
-				log.Debug("Client closed connection", zap.String("client", connectPacket.ConnectPayload.ClientID))
-			} else {
-				log.Warn("Failed to read packet", zap.Error(err))
-			}
-			if err := c.Close(); err != nil {
-				log.Warn("Couldn't close connection", zap.Error(err))
-			}
-			return
+	storeReported := func(payload []byte) bool {
+		var data structpb.Struct
+		if err := data.UnmarshalJSON(payload); err != nil {
+			log.Warn("Failed to handle Publish", zap.Error(err))
+			return false
 		}
+		ps.TryPub(&pb.Shadow{
+			Device: device.Uuid,
+			Reported: &pb.State{
+				Timestamp: timestamppb.Now(),
+				Data:      &data,
+			},
+			Connection: &pb.ConnectionState{
+				Connected: true,
+				Timestamp: timestamppb.Now(),
+			},
+		}, "mqtt.incoming")
+		return true
+	}
 
-		switch p := p.(type) {
-		case *packet.PingReqControlPacket:
-			pong := packet.NewPingRespControlPacket()
-			_, err := pong.WriteTo(c)
+	serveDevice(c, device.Uuid, connectPacket, meta, bridgeSessions, deviceHooks{
+		enabled: func() bool {
+			next, err := client.GetByToken(ctx, device)
 			if err != nil {
-				log.Warn("Failed to write Ping Response", zap.Error(err))
+				log.Warn("Can't retrieve device status from registry", zap.Error(err))
+				return device.Enabled
 			}
-		case *packet.PublishControlPacket:
-			var data structpb.Struct
-			err = data.UnmarshalJSON(p.Payload)
-			if err != nil {
-				log.Warn("Failed to handle Publish", zap.Error(err))
-				continue
+			device = next
+			if !device.Enabled {
+				log.Debug("Device is disabled, disconnecting", zap.String("device", device.Uuid), zap.Bool("enabled", device.Enabled))
 			}
-			payload := &pb.Shadow{
+			return device.Enabled
+		},
+		reported: func(payload []byte, _ packet.Properties, _ bool) bool {
+			return storeReported(payload)
+		},
+		connected: func(up bool) {
+			ps.TryPub(&pb.Shadow{
 				Device: device.Uuid,
-				Reported: &pb.State{
-					Timestamp: timestamppb.Now(),
-					Data:      &data,
-				},
 				Connection: &pb.ConnectionState{
-					Connected: true,
+					Connected: up,
 					Timestamp: timestamppb.Now(),
+					ClientId:  connectPacket.ClientID,
 				},
+			}, "mqtt.incoming")
+		},
+		subscribed: func(send func([]byte)) {
+			if back == nil {
+				back = ps.Sub()
 			}
-			ps.TryPub(payload, "mqtt.incoming")
-
-			// _, err := packet.NewPubAckControlPacket(uint16(p.VariableHeader.PacketID)).WriteTo(c)
-			// if err != nil {
-			// 	log.Warn("Failed to write Publish Acknowlegement", zap.Error(err))
-			// }
-
-		case *packet.SubscribeControlPacket:
-			response := packet.NewSubAck(uint16(p.VariableHeader.PacketID), connectPacket.VariableHeader.ProtocolLevel, []byte{1})
-			_, err := response.WriteTo(c)
-			if err != nil {
-				log.Warn("Failed to write Subscription Acknowlegement", zap.Error(err))
-			}
-
-			for _, sub := range p.Payload.Subscriptions {
-				ps.AddSub(backChannel, "mqtt.outgoing/"+device.Uuid)
-				go handleBackChannel(log, backChannel, c, sub.Topic, connectPacket.VariableHeader.ProtocolLevel, func() {
+			ps.AddSub(back, "mqtt.outgoing/"+device.Uuid)
+			forward.Do(func() {
+				go handleBackChannel(log, back, send, func() {
 					ps.TryPub(&pb.Shadow{
 						Device: device.Uuid,
 						Connection: &pb.ConnectionState{
@@ -199,62 +136,70 @@ func HandleConn(c net.Conn, connectPacket *packet.ConnectControlPacket, device *
 						},
 					}, "mqtt.incoming")
 				})
-				log.Debug("Added Subscription", zap.String("topic", sub.Topic), zap.String("device", device.Uuid))
-			}
-
+			})
 			go func() {
-				if shadow != nil {
-					r, err := shadow.Get(ctx, &pb.GetRequest{Pool: []string{device.Uuid}})
-					if err != nil || len(r.GetShadows()) == 0 {
-						return
-					}
-					state := r.GetShadows()[0]
-					if state.Desired != nil {
-						ps.TryPub(state, "mqtt.outgoing/"+device.Uuid)
-					}
+				if shadow == nil {
+					return
 				}
+				r, err := shadow.Get(ctx, &pb.GetRequest{Pool: []string{device.Uuid}})
+				if err != nil || len(r.GetShadows()) == 0 {
+					return
+				}
+				state := r.GetShadows()[0]
+				if state.Desired == nil || state.Desired.Data == nil {
+					return
+				}
+				payload, err := state.Desired.Data.MarshalJSON()
+				if err != nil {
+					return
+				}
+				send(payload)
 			}()
-		case *packet.UnsubscribeControlPacket:
-			response := packet.NewUnSubAck(uint16(p.VariableHeader.PacketID), connectPacket.VariableHeader.ProtocolLevel, []byte{1})
-			_, err := response.WriteTo(c)
-			if err != nil {
-				log.Warn("Failed to write Unsubscription Acknowlegement", zap.Error(err))
+			log.Debug("Added Subscription", zap.String("topic", desiredTopic(device.Uuid)), zap.String("device", device.Uuid))
+		},
+		unsub: func() {
+			if back != nil {
+				ps.Unsub(back, "mqtt.outgoing/"+device.Uuid)
 			}
-			for _, unsub := range p.Payload.UnSubscriptions {
-				ps.Unsub(backChannel, "mqtt.outgoing/"+device.Uuid)
-				log.Debug("Removed Subscription", zap.String("topic", unsub.Topic), zap.String("device", device.Uuid))
+			log.Debug("Removed Subscription", zap.String("topic", desiredTopic(device.Uuid)), zap.String("device", device.Uuid))
+		},
+		will: func(topic string, payload []byte, _ bool) {
+			if classifyTopic(topic, device.Uuid) != topicReported {
+				log.Debug("Ignoring will for a topic the device cannot report", zap.String("topic", topic))
+				return
 			}
-		}
+			storeReported(payload)
+		},
+	})
+	if back != nil {
+		unsub(ps, back)
 	}
 }
 
-func handleBackChannel(log *zap.Logger, ch chan interface{}, c net.Conn, topic string, protocolLevel byte, connected func()) {
+func handleBackChannel(log *zap.Logger, ch chan interface{}, send func([]byte), connected func()) {
 	defer log.Debug("BackChannel handler closed")
 	var ts int64 = 0
 	for msg := range ch {
 		shadow := msg.(*pb.Shadow)
-		log.Debug("Received message", zap.String("topic", topic), zap.String("device", shadow.Device))
-		if shadow.Desired == nil || shadow.Desired.Timestamp == nil {
+		log.Debug("Received message", zap.String("device", shadow.Device))
+		if shadow.Desired == nil || shadow.Desired.Timestamp == nil || shadow.Desired.Data == nil {
 			log.Debug("Skipping empty Desired state")
 			continue
 		}
 		if shadow.Desired.Timestamp.Seconds < ts {
-			log.Debug("Skipping message", zap.String("topic", topic), zap.String("device", shadow.Device))
+			log.Debug("Skipping message", zap.String("device", shadow.Device))
 			continue
 		}
+		ts = shadow.Desired.Timestamp.Seconds
 		payload, err := shadow.Desired.Data.MarshalJSON()
 		if err != nil {
 			log.Warn("Failed to marshal shadow", zap.Error(err))
 			continue
 		}
-		p := packet.NewPublish(topic, 0, payload, protocolLevel)
-		_, err = p.WriteTo(c)
-		if err != nil {
-			log.Error("Failed to write packet", zap.Error(err))
-			return
+		send(payload)
+		if connected != nil {
+			connected()
 		}
-
-		connected()
 	}
 }
 
