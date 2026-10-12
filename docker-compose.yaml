@@ -193,18 +193,24 @@ services:
     volumes:
       - data:/var/lib/arangodb3
 
-  # Optional. The http-fs image is not published on GHCR, so this service
-  # only starts with `docker compose --profile media up -d` once you have it.
   http-fs:
-    image: ghcr.io/infinimesh/http-fs:latest
-    profiles: ["media"]
+    image: "ghcr.io/infinimesh/core/http-fs:${INFINIMESH_VERSION}"
     restart: always
+    depends_on:
+      - db
     labels:
       - traefik.enable=true
       - traefik.http.routers.http-fs.rule=Host(`media.${BASE_DOMAIN}`)
       - traefik.http.routers.http-fs.entrypoints=https
       - traefik.http.routers.http-fs.tls.certresolver=letsencrypt
       - traefik.http.services.http-fs.loadbalancer.server.port=8000
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL}
+      DB_HOST: db:8529
+      DB_CRED: root:openSesame
+      INF_DEFAULT_ROOT_PASS: infinimesh
+      SIGNING_KEY: "${SIGNING_KEY}"
+      HTTP_FS_ROOT: /static
     volumes:
       - user-media:/static
 

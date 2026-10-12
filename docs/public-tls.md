@@ -18,7 +18,7 @@ Point these names at the host. A wildcard record covers them.
 | `console.$BASE_DOMAIN` | Console |
 | `api.$BASE_DOMAIN` | REST, Connect, and gRPC for the device registry |
 | `mqtt.$BASE_DOMAIN` | Certificate name for MQTT. Clients use port 8883 |
-| `media.$BASE_DOMAIN` | http-fs |
+| `media.$BASE_DOMAIN` | http-fs (`ghcr.io/infinimesh/core/http-fs`) |
 | `traefik.$BASE_DOMAIN` | Traefik dashboard. Unused with Caddy |
 
 Open TCP 80, 443, and 8883.

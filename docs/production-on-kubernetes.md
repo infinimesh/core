@@ -16,10 +16,10 @@ Each process serves Prometheus metrics on `:2112`. `METRICS_ADDR` changes that a
 
 Namespace `quota.max_devices`, `quota.device_messages_per_second`, and `quota.namespace_messages_per_second` are enforced when they are greater than zero. Zero does not limit. Message rates apply on the MQTT bridge and on `POST /v1/ingest`, in addition to the ingest limit of 60 requests a minute per device.
 
-The chart and the kustomize base also run `rules` (one replica, metrics on 2112) and can run `coap-gateway`. Helm leaves CoAP off unless `coap.enabled` is true. The CoAP Service is ClusterIP. Port 5683 is plaintext UDP with no DTLS.
+The chart and the kustomize base also run `rules` (one replica, metrics on 2112), `http-fs` (port 8000, local volume), and can run `coap-gateway`. Helm leaves CoAP off unless `coap.enabled` is true. The CoAP Service is ClusterIP. Port 5683 is plaintext UDP with no DTLS. `httpFs.publicURL` is the `HTTP_FS` value on the gateway. Leave it empty and the console hides the media page. Set `httpFs.s3.bucket` and `httpFs.s3.endpoint` to store objects in S3 instead of the volume. The chart image tag is `v3.3.0`. `http-fs` is published with a core tag `vX.Y.Z` or `vX.Y.Z-rN`.
 
 The MQTT Service publishes 8883. Plaintext 1883 is off unless `mqtt.plaintext` is true. The bridge reads `MQTT_PLAINTEXT`.
 
-The platform-operator still reconciles a Platform into the same processes, including `rules` and `coap`. It does not publish MQTT 1883. It does not delete older Kafka or Dgraph workloads. `kubectl apply -k base` remains the plain kustomize install and still uses `:latest`.
+The platform-operator still reconciles a Platform into the same processes, including `rules`, `http-fs`, and `coap`. It does not publish MQTT 1883. `http-fs` uses a volume at `/static`. It does not delete older Kafka or Dgraph workloads. `kubectl apply -k base` remains the plain kustomize install and still uses `:latest`.
 
 Create the MQTT TLS secret before the bridge serves 8883. The sample pair is `hack/server.crt` and `hack/server.key` in core. Change the chart auth values before the cluster is reachable.
