@@ -21,11 +21,10 @@ import (
 	"slices"
 	"sync"
 
+	"connectrpc.com/connect"
 	redis "github.com/go-redis/redis/v8"
 	"github.com/infinimesh/core/pkg/pubsub"
 	"go.uber.org/zap"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -76,12 +75,12 @@ func (s *ShadowServiceServer) Get(ctx context.Context, req *pb.GetRequest) (*pb.
 		keys[i*3+2] = Key(dev, pb.StateKey_CONNECTION)
 	}
 	if len(keys) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "no devices specified")
+		return nil, rpcErr(connect.CodeInvalidArgument, "no devices specified")
 	}
 	r := s.rdb.MGet(ctx, keys...)
 	states, err := r.Result()
 	if err != nil {
-		return nil, status.Error(codes.Internal, "failed to get Shadows")
+		return nil, rpcErr(connect.CodeInternal, "failed to get Shadows")
 	}
 
 	log.Debug("Got states", zap.Int("count", len(states)))
@@ -116,7 +115,7 @@ func (s *ShadowServiceServer) Patch(ctx context.Context, req *pb.Shadow) (*pb.Sh
 	log.Debug("Request received", zap.Any("req", req))
 
 	if req.GetDevice() == "" {
-		return nil, status.Error(codes.InvalidArgument, "no device specified")
+		return nil, rpcErr(connect.CodeInvalidArgument, "no device specified")
 	}
 
 	s.bumpVersions(ctx, req)
@@ -142,24 +141,24 @@ func (s *ShadowServiceServer) Remove(ctx context.Context, req *pb.RemoveRequest)
 	log.Debug("Request received", zap.Any("req", req))
 
 	if req.GetDevice() == "" {
-		return nil, status.Error(codes.InvalidArgument, "no device specified")
+		return nil, rpcErr(connect.CodeInvalidArgument, "no device specified")
 	}
 	if req.GetKey() == "" {
-		return nil, status.Error(codes.InvalidArgument, "key not specified")
+		return nil, rpcErr(connect.CodeInvalidArgument, "key not specified")
 	}
 
 	skey := Key(req.GetDevice(), req.StateKey)
 	r := s.rdb.Get(ctx, skey)
 	raw, err := r.Result()
 	if err != nil {
-		return nil, status.Error(codes.Internal, "failed to get Shadow")
+		return nil, rpcErr(connect.CodeInternal, "failed to get Shadow")
 	}
 
 	var state pb.State
 	err = json.Unmarshal([]byte(raw), &state)
 	if err != nil {
 		log.Warn("Cannot unmarshal state", zap.String("raw", raw), zap.Error(err))
-		return nil, status.Error(codes.Internal, "cannot Unmarshal state")
+		return nil, rpcErr(connect.CodeInternal, "cannot Unmarshal state")
 	}
 
 	fields := state.Data.Fields
@@ -185,10 +184,10 @@ func (s *ShadowServiceServer) Remove(ctx context.Context, req *pb.RemoveRequest)
 
 func (s *ShadowServiceServer) PublishDeviceScope(ctx context.Context, ev *pb.Shadow) (*emptypb.Empty, error) {
 	if ev.GetDevice() == "" {
-		return nil, status.Error(codes.InvalidArgument, "no device specified")
+		return nil, rpcErr(connect.CodeInvalidArgument, "no device specified")
 	}
 	if ev.GetEvent() == pb.ShadowEvent_STATE {
-		return nil, status.Error(codes.InvalidArgument, "scope event required")
+		return nil, rpcErr(connect.CodeInvalidArgument, "scope event required")
 	}
 	s.remember(ev)
 	s.stamp(ctx, ev)
@@ -209,7 +208,7 @@ func (s *ShadowServiceServer) StreamShadow(req *pb.StreamShadowRequest, srv pb.S
 
 	scope, meta, devices := scopeFromRequest(req)
 	if len(devices) == 0 && !scope.live() {
-		return status.Error(codes.InvalidArgument, "no devices specified")
+		return rpcErr(connect.CodeInvalidArgument, "no devices specified")
 	}
 	for id, item := range meta {
 		s.remember(&pb.Shadow{

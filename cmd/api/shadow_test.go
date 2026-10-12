@@ -6,6 +6,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -176,4 +177,24 @@ func TestAsConnectKeepsErrorInfo(t *testing.T) {
 	assert.Equal(t, err, got)
 	got = asConnect(status.Error(codes.NotFound, "missing"))
 	assert.EqualError(t, got, "not_found: missing")
+
+	st, serr := status.New(codes.InvalidArgument, "no devices specified").WithDetails(&errdetails.ErrorInfo{
+		Reason: apierr.ReasonInvalidArgument,
+		Domain: apierr.Domain,
+	})
+	assert.NoError(t, serr)
+	got = asConnect(st.Err())
+	assert.EqualError(t, got, "invalid_argument: no devices specified")
+	var ce *connect.Error
+	assert.ErrorAs(t, got, &ce)
+	found := false
+	for _, detail := range ce.Details() {
+		msg, err := detail.Value()
+		assert.NoError(t, err)
+		info, ok := msg.(*errdetails.ErrorInfo)
+		if ok && info.GetReason() == apierr.ReasonInvalidArgument && info.GetDomain() == apierr.Domain {
+			found = true
+		}
+	}
+	assert.True(t, found)
 }

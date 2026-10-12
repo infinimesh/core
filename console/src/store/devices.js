@@ -12,6 +12,7 @@ import {
 import { access_lvl_conv } from "@/utils/access";
 
 import { Level } from "infinimesh-proto/build/es/node/access/access_pb";
+import { devicesTokenBody } from "@/store/device-token";
 import { Shadow } from "infinimesh-proto/build/es/shadow/shadow_pb";
 import { Device } from "infinimesh-proto/build/es/node/devices/devices_pb";
 import { Struct } from "@bufbuild/protobuf";
@@ -149,13 +150,9 @@ export const useDevicesStore = defineStore("devices", {
     },
     async makeDevicesToken(pool, post = false) {
       const level = post ? Level.MGMT : Level.READ;
-
-      const devices = {};
-      pool.forEach((uuid) => {
-        devices[uuid] = level;
-      });
-
-      const data = await this.devices_client.makeDevicesToken({ devices });
+      const data = await this.devices_client.makeDevicesToken(
+        devicesTokenBody(pool, level, post)
+      );
 
       return data.token;
     },
