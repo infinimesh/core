@@ -205,6 +205,45 @@ FILTER e.expires_at == null OR e.expires_at == 0 OR e.expires_at > DATE_NOW() / 
 COLLECT WITH COUNT INTO n
 RETURN n`
 
+const listNamespaceDevicesQuery = `
+FOR d, e IN 1..1 OUTBOUND @ns GRAPH @permissions
+FILTER IS_SAME_COLLECTION(@devices, d)
+FILTER e.level > 0
+FILTER e.expires_at == null OR e.expires_at == 0 OR e.expires_at > DATE_NOW() / 1000
+RETURN { device: d._key, title: d.title, tags: d.tags }`
+
+type NamespaceDevice struct {
+	Device string   `json:"device"`
+	Title  string   `json:"title"`
+	Tags   []string `json:"tags"`
+}
+
+func ListNamespaceDevices(ctx context.Context, db driver.Database, ns string) ([]NamespaceDevice, error) {
+	cr, err := db.Query(ctx, listNamespaceDevicesQuery, map[string]interface{}{
+		"ns":          schema.NAMESPACES_COL + "/" + ns,
+		"permissions": schema.PERMISSIONS_GRAPH.Name,
+		"devices":     schema.DEVICES_COL,
+	})
+	if err != nil {
+		return nil, err
+	}
+	defer cr.Close()
+	var out []NamespaceDevice
+	for {
+		var row NamespaceDevice
+		_, err := cr.ReadDocument(ctx, &row)
+		if driver.IsNoMoreDocuments(err) {
+			return out, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		if row.Device != "" {
+			out = append(out, row)
+		}
+	}
+}
+
 func (c *DevicesController) namespaceUsage(ctx context.Context, ns string) (*nspb.Quota, int, error) {
 	var doc nspb.Namespace
 	col, err := c.db.Collection(ctx, schema.NAMESPACES_COL)

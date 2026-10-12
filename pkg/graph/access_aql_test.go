@@ -89,6 +89,37 @@ func TestAccessQueriesOnArango(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	devCol, err := db.Collection(ctx, schema.DEVICES_COL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pump := NewBlankDeviceDocument("pump")
+	pump.Title = "Pump"
+	pump.Tags = []string{"water"}
+	if _, err := devCol.CreateDocument(ctx, pump); err != nil {
+		t.Fatal(err)
+	}
+	ns2dev := repo.GetEdgeCol(ctx, schema.NS2DEV)
+	if err := repo.Link(ctx, log, ns2dev, ns, pump, access.Level_ADMIN, access.Role_OWNER); err != nil {
+		t.Fatal(err)
+	}
+	listed, err := ListNamespaceDevices(ctx, db, nsKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(listed) != 1 || listed[0].Device != "pump" || listed[0].Title != "Pump" || len(listed[0].Tags) != 1 {
+		t.Fatalf("devices %#v", listed)
+	}
+	if _, err := ns2dev.UpdateDocument(ctx, nsKey+"-pump", map[string]any{"expires_at": int64(1)}); err != nil {
+		t.Fatal(err)
+	}
+	listed, err = ListNamespaceDevices(ctx, db, nsKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(listed) != 0 {
+		t.Fatalf("expired device edge still listed %#v", listed)
+	}
 
 	if _, err := edge.UpdateDocument(ctx, accKey+"-"+nsKey, map[string]any{"expires_at": int64(1)}); err != nil {
 		t.Fatal(err)
