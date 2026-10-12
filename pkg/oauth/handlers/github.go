@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	logpkg "github.com/infinimesh/core/pkg/log"
 	"github.com/infinimesh/core/pkg/oauth/config"
 
 	"github.com/infinimesh/proto/node"
@@ -160,7 +161,7 @@ func (g *GithubRegistrar) GithubCheckoutHandler(log *zap.Logger, githubConfig *o
 		defer g.mu.Unlock()
 		state, ok := g.states[r.FormValue("state")]
 		if !ok {
-			log.Error("Wrong request state", zap.String("state", r.FormValue("state")))
+			log.Error("Wrong request state", zap.String("state", logpkg.SingleLine(r.FormValue("state"))))
 			http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 			return
 		}

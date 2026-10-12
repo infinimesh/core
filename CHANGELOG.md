@@ -6,6 +6,10 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - Console lockfile: `postcss` 8.5.29.
+- Console: `vite` 6.4.4, `vitest` 4.1.11, `vue` 3.5.43, `lodash` 4.18.1. Transitive `lodash-es`, `brace-expansion`, `minimatch`, `linkify-it`, `markdown-it`, `source-map-js`, `glob`, `@babel/runtime`, `cross-spawn`, and `tinypool` are pinned to patched releases.
+- Device and account tokens use `github.com/golang-jwt/jwt/v4`. The `v3` module is no longer required.
+- Request logs strip CR and LF from the method, path, and OAuth `state`.
+- Third-party Actions are pinned to a commit. `docker-build` sets `contents: read`.
 
 ## [v3.2.0] - 2026-10-11
 

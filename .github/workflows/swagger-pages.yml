@@ -18,13 +18,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Generate Swagger UI
-        uses: Legion2/swagger-ui-action@v1
+        uses: Legion2/swagger-ui-action@eff65dc3f193f0a749872be82f74baa35be0797d # v1
         with:
           output: swagger-ui
           spec-file: api.swagger.json
 
       - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
+        uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: swagger-ui
