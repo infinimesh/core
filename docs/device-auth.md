@@ -6,6 +6,10 @@ Devices authenticate with a TLS client certificate. Port 8883 requires the certi
 
 A device token (JWT) is for the HTTP, gRPC and Connect API. The bridge does not accept that token as the MQTT password.
 
+A token from device `Get` is read-only and expires in 24 hours. A token from `GetByFingerprint` may post reported state and expires in 24 hours. `POST /devices/token` with `post` true may write reported state without raising the token to the caller's level. Desired state still requires manage level. When `expires_at` and `exp` are both unset, that token expires in 24 hours. Each device token has a `jti`. `POST /v1/devices/token/revoke` denies that id until the token would have expired.
+
+`POST /v1/ingest` accepts a JSON object as reported state. The bearer token must name exactly one device and be allowed to post. The body is at most 16 KB. `GET /v1/ingest/desired` returns the desired JSON.
+
 Port 1883 is not encrypted. Anyone who knows the fingerprint can log in. Use it for local tests.
 
 ## Certificate

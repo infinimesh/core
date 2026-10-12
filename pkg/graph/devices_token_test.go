@@ -177,3 +177,56 @@ func TestMakeDevicesToken_NotEnoughAccess(t *testing.T) {
 	_, err := ctrl.MakeDevicesToken(ctx, connect.NewRequest(req))
 	assert.Error(t, err)
 }
+
+func TestMakeDevicesToken_PostDoesNotCopyCallerLevel(t *testing.T) {
+	ctrl := &DevicesController{
+		InfinimeshBaseController: InfinimeshBaseController{log: zap.NewExample()},
+		ica_repo:                 fakeICA{ok: true, level: access.Level_ADMIN},
+		SIGNING_KEY:              []byte("secret"),
+	}
+	ctx := context.WithValue(context.Background(), inf.InfinimeshAccountCtxKey, schema.ROOT_ACCOUNT_KEY)
+	resp, err := ctrl.MakeDevicesToken(ctx, connect.NewRequest(&pb.DevicesTokenRequest{
+		Devices: map[string]access.Level{"dev1": access.Level_NONE},
+		Post:    true,
+	}))
+	assert.NoError(t, err)
+	parsed, err := jwt.Parse(resp.Msg.GetToken(), func(tk *jwt.Token) (interface{}, error) {
+		return ctrl.SIGNING_KEY, nil
+	})
+	assert.NoError(t, err)
+	claims := parsed.Claims.(jwt.MapClaims)
+	devices := claims[inf.INFINIMESH_DEVICES_CLAIM].(map[string]interface{})
+	assert.Equal(t, float64(access.Level_READ), devices["dev1"])
+	assert.Equal(t, true, claims[inf.INFINIMESH_POST_CLAIM])
+	exp, ok := claims["exp"].(float64)
+	assert.True(t, ok)
+	assert.InDelta(t, float64(time.Now().Add(registryDeviceTokenTTL).Unix()), exp, 5)
+	assert.NotEmpty(t, claims[inf.INFINIMESH_JTI_CLAIM])
+}
+
+func TestRevokeDevicesToken(t *testing.T) {
+	deny := &memDeny{}
+	ctrl := &DevicesController{
+		InfinimeshBaseController: InfinimeshBaseController{log: zap.NewExample()},
+		SIGNING_KEY:              []byte("secret"),
+	}
+	_, err := ctrl.RevokeDevicesToken(context.Background(), connect.NewRequest(&pb.RevokeDeviceTokenRequest{Id: "jti-1"}))
+	assert.EqualError(t, err, "unavailable: token revocation is not configured")
+
+	ctrl.SetDenylist(deny)
+	_, err = ctrl.RevokeDevicesToken(context.Background(), connect.NewRequest(&pb.RevokeDeviceTokenRequest{Id: "jti-1"}))
+	assert.NoError(t, err)
+	assert.Equal(t, "jti-1", deny.id)
+	assert.Equal(t, registryDeviceTokenTTL, deny.ttl)
+}
+
+type memDeny struct {
+	id  string
+	ttl time.Duration
+}
+
+func (m *memDeny) Deny(_ context.Context, id string, ttl time.Duration) error {
+	m.id = id
+	m.ttl = ttl
+	return nil
+}

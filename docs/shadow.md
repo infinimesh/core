@@ -6,7 +6,9 @@ A device token streams the devices in that token. An account token streams the d
 
 An account stream emits `DEVICE_ADDED` for the devices present at subscribe, and later when a device is created, moved in, renamed, retagged, or shared directly with that account. It emits `DEVICE_REMOVED` when a device is deleted or moved out. A later `DEVICE_ADDED` for a device already on the stream refreshes its title, namespace, and tags.
 
-Each message has `eventId`. The same id is the same event, including after a retry. State messages include `title`, `namespace`, and `tags` when the registry has them.
+Each message has `eventId` and `sequence`. `resume_after` replays later events from that stream. Reported and desired state carry `version`, which increments when that side is patched. State messages include `title`, `namespace`, and `tags` when the registry has them.
+
+The same methods are also served under `/v1/devices/{device}/state`. The previous `/devices/states` paths remain.
 
 `only_delta` defaults to false. A state message is then the stored shadow with the published change merged in. `only_delta` true sends that published change. `include` limits a state message to `REPORTED`, `DESIRED`, or `CONNECTION`. An empty `include` sends all three. Membership events are sent whole.
 

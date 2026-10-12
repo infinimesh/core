@@ -7,5 +7,6 @@ This folder contains the living, text-based docs for the platform. Start here:
 - [Public domain TLS](public-tls.md) — Traefik or Caddy, Let's Encrypt, and the device registry on a public name.
 - [Device Authentication & MQTT](device-auth.md) — tokens vs certificates and MQTT examples.
 - [Device shadow](shadow.md) — state streams for a device token, an account, or one namespace.
+- [API versioning](api-versioning.md) — `/v1` paths, deprecated fields, and ingest.
 
 For API reference, see `api.swagger.json`. That file is the copy from the pinned [github.com/infinimesh/proto](https://github.com/infinimesh/proto) module.

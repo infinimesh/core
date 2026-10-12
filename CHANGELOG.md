@@ -21,6 +21,7 @@ All notable changes to this project will be documented in this file.
 - A shadow stream replays events after `resume_after`. Each event has `sequence`. Reported and desired state versions increment when that side is patched.
 - API errors are Connect errors with an `ErrorInfo` reason on domain `infinimesh.org`.
 - The gateway reads at most 1 MB from a request body and allows 120 requests a minute per client address. It proxies `/v1/ingest` to the API.
+- A GitHub release attaches `api.swagger.json`.
 - Plugin queues `plugin.<name>` are durable. Each message carries the device title, namespace, and tags. A queue of that name left from before this change has to be deleted before the shadow service declares it again.
 - The MQTT codec lives in `pkg/mqtt/packet`. The bridge no longer imports `github.com/slntopp/mqtt-go`.
 - The MQTT bridge allows a device to publish `devices/<id>/state/reported` and subscribe to `devices/<id>/state/desired`. QoS 1 and 2 are acknowledged. Desired state is delivered at the subscribed QoS and retried until the client acknowledges it. MQTT 3.1.1 keeps that inflight state for one hour when clean session is 0. MQTT 5 uses the session expiry interval. Both live in the bridge process.
