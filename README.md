@@ -56,7 +56,18 @@ MQTT listens on 1883 (plain) and 8883 (TLS with `hack/server.crt` and `hack/serv
 
 ## CLI (inf)
 
-The CLI lives in [infinimesh/inf-cli](https://github.com/infinimesh/inf-cli). There are no prebuilt packages right now (no Homebrew tap, Snap, AUR or release downloads). Install it with Go 1.27 or newer:
+The CLI lives in [infinimesh/inf-cli](https://github.com/infinimesh/inf-cli). The easiest way to get it on macOS or Linux is Homebrew:
+
+```bash
+brew tap infinimesh/inf-cli https://github.com/infinimesh/inf-cli
+brew install inf
+```
+
+New Homebrew versions ask you to trust a tap before they load it. If `brew install` says the tap is untrusted, run `brew trust infinimesh/inf-cli` and try again.
+
+Prebuilt archives for Linux, macOS and Windows are on the [releases page](https://github.com/infinimesh/inf-cli/releases).
+
+You can also install it with Go 1.27 or newer:
 
 ```bash
 go install github.com/infinimesh/inf-cli@latest
