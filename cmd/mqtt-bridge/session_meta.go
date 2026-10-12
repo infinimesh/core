@@ -106,12 +106,18 @@ func writeConnAck(w io.Writer, level byte, sessionPresent bool, reason byte, ass
 	if level != packet.ProtocolMQTT5 && reason > 5 {
 		reason = 0x05
 	}
-	_, err := (&packet.ConnAck{
+	ack := &packet.ConnAck{
 		ProtocolLevel:    level,
 		SessionPresent:   sessionPresent,
 		Reason:           reason,
 		AssignedClientID: assignedClientID,
-	}).WriteTo(w)
+	}
+	if level == packet.ProtocolMQTT5 {
+		ack.ReceiveMaximum = uint16(serverReceiveMax)
+		ack.MaxPacketSize = uint32(serverMaxPacketSize)
+		ack.TopicAliasMax = uint16(serverTopicAliasMax)
+	}
+	_, err := ack.WriteTo(w)
 	return err
 }
 
@@ -124,6 +130,7 @@ func writePub(w io.Writer, level byte, msg pubMsg) error {
 		Topic:         msg.topic,
 		PacketID:      msg.id,
 		Payload:       msg.payload,
+		Properties:    msg.props,
 	}).WriteTo(w)
 	return err
 }

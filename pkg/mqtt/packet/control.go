@@ -55,12 +55,36 @@ func parseConnAck(level byte, body []byte) (ControlPacket, error) {
 			}
 			ack.AssignedClientID = s
 			off = n
-		case 0x11, 0x27:
+		case 0x11:
 			if off+4 > len(raw) {
 				return nil, io.ErrUnexpectedEOF
 			}
 			off += 4
-		case 0x21, 0x22, 0x13:
+		case 0x27:
+			if off+4 > len(raw) {
+				return nil, io.ErrUnexpectedEOF
+			}
+			ack.MaxPacketSize = u32(raw[off : off+4])
+			off += 4
+			if ack.MaxPacketSize == 0 {
+				return nil, errors.New("maximum packet size is zero")
+			}
+		case 0x21:
+			if off+2 > len(raw) {
+				return nil, io.ErrUnexpectedEOF
+			}
+			ack.ReceiveMaximum = u16(raw[off : off+2])
+			off += 2
+			if ack.ReceiveMaximum == 0 {
+				return nil, errors.New("receive maximum is zero")
+			}
+		case 0x22:
+			if off+2 > len(raw) {
+				return nil, io.ErrUnexpectedEOF
+			}
+			ack.TopicAliasMax = u16(raw[off : off+2])
+			off += 2
+		case 0x13:
 			if off+2 > len(raw) {
 				return nil, io.ErrUnexpectedEOF
 			}
@@ -107,6 +131,18 @@ func (c *ConnAck) WriteTo(w io.Writer) (int64, error) {
 	body := []byte{flags, c.Reason}
 	if c.ProtocolLevel == ProtocolMQTT5 {
 		var props []byte
+		if c.ReceiveMaximum != 0 {
+			props = append(props, 0x21)
+			props = putU16(props, c.ReceiveMaximum)
+		}
+		if c.MaxPacketSize != 0 {
+			props = append(props, 0x27)
+			props = putU32(props, c.MaxPacketSize)
+		}
+		if c.TopicAliasMax != 0 {
+			props = append(props, 0x22)
+			props = putU16(props, c.TopicAliasMax)
+		}
 		if c.AssignedClientID != "" {
 			props = append(props, 0x12)
 			props = appendString(props, c.AssignedClientID)

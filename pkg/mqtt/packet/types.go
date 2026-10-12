@@ -124,6 +124,9 @@ type ConnAck struct {
 	SessionPresent   bool
 	Reason           byte
 	AssignedClientID string
+	ReceiveMaximum   uint16
+	MaxPacketSize    uint32
+	TopicAliasMax    uint16
 	wire
 }
 

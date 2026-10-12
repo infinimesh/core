@@ -60,6 +60,7 @@ const (
 	ReasonBadAuthMethod     byte = 0x8C
 	ReasonTopicAliasInvalid byte = 0x94
 	ReasonPacketTooLarge    byte = 0x95
+	ReasonReceiveMaximum    byte = 0x93
 	ReasonPacketIDInUse     byte = 0x91
 	ReasonPacketIDNotFound  byte = 0x92
 	ReasonPayloadInvalid    byte = 0x99

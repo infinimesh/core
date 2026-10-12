@@ -16,6 +16,7 @@ limitations under the License.
 package main
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"net"
@@ -26,20 +27,28 @@ import (
 )
 
 var (
-	bridgeSessions = newSessionStore()
-	retryAfter     = 5 * time.Second
+	bridgeSessions      = newSessionStore()
+	retryAfter          = 5 * time.Second
+	enabledCheckAfter   = 30 * time.Second
+	qos2HoldFor         = 2 * time.Minute
+	serverReceiveMax    = 32
+	serverTopicAliasMax = 16
+	serverMaxPacketSize = 1 << 20
 )
 
 type deviceHooks struct {
 	reported   func(payload []byte, props packet.Properties, retain bool) bool
 	connected  func(up bool)
 	enabled    func() bool
-	subscribed func(send func([]byte))
+	subscribed func(send func([]byte, packet.Properties))
 	unsub      func()
 	will       func(topic string, payload []byte, retain bool)
 }
 
 func serveDevice(c net.Conn, deviceID string, cp *packet.Connect, meta connectMeta, store *sessionStore, hooks deviceHooks) {
+	retry := retryAfter
+	enabledEvery := enabledCheckAfter
+	maxPacket := serverMaxPacketSize
 	level := cp.ProtocolLevel
 	clientID := cp.ClientID
 	assigned := ""
@@ -55,6 +64,10 @@ func serveDevice(c net.Conn, deviceID string, cp *packet.Connect, meta connectMe
 		meta.receiveMax = 65535
 	}
 	present, sess := store.open(deviceID, clientID, meta, time.Now())
+	sess.mu.Lock()
+	sess.qos2Max = serverReceiveMax
+	sess.qos2Hold = qos2HoldFor
+	sess.mu.Unlock()
 	if err := writeConnAck(c, level, present, packet.ReasonSuccess, assigned); err != nil {
 		return
 	}
@@ -77,25 +90,38 @@ func serveDevice(c net.Conn, deviceID string, cp *packet.Connect, meta connectMe
 		return fn(c)
 	}
 	sendQueued := func(msg pubMsg, ok bool) {
-		if !ok {
+		for ok {
+			if meta.maxPacketSize > 0 && pubSize(level, msg) > meta.maxPacketSize {
+				if msg.qos == 0 {
+					return
+				}
+				sess.mu.Lock()
+				sess.ack(msg.id)
+				msg, ok = sess.popPending()
+				sess.mu.Unlock()
+				continue
+			}
+			_ = write(func(w io.Writer) error { return writePub(w, level, msg) })
 			return
 		}
-		_ = write(func(w io.Writer) error { return writePub(w, level, msg) })
 	}
-	sendDesired := func(payload []byte) {
+	sendDesired := func(payload []byte, props packet.Properties) {
+		if props.ContentType == "" {
+			props.ContentType = "application/json"
+		}
 		sess.mu.Lock()
 		if sess.subQoS < 0 {
 			sess.mu.Unlock()
 			return
 		}
-		msg, ok := sess.enqueue(desiredTopic(deviceID), payload, byte(sess.subQoS))
+		msg, ok := sess.enqueue(desiredTopic(deviceID), payload, byte(sess.subQoS), props)
 		sess.mu.Unlock()
 		sendQueued(msg, ok)
 	}
 
 	if present {
 		sess.mu.Lock()
-		pending := sess.unacked()
+		pending := sess.unacked(time.Now())
 		sess.mu.Unlock()
 		for _, msg := range pending {
 			_ = write(func(w io.Writer) error { return writePub(w, level, msg) })
@@ -112,28 +138,37 @@ func serveDevice(c net.Conn, deviceID string, cp *packet.Connect, meta connectMe
 		if meta.keepAlive > 0 {
 			deadline = last.Add(meta.keepAlive + meta.keepAlive/2)
 		}
+		if hooks.enabled != nil {
+			deadline = sooner(deadline, time.Now().Add(enabledEvery))
+		}
 		sess.mu.Lock()
 		waiting := len(sess.out) > 0
+		qos2At := sess.nextQoS2Deadline()
 		sess.mu.Unlock()
 		if waiting {
-			retryAt := time.Now().Add(retryAfter)
-			if deadline.IsZero() || retryAt.Before(deadline) {
-				deadline = retryAt
-			}
+			deadline = sooner(deadline, time.Now().Add(retry))
+		}
+		if !qos2At.IsZero() {
+			deadline = sooner(deadline, qos2At)
 		}
 		if err := c.SetReadDeadline(deadline); err != nil {
 			unclean = true
 			return
 		}
-		pkt, err := packet.ReadPacket(c, level, 0)
+		pkt, err := packet.ReadPacket(c, level, maxPacket)
 		if err != nil {
+			if errors.Is(err, packet.ErrPacketTooLarge) {
+				_ = write(func(w io.Writer) error { return writeDisconnect(w, level, packet.ReasonPacketTooLarge) })
+				return
+			}
 			if ne, ok := err.(net.Error); ok && ne.Timeout() {
 				if meta.keepAlive > 0 && time.Since(last) >= meta.keepAlive+meta.keepAlive/2 {
 					unclean = true
 					return
 				}
 				sess.mu.Lock()
-				due := sess.due(time.Now(), retryAfter)
+				sess.sweepQoS2(time.Now())
+				due := sess.due(time.Now(), retry)
 				sess.mu.Unlock()
 				for _, msg := range due {
 					if msg.rel {
@@ -153,10 +188,6 @@ func serveDevice(c net.Conn, deviceID string, cp *packet.Connect, meta connectMe
 			return
 		}
 		last = time.Now()
-		if meta.maxPacketSize > 0 && packet.PacketRemain(pkt)+5 > meta.maxPacketSize {
-			_ = write(func(w io.Writer) error { return writeDisconnect(w, level, packet.ReasonPacketTooLarge) })
-			return
-		}
 		switch p := pkt.(type) {
 		case *packet.PingReq:
 			if err := write(func(w io.Writer) error { return writePingResp(w) }); err != nil {
@@ -170,6 +201,13 @@ func serveDevice(c net.Conn, deviceID string, cp *packet.Connect, meta connectMe
 				return
 			}
 		case *packet.Ack:
+			if p.Kind == packet.PUBREL {
+				if err := finishQoS2(write, level, sess, hooks, p.PacketID); err != nil {
+					unclean = true
+					return
+				}
+				continue
+			}
 			if err := handleAck(write, level, sess, sendQueued, p); err != nil {
 				unclean = true
 				return
@@ -238,22 +276,6 @@ func handleAck(write func(func(io.Writer) error) error, level byte, sess *device
 				return writeAck(w, level, packet.PUBREL, p.PacketID, packet.ReasonSuccess)
 			})
 		}
-	case packet.PUBREL:
-		sess.mu.Lock()
-		_, known := sess.inQoS2[p.PacketID]
-		if known {
-			delete(sess.inQoS2, p.PacketID)
-		}
-		sess.mu.Unlock()
-		reason := packet.ReasonSuccess
-		if !known && level == packet.ProtocolMQTT5 {
-			reason = packet.ReasonPacketIDNotFound
-		}
-		if err := write(func(w io.Writer) error {
-			return writeAck(w, level, packet.PUBCOMP, p.PacketID, reason)
-		}); err != nil {
-			return err
-		}
 	case packet.PUBCOMP:
 		sess.mu.Lock()
 		sess.ack(p.PacketID)
@@ -262,6 +284,22 @@ func handleAck(write func(func(io.Writer) error) error, level byte, sess *device
 		sendQueued(next, ok)
 	}
 	return nil
+}
+
+func finishQoS2(write func(func(io.Writer) error) error, level byte, sess *deviceSession, hooks deviceHooks, id uint16) error {
+	sess.mu.Lock()
+	held, known := sess.takeQoS2(id, time.Now())
+	sess.mu.Unlock()
+	if known && held.deliver && hooks.reported != nil {
+		hooks.reported(held.msg.payload, held.msg.props, held.msg.retain)
+	}
+	reason := packet.ReasonSuccess
+	if !known && level == packet.ProtocolMQTT5 {
+		reason = packet.ReasonPacketIDNotFound
+	}
+	return write(func(w io.Writer) error {
+		return writeAck(w, level, packet.PUBCOMP, id, reason)
+	})
 }
 
 func acceptPublish(c net.Conn, write func(func(io.Writer) error) error, level byte, deviceID string, sess *deviceSession, hooks deviceHooks, msg pubMsg) bool {
@@ -282,18 +320,19 @@ func acceptPublish(c net.Conn, write func(func(io.Writer) error) error, level by
 			return false
 		}
 	}
-	dupQoS2 := false
-	if msg.qos == 2 {
-		if _, ok := sess.inQoS2[msg.id]; ok {
-			dupQoS2 = true
-		} else {
-			sess.inQoS2[msg.id] = struct{}{}
-		}
-	}
 	sess.mu.Unlock()
 
 	kind := classifyTopic(msg.topic, deviceID)
 	if kind != topicReported {
+		if msg.qos == 2 {
+			ack, open := holdQoS2(write, level, sess, msg, false)
+			if !open {
+				return false
+			}
+			if !ack {
+				return true
+			}
+		}
 		if msg.qos == 0 || level != packet.ProtocolMQTT5 {
 			_ = write(func(w io.Writer) error { return writeDisconnect(w, level, packet.ReasonNotAuthorized) })
 			return false
@@ -306,14 +345,68 @@ func acceptPublish(c net.Conn, write func(func(io.Writer) error) error, level by
 		return true
 	}
 	if msg.props.HasMessageExpiry && msg.props.MessageExpiry == 0 {
+		if msg.qos == 2 {
+			ack, open := holdQoS2(write, level, sess, msg, false)
+			if !open {
+				return false
+			}
+			if !ack {
+				return true
+			}
+		}
 		return ackPublish(write, level, msg, packet.ReasonSuccess)
 	}
-	if !dupQoS2 && hooks.reported != nil {
+	if msg.qos == 2 {
+		ack, open := holdQoS2(write, level, sess, msg, true)
+		if !open {
+			return false
+		}
+		if !ack {
+			return true
+		}
+		return ackPublish(write, level, msg, packet.ReasonSuccess)
+	}
+	if hooks.reported != nil {
 		if !hooks.reported(msg.payload, msg.props, msg.retain) {
 			return ackPublish(write, level, msg, packet.ReasonPayloadInvalid)
 		}
 	}
 	return ackPublish(write, level, msg, packet.ReasonSuccess)
+}
+
+func holdQoS2(write func(func(io.Writer) error) error, level byte, sess *deviceSession, msg pubMsg, deliver bool) (ack bool, open bool) {
+	deadline := time.Now().Add(sess.qos2Hold)
+	if deliver && msg.props.HasMessageExpiry && msg.props.MessageExpiry > 0 {
+		exp := time.Now().Add(msg.props.MessageExpiry)
+		if exp.Before(deadline) {
+			deadline = exp
+		}
+	}
+	sess.mu.Lock()
+	_, ok := sess.trackQoS2(msg.id, qos2In{deliver: deliver, msg: msg, deadline: deadline}, time.Now())
+	sess.mu.Unlock()
+	if ok {
+		return true, true
+	}
+	if level != packet.ProtocolMQTT5 {
+		_ = write(func(w io.Writer) error { return writeDisconnect(w, level, packet.ReasonUnspecified) })
+		return false, false
+	}
+	_ = write(func(w io.Writer) error { return writeAck(w, level, packet.PUBREC, msg.id, packet.ReasonReceiveMaximum) })
+	return false, true
+}
+
+func sooner(deadline, at time.Time) time.Time {
+	if deadline.IsZero() || at.Before(deadline) {
+		return at
+	}
+	return deadline
+}
+
+func pubSize(level byte, msg pubMsg) int {
+	var buf bytes.Buffer
+	_ = writePub(&buf, level, msg)
+	return buf.Len()
 }
 
 func ackPublish(write func(func(io.Writer) error) error, level byte, msg pubMsg, reason byte) bool {
