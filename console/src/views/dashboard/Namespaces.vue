@@ -33,7 +33,7 @@
       </n-thead>
       <tbody>
         <template v-for="ns in pool.admin" :key="ns.uuid">
-          <n-tr @click="expand.has(ns.uuid) ? expand.delete(ns.uuid) : expand.add(ns.uuid)">
+          <n-tr @click="toggleNS(ns)">
             <td>
               <n-icon>
                 <chevron-down-outline v-if="expand.has(ns.uuid)" />
@@ -67,8 +67,21 @@
               </n-space>
             </td>
           </n-tr>
-          <ns-joins v-if="expand.has(ns.uuid)" :namespace="ns.uuid"
-            :admin="access_role_conv(ns) == Role.OWNER || access_lvl_conv(ns) == Role.ROOT" />
+          <n-tr v-if="expand.has(ns.uuid)">
+            <td colspan="5">
+              <n-space>
+                <n-switch :value="!!(otaOf(ns).enabled)" @update:value="(v) => saveOTA(ns, v)" />
+                <span>Enable OTA</span>
+                <n-select style="width: 140px" :value="otaOf(ns).backend || 'hawkBit'"
+                  :options="[{ label: 'hawkBit', value: 'hawkBit' }, { label: 'Mender', value: 'mender' }]"
+                  @update:value="(v) => saveOTA(ns, !!otaOf(ns).enabled, v)" />
+                <n-input style="width: 280px" :default-value="otaOf(ns).backendUrl || ''" placeholder="Backend URL"
+                  @blur="(e) => saveOTA(ns, !!otaOf(ns).enabled, otaOf(ns).backend || 'hawkBit', e.target.value)" />
+              </n-space>
+              <ns-joins :namespace="ns.uuid"
+                :admin="access_role_conv(ns) == Role.OWNER || access_lvl_conv(ns) == Role.ROOT" />
+            </td>
+          </n-tr>
         </template>
         <n-tr v-if="pool.user && pool.user.length">
           <td colspan="5" align="center">
@@ -112,7 +125,7 @@ import { useRouter } from "vue-router"
 import {
   NSpin, NTable, NThead, NTr,
   NButton, NIcon, NSpace, NGrid,
-  NGridItem, NH1, NText, useMessage
+  NGridItem, NH1, NText, NSwitch, NSelect, NInput, useMessage
 } from "naive-ui";
 
 import { storeToRefs } from "pinia";
@@ -120,6 +133,7 @@ import { groupBy } from "lodash";
 import { Role } from "infinimesh-proto/build/es/node/access/access_pb"
 
 import { useNSStore } from "@/store/namespaces";
+import { useAppStore } from "@/store/app";
 import { access_lvl_conv, access_role_conv } from "@/utils/access";
 
 const RefreshOutline = defineAsyncComponent(() => import("@vicons/ionicons5/RefreshOutline"))
@@ -148,6 +162,10 @@ const pool = computed(() => groupBy(namespaces.value, (e) => {
 }))
 
 const expand = ref(new Set())
+const otaState = ref({})
+function otaOf(ns) {
+  return otaState.value[ns.uuid] || ns.ota || {}
+}
 
 const router = useRouter()
 function setNSAndGo(ns, route) {
@@ -174,6 +192,46 @@ async function handleDelete(uuid) {
     message.success("Namespace successfuly deleted")
   } catch (e) {
     message.error("Failed to delete namespace: " + e.message)
+  }
+  refresh()
+}
+
+const app = useAppStore()
+async function toggleNS(ns) {
+  if (expand.value.has(ns.uuid)) {
+    expand.value.delete(ns.uuid)
+    return
+  }
+  expand.value.add(ns.uuid)
+  try {
+    const res = await app.http.get(`/v1/namespaces/${ns.uuid}`)
+    otaState.value = { ...otaState.value, [ns.uuid]: res.data.ota || {} }
+  } catch (e) {
+    message.error("Failed to load OTA setting: " + e.message)
+  }
+}
+async function saveOTA(ns, enabled, backend, backendUrl) {
+  const current = otaOf(ns)
+  try {
+    await app.http.patch(`/v1/namespaces/${ns.uuid}`, {
+      uuid: ns.uuid,
+      ota: {
+        enabled,
+        backend: backend || current.backend || "hawkBit",
+        backendUrl: backendUrl !== undefined ? backendUrl : (current.backendUrl || ""),
+      },
+    })
+    otaState.value = {
+      ...otaState.value,
+      [ns.uuid]: {
+        enabled,
+        backend: backend || current.backend || "hawkBit",
+        backendUrl: backendUrl !== undefined ? backendUrl : (current.backendUrl || ""),
+      },
+    }
+    message.success("OTA setting saved")
+  } catch (e) {
+    message.error("Failed to save OTA setting: " + e.message)
   }
   refresh()
 }

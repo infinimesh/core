@@ -122,3 +122,15 @@ func TestPublishDeviceScope(t *testing.T) {
 		t.Fatalf("overwrote title %q", filled.Title)
 	}
 }
+
+func TestApplyTag(t *testing.T) {
+	meta := map[string]deviceMeta{"d": {tags: []string{"a"}}}
+	applyTag(meta, &pb.Shadow{Device: "d", Event: pb.ShadowEvent_TAG_ADDED, Tag: "b"})
+	if len(meta["d"].tags) != 2 || meta["d"].tags[1] != "b" {
+		t.Fatalf("added %+v", meta["d"].tags)
+	}
+	applyTag(meta, &pb.Shadow{Device: "d", Event: pb.ShadowEvent_TAG_REMOVED, Tag: "a", Tags: []string{"b"}})
+	if len(meta["d"].tags) != 1 || meta["d"].tags[0] != "b" {
+		t.Fatalf("removed %+v", meta["d"].tags)
+	}
+}

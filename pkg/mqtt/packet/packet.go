@@ -54,6 +54,7 @@ const (
 	ReasonClientIDRejected  byte = 0x85
 	ReasonBadCredentials    byte = 0x86
 	ReasonNotAuthorized     byte = 0x87
+	ReasonQuotaExceeded     byte = 0x97
 	ReasonServerUnavailable byte = 0x88
 	ReasonServerBusy        byte = 0x89
 	ReasonBanned            byte = 0x8A

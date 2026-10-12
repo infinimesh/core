@@ -256,6 +256,45 @@ func asConnect(err error) error {
 	return err
 }
 
+func (s *ShadowAPI) PatchMany(ctx context.Context, request *connect.Request[shadow.PatchManyRequest]) (*connect.Response[shadow.PatchManyResponse], error) {
+	msg := request.Msg
+	if msg.GetDesired() == nil {
+		return nil, apierr.Code(connect.CodeInvalidArgument, "desired state is required")
+	}
+	if s.devices == nil {
+		return nil, apierr.Code(connect.CodeUnavailable, "device registry is not available")
+	}
+	ns := msg.GetNamespace()
+	listed, err := s.devices.List(ctx, connect.NewRequest(&pb.QueryRequest{Namespace: ns}))
+	if err != nil {
+		return nil, err
+	}
+	var ids []string
+	for _, dev := range listed.Msg.GetDevices() {
+		if ns != "" && dev.GetAccess().GetNamespace() != ns {
+			continue
+		}
+		if msg.GetTag() != "" && !slices.Contains(dev.GetTags(), msg.GetTag()) {
+			continue
+		}
+		if dev.GetAccess().GetLevel() < access.Level_MGMT {
+			continue
+		}
+		ids = append(ids, dev.GetUuid())
+	}
+	if len(msg.GetDevices()) > 0 {
+		ids = msg.GetDevices()
+	}
+	if len(ids) == 0 {
+		return connect.NewResponse(&shadow.PatchManyResponse{}), nil
+	}
+	res, err := s.client.PatchMany(ctx, &shadow.PatchManyRequest{Devices: ids, Desired: msg.GetDesired()})
+	if err != nil {
+		return nil, asConnect(err)
+	}
+	return connect.NewResponse(res), nil
+}
+
 func (s *ShadowAPI) StreamShadow(ctx context.Context, request *connect.Request[shadow.StreamShadowRequest], srv *connect.ServerStream[shadow.Shadow]) (err error) {
 	log := s.log.Named("StreamReportedStateChanges")
 	req := request.Msg

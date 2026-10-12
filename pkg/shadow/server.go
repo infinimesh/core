@@ -23,14 +23,20 @@ import (
 
 	"connectrpc.com/connect"
 	redis "github.com/go-redis/redis/v8"
+	"github.com/infinimesh/core/pkg/observe"
 	"github.com/infinimesh/core/pkg/pubsub"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pb "github.com/infinimesh/proto/shadow"
 )
+
+type ReadRecorder interface {
+	RecordRead(ctx context.Context, device, account, tokenID string)
+}
 
 type ShadowServiceServer struct {
 	pb.UnimplementedShadowServiceServer
@@ -40,6 +46,8 @@ type ShadowServiceServer struct {
 	ps  pubsub.PubSub
 
 	ids sequencer
+
+	reads ReadRecorder
 
 	mu      sync.Mutex
 	catalog map[string]deviceMeta
@@ -55,6 +63,10 @@ func NewShadowServiceServer(log *zap.Logger, rdb redis.Cmdable, ps pubsub.PubSub
 		catalog: map[string]deviceMeta{},
 	}
 	return s
+}
+
+func (s *ShadowServiceServer) SetReadRecorder(r ReadRecorder) {
+	s.reads = r
 }
 
 func (s *ShadowServiceServer) SetSequencer(ids sequencer) {
@@ -106,8 +118,48 @@ func (s *ShadowServiceServer) Get(ctx context.Context, req *pb.GetRequest) (*pb.
 		}
 		shadows[i] = s
 	}
+	s.recordReads(ctx, pool)
 
 	return &pb.GetResponse{Shadows: shadows}, nil
+}
+
+func (s *ShadowServiceServer) recordReads(ctx context.Context, devices []string) {
+	if s == nil || s.reads == nil {
+		return
+	}
+	md, _ := metadata.FromIncomingContext(ctx)
+	account, tokenID := firstMeta(md, "account"), firstMeta(md, "jti")
+	for _, id := range devices {
+		s.reads.RecordRead(ctx, id, account, tokenID)
+	}
+}
+
+func firstMeta(md metadata.MD, key string) string {
+	if md == nil {
+		return ""
+	}
+	vals := md.Get(key)
+	if len(vals) == 0 {
+		return ""
+	}
+	return vals[0]
+}
+
+func (s *ShadowServiceServer) PatchMany(ctx context.Context, req *pb.PatchManyRequest) (*pb.PatchManyResponse, error) {
+	if req.GetDesired() == nil || len(req.GetDevices()) == 0 {
+		return nil, rpcErr(connect.CodeInvalidArgument, "devices and desired state are required")
+	}
+	var n int32
+	for _, id := range req.GetDevices() {
+		if id == "" {
+			continue
+		}
+		if _, err := s.Patch(ctx, &pb.Shadow{Device: id, Desired: req.GetDesired()}); err != nil {
+			return nil, err
+		}
+		n++
+	}
+	return &pb.PatchManyResponse{Updated: n}, nil
 }
 
 func (s *ShadowServiceServer) Patch(ctx context.Context, req *pb.Shadow) (*pb.Shadow, error) {
@@ -132,6 +184,9 @@ func (s *ShadowServiceServer) Patch(ctx context.Context, req *pb.Shadow) (*pb.Sh
 
 	s.stamp(ctx, req)
 	s.ps.TryPub(req, topics...)
+	if req.Reported != nil || req.Desired != nil {
+		observe.ShadowWrites.Inc()
+	}
 
 	return req, nil
 }
@@ -205,6 +260,8 @@ func (s *ShadowServiceServer) Accept(sh *pb.Shadow) {
 func (s *ShadowServiceServer) StreamShadow(req *pb.StreamShadowRequest, srv pb.ShadowService_StreamShadowServer) error {
 	log := s.log.Named("stream")
 	log.Debug("Request received", zap.Any("req", req))
+	observe.Streams.Inc()
+	defer observe.Streams.Dec()
 
 	scope, meta, devices := scopeFromRequest(req)
 	if len(devices) == 0 && !scope.live() {
@@ -286,6 +343,18 @@ func (s *ShadowServiceServer) StreamShadow(req *pb.StreamShadowRequest, srv pb.S
 	for msg := range messages {
 		incoming, ok := msg.(*pb.Shadow)
 		if !ok || incoming == nil {
+			continue
+		}
+		if incoming.GetEvent() == pb.ShadowEvent_TAG_ADDED || incoming.GetEvent() == pb.ShadowEvent_TAG_REMOVED {
+			if !scope.wants(incoming) && !eventInStream(devices, scope, incoming) {
+				continue
+			}
+			applyTag(meta, incoming)
+			s.remember(incoming)
+			if err := s.send(ctx, srv, req, incoming, meta); err != nil {
+				log.Warn("Unable to send message", zap.Error(err))
+				return nil
+			}
 			continue
 		}
 		if incoming.GetEvent() == pb.ShadowEvent_DEVICE_ADDED || incoming.GetEvent() == pb.ShadowEvent_DEVICE_REMOVED {

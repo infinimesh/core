@@ -23,19 +23,19 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"net/http"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/infinimesh/core/pkg/graph/schema"
 	inflog "github.com/infinimesh/core/pkg/log"
 	"github.com/infinimesh/core/pkg/mqtt/metrics"
 	"github.com/infinimesh/core/pkg/mqtt/packet"
 	mqttps "github.com/infinimesh/core/pkg/mqtt/pubsub"
+	"github.com/infinimesh/core/pkg/observe"
 	"github.com/infinimesh/core/pkg/pubsub"
 	"github.com/infinimesh/core/pkg/shared/auth"
 	pb "github.com/infinimesh/proto/node"
 	devpb "github.com/infinimesh/proto/node/devices"
 	stpb "github.com/infinimesh/proto/shadow"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -88,7 +88,7 @@ func init() {
 
 	log = inflog.NewLogger()
 
-	viper.SetDefault("DEVICES_HOST", "api.infinimesh.local")
+	viper.SetDefault("DEVICES_HOST", "api.127.0.0.1.nip.io:8000")
 	viper.SetDefault("SHADOW_HOST", "shadow:8080")
 	viper.SetDefault("RABBITMQ_CONN", "amqp://infinimesh:infinimesh@localhost:5672/")
 	viper.SetDefault("ACME", "")
@@ -118,10 +118,16 @@ func main() {
 		_ = log.Sync()
 	}()
 
-	log.Info("Starting MQTT Bridge")
+	stopTrace := observe.Start("mqtt-bridge")
+	defer stopTrace()
 
-	http.Handle("/metrics", promhttp.Handler())
-	go http.ListenAndServe(":2112", nil)
+	log.Info("Starting MQTT Bridge")
+	if viper.GetString("MQTT_SESSION_STORE") == "redis" {
+		viper.SetDefault("REDIS_HOST", "redis:6379")
+		rdb := redis.NewClient(&redis.Options{Addr: viper.GetString("REDIS_HOST")})
+		bridgeSessions.persist = newRedisSessions(rdb)
+		go bridgeSessions.keep()
+	}
 
 	timeout, err := parseHandshakeTimeout(viper.GetString("TLS_HANDSHAKE_TIMEOUT"))
 	if err != nil {

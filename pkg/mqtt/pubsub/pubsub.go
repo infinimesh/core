@@ -19,6 +19,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/infinimesh/core/pkg/observe"
 	"github.com/infinimesh/core/pkg/pubsub"
 	shadowsvc "github.com/infinimesh/core/pkg/shadow"
 	pb "github.com/infinimesh/proto/shadow"
@@ -86,6 +87,7 @@ init:
 		})
 		if err != nil {
 			log.Warn("Error while publishing message:", zap.Error(err))
+			observe.RabbitPublishErrors.Inc()
 			continue
 		}
 	}

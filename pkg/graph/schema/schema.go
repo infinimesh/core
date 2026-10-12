@@ -57,6 +57,15 @@ const (
 	NS2PLUG     = NAMESPACES_COL + "2" + PLUGINS_COL
 )
 
+const (
+	RULES_COL   = "Rules"
+	ALARMS_COL  = "Alarms"
+	AUDIT_COL   = "AuditLog"
+	GRANTS_COL  = "Grants"
+	CONSENT_COL = "Consents"
+	NS2RULE     = NAMESPACES_COL + "2" + RULES_COL
+)
+
 type InfinimeshGraphSchema struct {
 	Name  string
 	Edges [][]string
@@ -65,7 +74,8 @@ type InfinimeshGraphSchema struct {
 var COLLECTIONS = []string{
 	ACCOUNTS_COL, NAMESPACES_COL,
 	CREDENTIALS_COL, DEVICES_COL,
-	PLUGINS_COL,
+	PLUGINS_COL, RULES_COL, ALARMS_COL,
+	AUDIT_COL, GRANTS_COL, CONSENT_COL,
 }
 
 var PERMISSIONS_GRAPH = InfinimeshGraphSchema{
@@ -76,6 +86,7 @@ var PERMISSIONS_GRAPH = InfinimeshGraphSchema{
 		{NAMESPACES_COL, ACCOUNTS_COL},
 		{NAMESPACES_COL, DEVICES_COL},
 		{NAMESPACES_COL, PLUGINS_COL},
+		{NAMESPACES_COL, RULES_COL},
 	},
 }
 var CREDENTIALS_GRAPH = InfinimeshGraphSchema{

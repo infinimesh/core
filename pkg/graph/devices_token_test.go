@@ -31,6 +31,9 @@ func (f fakeICA) GetEdgeCol(ctx context.Context, name string) driver.Collection 
 func (f fakeICA) CheckLink(ctx context.Context, edge driver.Collection, from InfinimeshGraphNode, to InfinimeshGraphNode) bool {
 	return false
 }
+func (f fakeICA) LinkUntil(ctx context.Context, log *zap.Logger, edge driver.Collection, from InfinimeshGraphNode, to InfinimeshGraphNode, lvl access.Level, role access.Role, expiresAt int64) error {
+	return nil
+}
 func (f fakeICA) Link(ctx context.Context, log *zap.Logger, edge driver.Collection, from InfinimeshGraphNode, to InfinimeshGraphNode, lvl access.Level, role access.Role) error {
 	return nil
 }

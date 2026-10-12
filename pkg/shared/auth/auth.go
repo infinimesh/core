@@ -89,6 +89,10 @@ func SelectMiddleware(i *interceptor, procedure string) middleware {
 	switch {
 	case procedure == nodeconnect.DevicesServiceGetByTokenProcedure:
 		middleware = i.ConnectDeviceAuthMiddleware
+	case procedure == nodeconnect.DevicesServiceClaimProcedure:
+		middleware = i.ConnectBlankMiddleware
+	case procedure == nodeconnect.ShadowServicePatchManyProcedure:
+		middleware = i.ConnectStandardAuthMiddleware
 	case strings.HasPrefix(procedure, "/"+nodeconnect.ShadowServiceName):
 		middleware = i.ConnectDeviceAuthMiddleware
 	default:
@@ -116,7 +120,7 @@ func (i *interceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 		middleware := SelectMiddleware(i, procedure)
 
 		ctx, log_activity, err := middleware(ctx, i.signing_key, segments[1])
-		if procedure != nodeconnect.AccountsServiceTokenProcedure && err != nil {
+		if procedure != nodeconnect.AccountsServiceTokenProcedure && procedure != nodeconnect.DevicesServiceClaimProcedure && err != nil {
 			return nil, err
 		}
 
@@ -231,6 +235,9 @@ func (i *interceptor) ConnectStandardAuthMiddleware(_ctx context.Context, signin
 
 	ctx = metadata.AppendToOutgoingContext(ctx, infinimesh.INFINIMESH_ACCOUNT_CLAIM, uuid)
 	ctx = metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer "+tokenString)
+	if jti, _ := token[infinimesh.INFINIMESH_JTI_CLAIM].(string); jti != "" {
+		ctx = metadata.AppendToOutgoingContext(ctx, infinimesh.INFINIMESH_JTI_CLAIM, jti)
+	}
 
 	if root := token[infinimesh.INFINIMESH_ROOT_CLAIM]; root != nil {
 		r, ok := root.(bool)
@@ -328,6 +335,7 @@ func (i *interceptor) ConnectDeviceAuthMiddleware(_ctx context.Context, signingK
 			}
 		}
 		ctx = context.WithValue(ctx, infinimesh.InfinimeshJTICtxKey, jti)
+		ctx = metadata.AppendToOutgoingContext(ctx, infinimesh.INFINIMESH_JTI_CLAIM, jti)
 	}
 	if post, _ := token[infinimesh.INFINIMESH_POST_CLAIM].(bool); post {
 		ctx = context.WithValue(ctx, infinimesh.InfinimeshPostCtxKey, true)

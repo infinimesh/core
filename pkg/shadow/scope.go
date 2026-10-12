@@ -141,6 +141,33 @@ func subscriptionTopics(devices map[string]struct{}, live bool) []string {
 	return topics
 }
 
+func applyTag(meta map[string]deviceMeta, ev *pb.Shadow) {
+	if meta == nil || ev == nil || ev.GetDevice() == "" {
+		return
+	}
+	item := meta[ev.GetDevice()]
+	if len(ev.GetTags()) > 0 {
+		item.tags = append([]string(nil), ev.GetTags()...)
+	} else if ev.GetEvent() == pb.ShadowEvent_TAG_ADDED && ev.GetTag() != "" && !slices.Contains(item.tags, ev.GetTag()) {
+		item.tags = append(item.tags, ev.GetTag())
+	} else if ev.GetEvent() == pb.ShadowEvent_TAG_REMOVED && ev.GetTag() != "" {
+		next := item.tags[:0]
+		for _, tag := range item.tags {
+			if tag != ev.GetTag() {
+				next = append(next, tag)
+			}
+		}
+		item.tags = next
+	}
+	if ev.GetTitle() != "" {
+		item.title = ev.GetTitle()
+	}
+	if ev.GetNamespace() != "" {
+		item.namespace = ev.GetNamespace()
+	}
+	meta[ev.GetDevice()] = item
+}
+
 func (s *ShadowServiceServer) remember(sh *pb.Shadow) {
 	if sh.GetDevice() == "" {
 		return

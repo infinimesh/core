@@ -12,6 +12,7 @@ type DevicesControllerModule interface {
 	SetSigningKey([]byte)
 	SetScopePublisher(ScopePublisher)
 	SetDenylist(TokenDenylist)
+	SetClaimTokens(ClaimTokens)
 }
 
 type devicesControllerModule struct {
@@ -32,6 +33,10 @@ func (m *devicesControllerModule) SetScopePublisher(p ScopePublisher) {
 
 func (m *devicesControllerModule) SetDenylist(d TokenDenylist) {
 	m.handler.SetDenylist(d)
+}
+
+func (m *devicesControllerModule) SetClaimTokens(s ClaimTokens) {
+	m.handler.SetClaimTokens(s)
 }
 
 func NewDevicesControllerModule(log *zap.Logger, db driver.Database,

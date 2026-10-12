@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/infinimesh/core/pkg/observe"
 	"github.com/infinimesh/core/pkg/pubsub"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"go.uber.org/zap"
@@ -77,9 +78,13 @@ func (f *fanout) Publish(ctx context.Context, message proto.Message, args ...str
 		return err
 	}
 
-	return f.channel.PublishWithContext(ctx, f.exchange, routing_key, false, false, amqp.Publishing{
+	err = f.channel.PublishWithContext(ctx, f.exchange, routing_key, false, false, amqp.Publishing{
 		ContentType: "text/plain", Body: payload,
 	})
+	if err != nil {
+		observe.RabbitPublishErrors.Inc()
+	}
+	return err
 }
 
 // Subscribe - Subscribes to RabbitMQ Exchange

@@ -14,6 +14,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/infinimesh/core/pkg/apierr"
+	"github.com/infinimesh/core/pkg/quota"
 	inf "github.com/infinimesh/core/pkg/shared"
 	"github.com/infinimesh/proto/node/access"
 	"github.com/infinimesh/proto/shadow"
@@ -36,10 +37,12 @@ type Handler struct {
 	Desired DesiredFunc
 	Now     func() time.Time
 	Limit   int
+	Quota   func(ctx context.Context, device string) (devicePerSec, namespacePerSec float64, namespace string)
 
 	mu      sync.Mutex
 	hits    map[string][]time.Time
 	waiters map[string][]chan struct{}
+	rates   *quota.Limiter
 }
 
 func (h *Handler) now() time.Time {
@@ -122,6 +125,21 @@ func (h *Handler) allow(id string) bool {
 	return true
 }
 
+func (h *Handler) allowQuota(ctx context.Context, id string) bool {
+	if h.Quota == nil {
+		return true
+	}
+	perDevice, perNS, ns := h.Quota(ctx, id)
+	h.mu.Lock()
+	if h.rates == nil {
+		h.rates = quota.New()
+		h.rates.SetNow(h.now)
+	}
+	lim := h.rates
+	h.mu.Unlock()
+	return lim.Allow(id, perDevice) && lim.Allow("ns:"+ns, perNS)
+}
+
 func (h *Handler) Post(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method", http.StatusMethodNotAllowed)
@@ -132,7 +150,7 @@ func (h *Handler) Post(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, err)
 		return
 	}
-	if !h.allow(dev.id) {
+	if !h.allow(dev.id) || !h.allowQuota(r.Context(), dev.id) {
 		writeErr(w, apierr.New(connect.CodeResourceExhausted, apierr.ReasonRateLimited, "rate limit exceeded"))
 		return
 	}
