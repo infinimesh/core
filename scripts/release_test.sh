@@ -112,6 +112,25 @@ grep -q 'COPY ./pkg/observe ./pkg/observe' "$console_df" || {
   exit 1
 }
 
+compose="$root/docker-compose.yaml"
+grep -q 'image: traefik:2.11.58' "$compose" || {
+  echo "compose must run Traefik 2.11.58" >&2
+  exit 1
+}
+api_routers=$(grep -c 'traefik.http.routers.api.rule=' "$compose" || true)
+if [ "$api_routers" != 1 ]; then
+  echo "compose must name one router api, found $api_routers" >&2
+  exit 1
+fi
+grep -q 'traefik.http.routers.traefik.rule=' "$compose" || {
+  echo "the dashboard router must be named traefik" >&2
+  exit 1
+}
+if grep -q '/v1/handsfree' "$root/api.swagger.json"; then
+  echo "api.swagger.json still lists /v1/handsfree" >&2
+  exit 1
+fi
+
 sh -n "$root/scripts/buf_lint_pin.sh"
 grep -q 'sh scripts/buf_lint_pin.sh' "$root/.github/workflows/go.yml" || {
   echo "go.yml must lint the pinned proto module" >&2

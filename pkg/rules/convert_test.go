@@ -1,6 +1,7 @@
 package rules
 
 import (
+	"strings"
 	"testing"
 
 	rpb "github.com/infinimesh/proto/node/rules"
@@ -9,8 +10,12 @@ import (
 
 func TestFromProtoRejectsBadCEL(t *testing.T) {
 	_, err := FromProto(&rpb.Rule{Name: "hot", When: "1 + 2"})
-	if err == nil {
-		t.Fatal("expected error")
+	if err == nil || !strings.Contains(err.Error(), "reported") || !strings.Contains(err.Error(), "tags") {
+		t.Fatalf("error should name the valid fields: %v", err)
+	}
+	_, err = FromProto(&rpb.Rule{Name: "hot", When: "temperature > 1"})
+	if err == nil || !strings.Contains(err.Error(), conditionFields) {
+		t.Fatalf("error should name the valid fields: %v", err)
 	}
 }
 

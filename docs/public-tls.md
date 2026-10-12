@@ -47,7 +47,7 @@ chmod 600 letsencrypt/acme.json
 
 ## Traefik
 
-Traefik 2.10 listens on 80 and 443. Port 80 redirects to HTTPS. The `letsencrypt` resolver uses the TLS-ALPN challenge, so 443 must reach this host. Routers for `console`, `api`, `traefik`, and `media` request certificates.
+Traefik 2.11.58 listens on 80 and 443. It negotiates the Docker API version, which Docker 29 requires. Port 80 redirects to HTTPS. The `letsencrypt` resolver uses the TLS-ALPN challenge, so 443 must reach this host. Routers for `console`, `api`, `traefik`, and `media` request certificates.
 
 ```bash
 docker compose -f docker-compose.yaml -f docker-compose.public.yml up -d

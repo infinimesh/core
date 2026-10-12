@@ -39,7 +39,7 @@ var (
 
 func init() {
 	viper.AutomaticEnv()
-	viper.SetDefault("LDAP_CONF", "/home/slnt_opp/repos/infinimesh/e2e/ldap.yml")
+	viper.SetDefault("LDAP_CONF", "")
 
 	log := logger.NewLogger().Named("LDAP Credentials Init")
 	path := viper.GetString("LDAP_CONF")

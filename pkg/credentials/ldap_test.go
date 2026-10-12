@@ -1,10 +1,26 @@
 package credentials
 
 import (
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/infinimesh/proto/node/accounts"
+	"github.com/spf13/viper"
 )
+
+func TestLDAPConfDefaultIsEmpty(t *testing.T) {
+	if os.Getenv("LDAP_CONF") != "" {
+		t.Skip()
+	}
+	got := viper.GetString("LDAP_CONF")
+	if got != "" || strings.Contains(got, "/home/") {
+		t.Fatalf("LDAP_CONF default %q", got)
+	}
+	if LDAP_CONFIGURED {
+		t.Fatal("LDAP is configured with an empty LDAP_CONF")
+	}
+}
 
 func TestLDAPAuth(t *testing.T) {
 	// TODO: Fix this test
