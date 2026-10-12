@@ -688,7 +688,7 @@ func TestListNamespaces(t *testing.T) {
 		t.Fatalf("Couldn't create Namespace: %v", err)
 	}
 
-	pool, err := ns_ctrl.List(rootCtx, connect.NewRequest(&pb.EmptyMessage{}))
+	pool, err := ns_ctrl.List(rootCtx, connect.NewRequest(&pb.ListRequest{}))
 	if err != nil {
 		t.Fatalf("Couldn't list Namespace: %v", err)
 	}

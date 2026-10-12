@@ -17,13 +17,12 @@ package graph
 
 import (
 	"context"
+	"github.com/infinimesh/core/pkg/apierr"
 
 	"connectrpc.com/connect"
 	"github.com/arangodb/go-driver"
 	inf "github.com/infinimesh/core/pkg/shared"
 	"go.uber.org/zap"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	"github.com/infinimesh/core/pkg/graph/schema"
 	"github.com/infinimesh/proto/node/access"
@@ -106,29 +105,35 @@ func ValidatePluginDocument(p *pb.Plugin) string {
 }
 
 func (c *PluginsController) Create(ctx context.Context, req *connect.Request[pb.Plugin]) (*connect.Response[pb.Plugin], error) {
+	var cached pb.Plugin
+	if loadIdem(req.Header(), "plugins.create", &cached) {
+		return connect.NewResponse(&cached), nil
+	}
 	log := c.log.Named("Create")
 	plug := req.Msg
 
 	if !ValidateRoot(ctx) {
-		return nil, status.Error(codes.PermissionDenied, "Not enough access rights to create Plugin")
+		return nil, apierr.Code(connect.CodePermissionDenied, "Not enough access rights to create Plugin")
 	}
 
 	log.Debug("Creating", zap.Any("plugin", plug))
 	msg := ValidatePluginDocument(plug)
 	if msg != "" {
-		return nil, status.Error(codes.InvalidArgument, msg)
+		return nil, apierr.Code(connect.CodeInvalidArgument, msg)
 	}
 
 	plugin := Plugin{Plugin: plug}
 	meta, err := c.col.CreateDocument(ctx, plugin)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Error while creating Plugin in DB: %v", err)
+		return nil, apierr.Codef(connect.CodeInternal, "Error while creating Plugin in DB: %v", err)
 	}
 	plugin.Uuid = meta.ID.Key()
 	plugin.DocumentMeta = meta
 
 	log.Debug("Created", zap.String("plugin", plugin.Uuid))
-	return connect.NewResponse(plugin.Plugin), nil
+	resp := connect.NewResponse(plugin.Plugin)
+	saveIdem(req.Header(), "plugins.create", resp.Msg)
+	return resp, nil
 }
 
 const listAllPluginsQuery = `FOR plug IN @@plugins RETURN plug`
@@ -145,7 +150,7 @@ func (c *PluginsController) Get(ctx context.Context, req *connect.Request[pb.Plu
 	meta, err := c.col.ReadDocument(ctx, plug.Uuid, plug)
 	if err != nil {
 		log.Warn("Couldn't get plugin", zap.Error(err))
-		return nil, status.Error(codes.NotFound, "Plugin not found")
+		return nil, apierr.Code(connect.CodeNotFound, "Plugin not found")
 	}
 	plug.Uuid = meta.ID.Key()
 
@@ -154,7 +159,7 @@ func (c *PluginsController) Get(ctx context.Context, req *connect.Request[pb.Plu
 	}
 
 	if plug.Namespace == nil || *plug.Namespace == "" {
-		return nil, status.Error(codes.InvalidArgument, "Namespace is not given")
+		return nil, apierr.Code(connect.CodeInvalidArgument, "Namespace is not given")
 	}
 
 	ns, err := c.ns_ctrl.Get(ctx, connect.NewRequest(&namespaces.Namespace{Uuid: *plug.Namespace}))
@@ -163,7 +168,7 @@ func (c *PluginsController) Get(ctx context.Context, req *connect.Request[pb.Plu
 	}
 
 	if ns.Msg.Access.Level < access.Level_READ {
-		return nil, status.Error(codes.PermissionDenied, "Not enough Access")
+		return nil, apierr.Code(connect.CodePermissionDenied, "Not enough Access")
 	}
 
 	return connect.NewResponse(plug), nil
@@ -190,7 +195,7 @@ func (c *PluginsController) List(ctx context.Context, req *connect.Request[pb.Li
 	}
 
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Error getting Plugins from DB: %v", err)
+		return nil, apierr.Codef(connect.CodeInternal, "Error getting Plugins from DB: %v", err)
 	}
 	defer cr.Close()
 
@@ -209,8 +214,11 @@ func (c *PluginsController) List(ctx context.Context, req *connect.Request[pb.Li
 		res = append(res, &plug)
 	}
 
+	page, next := cutPage(res, r.GetPageSize(), r.GetPageToken())
 	return connect.NewResponse(&pb.Plugins{
-		Pool: res,
+		Pool:          page,
+		Plugins:       page,
+		NextPageToken: next,
 	}), nil
 }
 
@@ -219,22 +227,22 @@ func (c *PluginsController) Update(ctx context.Context, req *connect.Request[pb.
 	plug := req.Msg
 
 	if !ValidateRoot(ctx) {
-		return nil, status.Error(codes.PermissionDenied, "Not enough access rights to update Plugin")
+		return nil, apierr.Code(connect.CodePermissionDenied, "Not enough access rights to update Plugin")
 	}
 
 	msg := ValidatePluginDocument(plug)
 	if msg != "" {
-		return nil, status.Error(codes.InvalidArgument, msg)
+		return nil, apierr.Code(connect.CodeInvalidArgument, msg)
 	}
 
 	if plug.Uuid == "" {
-		return nil, status.Error(codes.InvalidArgument, "No Plugin UUID has been provided")
+		return nil, apierr.Code(connect.CodeInvalidArgument, "No Plugin UUID has been provided")
 	}
 
 	plugin := Plugin{Plugin: plug}
 	_, err := c.col.ReplaceDocument(ctx, plug.Uuid, plugin)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Error while updating Plugin in DB: %v", err)
+		return nil, apierr.Codef(connect.CodeInternal, "Error while updating Plugin in DB: %v", err)
 	}
 
 	log.Debug("Updated", zap.Any("plugin", plugin))

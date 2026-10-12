@@ -183,6 +183,7 @@ func TestPatch_Success(t *testing.T) {
 		},
 	}
 
+	f.mocks.rdb.EXPECT().Get(mock.Anything, mock.Anything).Return(redis.NewStringResult("", redis.Nil)).Times(2)
 	f.mocks.ps.EXPECT().TryPub(request, "mqtt.incoming", "mqtt.incoming/"+request.Device, "mqtt.outgoing", "mqtt.outgoing/"+request.Device).
 		Return()
 
@@ -204,6 +205,7 @@ func TestPatch_Success(t *testing.T) {
 func TestPatch_ReportedPublishesDeviceTopic(t *testing.T) {
 	f := newShadowServiceServerFixture(t)
 	request := &pb.Shadow{Device: "dev-a", Reported: &pb.State{}}
+	f.mocks.rdb.EXPECT().Get(mock.Anything, mock.Anything).Return(redis.NewStringResult("", redis.Nil))
 	f.mocks.ps.EXPECT().TryPub(request, "mqtt.incoming", "mqtt.incoming/dev-a").Return()
 
 	resp, err := f.service.Patch(f.data.ctx, request)

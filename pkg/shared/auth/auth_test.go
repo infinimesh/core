@@ -74,7 +74,7 @@ func TestConnectStandardAuthMiddleware_FailsOn_NoToken(t *testing.T) {
 	))
 
 	assert.Nil(t, res)
-	assert.EqualError(t, err, "rpc error: code = Unauthenticated desc = Invalid token format")
+	assert.EqualError(t, err, "unauthenticated: Invalid token format")
 }
 
 func TestConnectStandardAuthMiddleware_FailsOn_InvalidToken(t *testing.T) {
@@ -90,7 +90,7 @@ func TestConnectStandardAuthMiddleware_FailsOn_InvalidToken(t *testing.T) {
 	_, _, res, err := CallUnary(f.interceptor, context.Background(), req)
 
 	assert.Nil(t, res)
-	assert.EqualError(t, err, "rpc error: code = Unauthenticated desc = Invalid token format")
+	assert.EqualError(t, err, "unauthenticated: Invalid token format")
 }
 
 func TestConnectStandardAuthMiddleware_FailsOn_NonValidToken(t *testing.T) {
@@ -108,7 +108,7 @@ func TestConnectStandardAuthMiddleware_FailsOn_NonValidToken(t *testing.T) {
 	))
 
 	assert.Nil(t, res)
-	assert.EqualError(t, err, "rpc error: code = Unauthenticated desc = Invalid token format")
+	assert.EqualError(t, err, "unauthenticated: Invalid token format")
 }
 
 func TestConnectStandardAuthMiddleware_FailsOn_ClaimsWrongType(t *testing.T) {
@@ -126,7 +126,7 @@ func TestConnectStandardAuthMiddleware_FailsOn_ClaimsWrongType(t *testing.T) {
 	))
 
 	assert.Nil(t, res)
-	assert.EqualError(t, err, "rpc error: code = Unauthenticated desc = Invalid token format")
+	assert.EqualError(t, err, "unauthenticated: Invalid token format")
 }
 
 func TestConnectStandardAuthMiddleware_FailsOn_NoRequestor(t *testing.T) {
@@ -144,7 +144,7 @@ func TestConnectStandardAuthMiddleware_FailsOn_NoRequestor(t *testing.T) {
 	))
 
 	assert.Nil(t, res)
-	assert.EqualError(t, err, "rpc error: code = Unauthenticated desc = Invalid token format: no requestor ID")
+	assert.EqualError(t, err, "unauthenticated: Invalid token format: no requestor ID")
 }
 
 func TestConnectStandardAuthMiddleware_FailsOn_RequestorWrongType(t *testing.T) {
@@ -164,7 +164,7 @@ func TestConnectStandardAuthMiddleware_FailsOn_RequestorWrongType(t *testing.T) 
 	))
 
 	assert.Nil(t, res)
-	assert.EqualError(t, err, "rpc error: code = Unauthenticated desc = Invalid token format: requestor ID isn't string")
+	assert.EqualError(t, err, "unauthenticated: Invalid token format: requestor ID isn't string")
 }
 
 func TestConnectStandardAuthMiddleware_FailsOn_NoSessionId(t *testing.T) {
@@ -184,7 +184,7 @@ func TestConnectStandardAuthMiddleware_FailsOn_NoSessionId(t *testing.T) {
 	))
 
 	assert.Nil(t, res)
-	assert.EqualError(t, err, "rpc error: code = Unauthenticated desc = Invalid token format: no session ID")
+	assert.EqualError(t, err, "unauthenticated: Invalid token format: no session ID")
 }
 
 func TestConnectStandardAuthMiddleware_FailsOn_SessionIdWrongType(t *testing.T) {
@@ -205,7 +205,7 @@ func TestConnectStandardAuthMiddleware_FailsOn_SessionIdWrongType(t *testing.T) 
 	))
 
 	assert.Nil(t, res)
-	assert.EqualError(t, err, "rpc error: code = Unauthenticated desc = Invalid token format: session ID isn't string")
+	assert.EqualError(t, err, "unauthenticated: Invalid token format: session ID isn't string")
 }
 
 func TestConnectStandardAuthMiddleware_FailsOn_SessionExiredRevokedOrInvalid(t *testing.T) {
@@ -228,7 +228,7 @@ func TestConnectStandardAuthMiddleware_FailsOn_SessionExiredRevokedOrInvalid(t *
 	))
 
 	assert.Nil(t, res)
-	assert.EqualError(t, err, "rpc error: code = Unauthenticated desc = Session is expired, revoked or invalid")
+	assert.EqualError(t, err, "unauthenticated: Session is expired, revoked or invalid")
 }
 
 func TestConnectStandardAuthMiddleware_Success(t *testing.T) {
@@ -293,7 +293,7 @@ func TestConnectDeviceAuthMiddleware_FailsOn_NoDevicesScope(t *testing.T) {
 
 	_, _, err := f.interceptor.ConnectDeviceAuthMiddleware(context.Background(), []byte{}, ("test"))
 
-	assert.EqualError(t, err, "rpc error: code = Unauthenticated desc = Invalid token format: no devices scope")
+	assert.EqualError(t, err, "unauthenticated: Invalid token format: no devices scope")
 }
 
 func TestConnectDeviceAuthMiddleware_FailsOn_WrongType(t *testing.T) {
@@ -310,7 +310,7 @@ func TestConnectDeviceAuthMiddleware_FailsOn_WrongType(t *testing.T) {
 
 	_, _, err := f.interceptor.ConnectDeviceAuthMiddleware(context.Background(), []byte{}, ("test"))
 
-	assert.EqualError(t, err, "rpc error: code = Unauthenticated desc = Invalid token format: devices scope isn't a map")
+	assert.EqualError(t, err, "unauthenticated: Invalid token format: devices scope isn't a map")
 }
 
 func TestConnectDeviceAuthMiddleware_FailsOn_WrongValueType(t *testing.T) {
@@ -329,7 +329,7 @@ func TestConnectDeviceAuthMiddleware_FailsOn_WrongValueType(t *testing.T) {
 
 	_, _, err := f.interceptor.ConnectDeviceAuthMiddleware(context.Background(), []byte{}, ("test"))
 
-	assert.EqualError(t, err, "rpc error: code = Unauthenticated desc = Invalid token format: element invalid is not a number")
+	assert.EqualError(t, err, "unauthenticated: Invalid token format: element invalid is not a number")
 }
 
 func TestConnectDeviceAuthMiddleware_Success(t *testing.T) {

@@ -29,7 +29,7 @@ func NewSessionsController(log *zap.Logger, rdb *redis.Client) *SessionsControll
 	}
 }
 
-func (c *SessionsController) Get(ctx context.Context, req *connect.Request[node.EmptyMessage]) (*connect.Response[pb.Sessions], error) {
+func (c *SessionsController) Get(ctx context.Context, req *connect.Request[node.ListRequest]) (*connect.Response[pb.Sessions], error) {
 	log := c.log.Named("Get")
 	requestor := ctx.Value(inf.InfinimeshAccountCtxKey).(string)
 	sid := ctx.Value(inf.InfinimeshSessionCtxKey).(string)
@@ -49,8 +49,10 @@ func (c *SessionsController) Get(ctx context.Context, req *connect.Request[node.
 		}
 	}
 
+	page, next := cutPage(result, req.Msg.GetPageSize(), req.Msg.GetPageToken())
 	return connect.NewResponse(&pb.Sessions{
-		Sessions: result,
+		Sessions:      page,
+		NextPageToken: next,
 	}), nil
 }
 

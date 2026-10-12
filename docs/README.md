@@ -8,4 +8,4 @@ This folder contains the living, text-based docs for the platform. Start here:
 - [Device Authentication & MQTT](device-auth.md) — tokens vs certificates and MQTT examples.
 - [Device shadow](shadow.md) — state streams for a device token, an account, or one namespace.
 
-For API reference, see `api.swagger.json` and [github.com/infinimesh/proto](https://github.com/infinimesh/proto).
+For API reference, see `api.swagger.json`. That file is the copy from the pinned [github.com/infinimesh/proto](https://github.com/infinimesh/proto) module.

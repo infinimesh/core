@@ -17,11 +17,10 @@ package graph
 
 import (
 	"context"
+	"github.com/infinimesh/core/pkg/apierr"
 
 	"connectrpc.com/connect"
 	"github.com/arangodb/go-driver"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	"github.com/infinimesh/core/pkg/graph/schema"
 	inf "github.com/infinimesh/core/pkg/shared"
@@ -89,6 +88,10 @@ func NewNamespacesController(log *zap.Logger, db driver.Database) *NamespacesCon
 }
 
 func (c *NamespacesController) Create(ctx context.Context, req *connect.Request[nspb.Namespace]) (*connect.Response[nspb.Namespace], error) {
+	var cached nspb.Namespace
+	if loadIdem(req.Header(), "namespaces.create", &cached) {
+		return connect.NewResponse(&cached), nil
+	}
 	log := c.log.Named("Create")
 	request := req.Msg
 	log.Debug("Create request received", zap.Any("request", request), zap.Any("context", ctx))
@@ -97,7 +100,7 @@ func (c *NamespacesController) Create(ctx context.Context, req *connect.Request[
 	log.Debug("Requestor", zap.String("id", requestor))
 
 	if request.Title == "" {
-		return nil, status.Error(codes.InvalidArgument, "Title is required")
+		return nil, apierr.Code(connect.CodeInvalidArgument, "Title is required")
 	}
 
 	if request.Uuid != "" {
@@ -108,7 +111,7 @@ func (c *NamespacesController) Create(ctx context.Context, req *connect.Request[
 	meta, err := c.col.CreateDocument(ctx, namespace)
 	if err != nil {
 		log.Warn("Error creating namespace", zap.Error(err))
-		return nil, status.Error(codes.Internal, "Error while creating namespace")
+		return nil, apierr.Code(connect.CodeInternal, "Error while creating namespace")
 	}
 	namespace.Uuid = meta.ID.Key()
 	namespace.DocumentMeta = meta
@@ -121,10 +124,12 @@ func (c *NamespacesController) Create(ctx context.Context, req *connect.Request[
 	if err != nil {
 		log.Warn("Error creating edge", zap.Error(err))
 		c.col.RemoveDocument(ctx, namespace.Uuid)
-		return nil, status.Error(codes.Internal, "error creating Permission")
+		return nil, apierr.Code(connect.CodeInternal, "error creating Permission")
 	}
 
-	return connect.NewResponse(namespace.Namespace), nil
+	resp := connect.NewResponse(namespace.Namespace)
+	saveIdem(req.Header(), "namespaces.create", resp.Msg)
+	return resp, nil
 }
 
 func (c *NamespacesController) Get(ctx context.Context, ns *connect.Request[nspb.Namespace]) (res *connect.Response[nspb.Namespace], err error) {
@@ -141,10 +146,10 @@ func (c *NamespacesController) Get(ctx context.Context, ns *connect.Request[nspb
 	err = c.ica.AccessLevelAndGet(ctx, log, NewBlankAccountDocument(requestor), &result)
 	if err != nil {
 		log.Warn("Failed to get Namespace and access level", zap.Error(err))
-		return nil, status.Error(codes.NotFound, "Namespace not found or not enough Access Rights")
+		return nil, apierr.Code(connect.CodeNotFound, "Namespace not found or not enough Access Rights")
 	}
 	if result.Access.Level < access.Level_READ {
-		return nil, status.Error(codes.PermissionDenied, "Not enough Access Rights")
+		return nil, apierr.Code(connect.CodePermissionDenied, "Not enough Access Rights")
 	}
 
 	return connect.NewResponse(result.Namespace), nil
@@ -163,11 +168,11 @@ func (c *NamespacesController) Update(ctx context.Context, req *connect.Request[
 
 	if err != nil {
 		log.Warn("Can't get Namespaces from DB", zap.String("namespace", ns.Uuid), zap.Error(err))
-		return nil, status.Error(codes.Internal, "Can't get Namespaces from DB")
+		return nil, apierr.Code(connect.CodeInternal, "Can't get Namespaces from DB")
 	}
 
 	if curr.Access.Level < 3 {
-		return nil, status.Error(codes.PermissionDenied, "Not enough Access rights to Update this Namespace")
+		return nil, apierr.Code(connect.CodePermissionDenied, "Not enough Access rights to Update this Namespace")
 	}
 
 	changed := false
@@ -189,14 +194,14 @@ func (c *NamespacesController) Update(ctx context.Context, req *connect.Request[
 	if changed {
 		_, err := c.col.ReplaceDocument(ctx, curr.Uuid, curr)
 		if err != nil {
-			return nil, status.Errorf(codes.Internal, "Error while updating Namespace in DB: %v", err)
+			return nil, apierr.Codef(connect.CodeInternal, "Error while updating Namespace in DB: %v", err)
 		}
 	}
 
 	return connect.NewResponse(curr.Namespace), nil
 }
 
-func (c *NamespacesController) List(ctx context.Context, _ *connect.Request[pb.EmptyMessage]) (*connect.Response[nspb.Namespaces], error) {
+func (c *NamespacesController) List(ctx context.Context, req *connect.Request[pb.ListRequest]) (*connect.Response[nspb.Namespaces], error) {
 	log := c.log.Named("List")
 
 	requestor := ctx.Value(inf.InfinimeshAccountCtxKey).(string)
@@ -223,8 +228,10 @@ func (c *NamespacesController) List(ctx context.Context, _ *connect.Request[pb.E
 		r = append(r, &ns)
 	}
 
+	page, next := cutPage(r, req.Msg.GetPageSize(), req.Msg.GetPageToken())
 	return connect.NewResponse(&nspb.Namespaces{
-		Namespaces: r,
+		Namespaces:    page,
+		NextPageToken: next,
 	}), nil
 }
 
@@ -246,11 +253,11 @@ func (c *NamespacesController) Joins(ctx context.Context, req *connect.Request[n
 	err := c.ica.AccessLevelAndGet(ctx, log, NewBlankAccountDocument(requestor), &ns)
 	if err != nil {
 		log.Warn("Error getting Namespace and access level", zap.Error(err))
-		return nil, status.Error(codes.NotFound, "Namespace not found or not enough Access Rights")
+		return nil, apierr.Code(connect.CodeNotFound, "Namespace not found or not enough Access Rights")
 	}
 
 	if ns.Access.Level < access.Level_ADMIN {
-		return nil, status.Error(codes.PermissionDenied, "Not enough Access Rights")
+		return nil, apierr.Code(connect.CodePermissionDenied, "Not enough Access Rights")
 	}
 
 	cr, err := c.db.Query(ctx, listJoinsQuery, map[string]interface{}{
@@ -258,7 +265,7 @@ func (c *NamespacesController) Joins(ctx context.Context, req *connect.Request[n
 	})
 	if err != nil {
 		log.Warn("Error querying for joins", zap.Error(err))
-		return nil, status.Error(codes.Internal, "Error querying for joins")
+		return nil, apierr.Code(connect.CodeInternal, "Error querying for joins")
 	}
 	defer cr.Close()
 
@@ -270,7 +277,7 @@ func (c *NamespacesController) Joins(ctx context.Context, req *connect.Request[n
 			break
 		} else if err != nil {
 			log.Warn("Error unmarshalling Document", zap.Error(err))
-			return nil, status.Error(codes.Internal, "Couldn't execute query")
+			return nil, apierr.Code(connect.CodeInternal, "Couldn't execute query")
 		}
 		log.Debug("Got document", zap.Any("account", &acc))
 		r = append(r, &acc)
@@ -290,27 +297,27 @@ func (c *NamespacesController) Join(ctx context.Context, req *connect.Request[pb
 	err := c.ica.AccessLevelAndGet(ctx, log, NewBlankAccountDocument(requestor), &ns)
 	if err != nil {
 		log.Warn("Error getting Namespace and access level", zap.Error(err))
-		return nil, status.Error(codes.NotFound, "Namespace not found or not enough Access Rights")
+		return nil, apierr.Code(connect.CodeNotFound, "Namespace not found or not enough Access Rights")
 	}
 	if ns.Access.Role != access.Role_OWNER && ns.Access.Level < access.Level_ROOT {
-		return nil, status.Error(codes.PermissionDenied, "Not enough Access Rights")
+		return nil, apierr.Code(connect.CodePermissionDenied, "Not enough Access Rights")
 	}
 
 	acc := *NewBlankAccountDocument(request.GetAccount())
 	_, err = c.accs.ReadDocument(ctx, request.GetAccount(), &acc)
 	if err != nil {
 		log.Warn("Error getting Account", zap.Error(err))
-		return nil, status.Error(codes.NotFound, "Account not found")
+		return nil, apierr.Code(connect.CodeNotFound, "Account not found")
 	}
 
 	if request.Access > ns.Access.Level {
-		return nil, status.Error(codes.PermissionDenied, "Not enough Access Rights: can't grant higher access than current")
+		return nil, apierr.Code(connect.CodePermissionDenied, "Not enough Access Rights: can't grant higher access than current")
 	}
 
 	err = c.ica.Link(ctx, log, c.acc2ns, &acc, &ns, request.Access, access.Role_UNSET)
 	if err != nil {
 		log.Warn("Error creating edge", zap.Error(err))
-		return nil, status.Error(codes.Internal, "error creating Permission")
+		return nil, apierr.Code(connect.CodeInternal, "error creating Permission")
 	}
 
 	return c.Joins(ctx, connect.NewRequest(ns.Namespace))
@@ -327,16 +334,16 @@ func (c *NamespacesController) Deletables(ctx context.Context, request *connect.
 	err := c.ica.AccessLevelAndGet(ctx, log, NewBlankAccountDocument(requestor), &ns)
 	if err != nil {
 		log.Warn("Error getting Namespace and access level", zap.Error(err))
-		return nil, status.Error(codes.NotFound, "Namespace not found or not enough Access Rights")
+		return nil, apierr.Code(connect.CodeNotFound, "Namespace not found or not enough Access Rights")
 	}
 	if ns.Access.Role != access.Role_OWNER && ns.Access.Level < access.Level_ROOT {
-		return nil, status.Error(codes.PermissionDenied, "Not enough Access Rights")
+		return nil, apierr.Code(connect.CodePermissionDenied, "Not enough Access Rights")
 	}
 
 	nodes, err := c.ica.ListOwnedDeep(ctx, log, &ns)
 	if err != nil {
 		log.Warn("Error getting owned nodes", zap.Error(err))
-		return nil, status.Error(codes.Internal, "Error getting owned nodes")
+		return nil, apierr.Code(connect.CodeInternal, "Error getting owned nodes")
 	}
 
 	return connect.NewResponse(nodes), nil
@@ -353,16 +360,16 @@ func (c *NamespacesController) Delete(ctx context.Context, request *connect.Requ
 	err := c.ica.AccessLevelAndGet(ctx, log, NewBlankAccountDocument(requestor), &ns)
 	if err != nil {
 		log.Warn("Error getting Namespace and access level", zap.Error(err))
-		return nil, status.Error(codes.NotFound, "Namespace not found or not enough Access Rights")
+		return nil, apierr.Code(connect.CodeNotFound, "Namespace not found or not enough Access Rights")
 	}
 	if ns.Access.Role != access.Role_OWNER && ns.Access.Level < access.Level_ROOT {
-		return nil, status.Error(codes.PermissionDenied, "Not enough Access Rights")
+		return nil, apierr.Code(connect.CodePermissionDenied, "Not enough Access Rights")
 	}
 
 	err = c.ica.DeleteRecursive(ctx, log, &ns)
 	if err != nil {
 		log.Warn("Error deleting namespace", zap.Error(err))
-		return nil, status.Error(codes.Internal, "Error deleting namespace")
+		return nil, apierr.Code(connect.CodeInternal, "Error deleting namespace")
 	}
 
 	return connect.NewResponse(&pb.DeleteResponse{}), nil

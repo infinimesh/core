@@ -19,8 +19,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/infinimesh/core/pkg/apierr"
 	"strings"
 
+	"connectrpc.com/connect"
 	"github.com/arangodb/go-driver"
 	"github.com/go-redis/redis/v8"
 	"github.com/infinimesh/core/pkg/credentials"
@@ -30,8 +32,6 @@ import (
 	accpb "github.com/infinimesh/proto/node/accounts"
 	nspb "github.com/infinimesh/proto/node/namespaces"
 	"go.uber.org/zap"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 type Access struct {
@@ -156,14 +156,14 @@ func (r *infinimeshCommonActionsRepo) Move(ctx context.Context, c InfinimeshCont
 
 	err := r.AccessLevelAndGet(ctx, log, requestor, obj)
 	if err != nil {
-		return status.Error(codes.NotFound, "Object not found or not enough Access Rights")
+		return apierr.Code(connect.CodeNotFound, "Object not found or not enough Access Rights")
 	}
 	role := obj.GetAccess().Role
 	if role != access.Role_OWNER && obj.GetAccess().Level != access.Level_ROOT {
-		return status.Error(codes.PermissionDenied, "Must be Owner or Root to perform Move")
+		return apierr.Code(connect.CodePermissionDenied, "Must be Owner or Root to perform Move")
 	}
 	if obj.GetAccess().Namespace == nil {
-		return status.Error(codes.Internal, "Object is not under any Namespace, contact support")
+		return apierr.Code(connect.CodeInternal, "Object is not under any Namespace, contact support")
 	}
 
 	old_namespace := NewBlankNamespaceDocument(*obj.GetAccess().Namespace)
@@ -171,10 +171,10 @@ func (r *infinimeshCommonActionsRepo) Move(ctx context.Context, c InfinimeshCont
 	namespace := NewBlankNamespaceDocument(ns)
 	err = r.AccessLevelAndGet(ctx, log, requestor, namespace)
 	if err != nil {
-		return status.Error(codes.NotFound, "Namespace not found or not enough Access Rights")
+		return apierr.Code(connect.CodeNotFound, "Namespace not found or not enough Access Rights")
 	}
 	if namespace.GetAccess().Role != access.Role_OWNER && namespace.GetAccess().Level != access.Level_ROOT {
-		return status.Error(codes.PermissionDenied, "Must be Owner or Root to perform Move")
+		return apierr.Code(connect.CodePermissionDenied, "Must be Owner or Root to perform Move")
 	}
 
 	err = r.Link(ctx, log, edge, old_namespace, obj, access.Level_NONE, access.Role_UNSET)
@@ -183,7 +183,7 @@ func (r *infinimeshCommonActionsRepo) Move(ctx context.Context, c InfinimeshCont
 			zap.String("object", obj.ID().String()),
 			zap.String("namespace", old_namespace.Key),
 			zap.Error(err))
-		return status.Error(codes.Internal, "Couldn't unlink the object")
+		return apierr.Code(connect.CodeInternal, "Couldn't unlink the object")
 	}
 
 	err = r.Link(ctx, log, edge, namespace, obj, access.Level_ADMIN, role)
@@ -192,7 +192,7 @@ func (r *infinimeshCommonActionsRepo) Move(ctx context.Context, c InfinimeshCont
 			zap.String("object", obj.ID().String()),
 			zap.String("namespace", namespace.Key),
 			zap.Error(err))
-		return status.Error(codes.Internal, "Couldn't link the object, contact support")
+		return apierr.Code(connect.CodeInternal, "Couldn't link the object, contact support")
 	}
 
 	return nil

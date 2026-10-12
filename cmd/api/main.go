@@ -202,6 +202,7 @@ func main() {
 
 		devMod = graph.NewDevicesControllerModule(log, db, handsfree.NewHandsfreeServiceClient(conn))
 		devMod.SetSigningKey(SIGNING_KEY)
+		devMod.SetDenylist(auth.NewRedisDenylist(rdb))
 
 		path, handler := nodeconnect.NewDevicesServiceHandler(devMod.Handler(), interceptors)
 		router.PathPrefix(path).Handler(handler)
@@ -225,6 +226,7 @@ func main() {
 
 		path, handler := nodeconnect.NewShadowServiceHandler(api, interceptors)
 		router.PathPrefix(path).Handler(handler)
+		mountIngest(router, client, SIGNING_KEY)
 	}
 
 	if _, ok := services["plugins"]; ok {

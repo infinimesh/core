@@ -44,6 +44,7 @@ type ShadowServiceServer struct {
 
 	mu      sync.Mutex
 	catalog map[string]deviceMeta
+	events  []*pb.Shadow
 }
 
 func NewShadowServiceServer(log *zap.Logger, rdb redis.Cmdable, ps pubsub.PubSub) *ShadowServiceServer {
@@ -65,7 +66,7 @@ func (s *ShadowServiceServer) SetSequencer(ids sequencer) {
 
 func (s *ShadowServiceServer) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse, error) {
 	log := s.log.Named("get")
-	pool := req.GetPool()
+	pool := requestDevices(req)
 	log.Debug("Request received", zap.Strings("pool", pool))
 
 	keys := make([]string, len(pool)*3)
@@ -118,6 +119,7 @@ func (s *ShadowServiceServer) Patch(ctx context.Context, req *pb.Shadow) (*pb.Sh
 		return nil, status.Error(codes.InvalidArgument, "no device specified")
 	}
 
+	s.bumpVersions(ctx, req)
 	now := timestamppb.Now()
 	topics := []string{}
 	if req.Reported != nil {
@@ -245,6 +247,18 @@ func (s *ShadowServiceServer) StreamShadow(req *pb.StreamShadowRequest, srv pb.S
 		}
 	}
 
+	if req.GetResumeAfter() > 0 {
+		for _, ev := range s.since(req.GetResumeAfter()) {
+			if !eventInStream(devices, scope, ev) {
+				continue
+			}
+			if err := s.send(ctx, srv, req, ev, meta); err != nil {
+				log.Warn("Unable to send message", zap.Error(err))
+				return nil
+			}
+		}
+	}
+
 	if req.Sync && len(devices) > 0 {
 		pool := make([]string, 0, len(devices))
 		for id := range devices {
@@ -310,6 +324,9 @@ func (s *ShadowServiceServer) StreamShadow(req *pb.StreamShadowRequest, srv pb.S
 		if _, watching := devices[incoming.GetDevice()]; !watching {
 			continue
 		}
+		if req.GetResumeAfter() > 0 && incoming.GetSequence() > 0 && incoming.GetSequence() <= req.GetResumeAfter() {
+			continue
+		}
 		if err := s.send(ctx, srv, req, incoming, meta); err != nil {
 			log.Warn("Unable to send message", zap.Error(err))
 			return nil
@@ -331,7 +348,70 @@ func (s *ShadowServiceServer) send(ctx context.Context, srv pb.ShadowService_Str
 	if out.EventId == 0 && s.ids != nil {
 		out.EventId = s.ids.Next(ctx)
 	}
+	if out.Sequence == 0 {
+		out.Sequence = out.EventId
+	}
 	return srv.Send(out)
+}
+
+const eventLogCap = 256
+
+func (s *ShadowServiceServer) rememberEvent(sh *pb.Shadow) {
+	if sh == nil || sh.GetSequence() == 0 {
+		return
+	}
+	s.mu.Lock()
+	s.events = append(s.events, proto.Clone(sh).(*pb.Shadow))
+	if len(s.events) > eventLogCap {
+		s.events = s.events[len(s.events)-eventLogCap:]
+	}
+	s.mu.Unlock()
+}
+
+func (s *ShadowServiceServer) since(seq uint64) []*pb.Shadow {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make([]*pb.Shadow, 0, len(s.events))
+	for _, ev := range s.events {
+		if ev.GetSequence() > seq {
+			out = append(out, proto.Clone(ev).(*pb.Shadow))
+		}
+	}
+	return out
+}
+
+func eventInStream(devices map[string]struct{}, scope streamScope, ev *pb.Shadow) bool {
+	if ev == nil {
+		return false
+	}
+	if _, ok := devices[ev.GetDevice()]; ok {
+		return true
+	}
+	return scope.live() && scope.wants(ev)
+}
+
+func (s *ShadowServiceServer) bumpVersions(ctx context.Context, req *pb.Shadow) {
+	if req.GetReported() != nil {
+		req.Reported.Version = s.nextVersion(ctx, req.GetDevice(), pb.StateKey_REPORTED)
+	}
+	if req.GetDesired() != nil {
+		req.Desired.Version = s.nextVersion(ctx, req.GetDevice(), pb.StateKey_DESIRED)
+	}
+}
+
+func (s *ShadowServiceServer) nextVersion(ctx context.Context, device string, key pb.StateKey) uint64 {
+	if s.rdb == nil {
+		return 1
+	}
+	raw, err := s.rdb.Get(ctx, Key(device, key)).Result()
+	if err != nil {
+		return 1
+	}
+	var state pb.State
+	if json.Unmarshal([]byte(raw), &state) != nil {
+		return 1
+	}
+	return state.GetVersion() + 1
 }
 
 func (s *ShadowServiceServer) expand(ctx context.Context, patch *pb.Shadow) *pb.Shadow {

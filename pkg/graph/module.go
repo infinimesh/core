@@ -11,6 +11,7 @@ type DevicesControllerModule interface {
 	Handler() nodeconnect.DevicesServiceHandler
 	SetSigningKey([]byte)
 	SetScopePublisher(ScopePublisher)
+	SetDenylist(TokenDenylist)
 }
 
 type devicesControllerModule struct {
@@ -27,6 +28,10 @@ func (m *devicesControllerModule) SetSigningKey(key []byte) {
 
 func (m *devicesControllerModule) SetScopePublisher(p ScopePublisher) {
 	m.handler.SetScopePublisher(p)
+}
+
+func (m *devicesControllerModule) SetDenylist(d TokenDenylist) {
+	m.handler.SetDenylist(d)
 }
 
 func NewDevicesControllerModule(log *zap.Logger, db driver.Database,
