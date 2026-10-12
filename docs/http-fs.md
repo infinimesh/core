@@ -21,4 +21,4 @@ Files go to `HTTP_FS_ROOT` (default `/static`). Set `HTTP_FS_S3_ENDPOINT` to use
 
 `DB_HOST`, `DB_CRED`, and `INF_DEFAULT_ROOT_PASS` are the same ArangoDB settings as the API. The process listens on `HTTP_FS_ADDR` (default `:8000`) and serves metrics on `:2112`.
 
-A core tag `vX.Y.Z` or `vX.Y.Z-rN` publishes the image. `v3.4.0-rc.1` does not.
+A core tag `vX.Y.Z` or `vX.Y.Z-rN` publishes the image and `:latest`. A tag `vX.Y.Z-rc.N` publishes only that tag.

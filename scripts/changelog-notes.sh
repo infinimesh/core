@@ -3,7 +3,7 @@
 set -eu
 tag=${1:?tag}
 file=${2:?changelog}
-awk -v tag="$tag" '
+body=$(awk -v tag="$tag" '
   function is_heading(line, t) {
     if (line == "## " t) return 1
     prefix = "## [" t "]"
@@ -18,4 +18,9 @@ awk -v tag="$tag" '
   }
   found { print }
   END { if (!found) exit 1 }
-' "$file"
+' "$file")
+if printf '%s\n' "$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$'; then
+  printf '%s\n%s\n' "This release is for testing, not for production." "$body"
+  exit 0
+fi
+printf '%s\n' "$body"
