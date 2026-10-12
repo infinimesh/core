@@ -30,6 +30,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 )
@@ -52,10 +53,26 @@ func TestParseHandshakeTimeout(t *testing.T) {
 	if err != nil || got != time.Minute {
 		t.Fatalf("1m: %v %v", got, err)
 	}
-	for _, raw := range []string{"", "30", "0s", "-1s"} {
+	got, err = parseHandshakeTimeout("2m")
+	if err != nil || got != maxHandshakeTimeout {
+		t.Fatalf("2m: %v %v", got, err)
+	}
+	for _, raw := range []string{"", "30", "0s", "-1s", "2m1s", "3m"} {
 		if _, err := parseHandshakeTimeout(raw); err == nil {
 			t.Fatalf("%q accepted", raw)
 		}
+	}
+}
+
+func TestPlaintextIsOptIn(t *testing.T) {
+	if plaintextRequested("") || plaintextRequested("0") || plaintextRequested("false") {
+		t.Fatal("plaintext defaulted on")
+	}
+	if !plaintextRequested("1") || !plaintextRequested("true") {
+		t.Fatal("plaintext opt-in rejected")
+	}
+	if !strings.Contains(plaintextWarning(), "1883 is plaintext") {
+		t.Fatal(plaintextWarning())
 	}
 }
 

@@ -27,6 +27,7 @@ cover.html
 !.env.example
 *.pem
 letsencrypt/
+hack/stunnel/psk-secrets.txt
 
 # binaries
 *.exe

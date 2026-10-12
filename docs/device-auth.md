@@ -10,7 +10,7 @@ A token from device `Get` is read-only and expires in 24 hours. A token from `Ge
 
 `POST /v1/ingest` accepts a JSON object as reported state. The bearer token must name exactly one device and be allowed to post. The body is at most 16 KB. `GET /v1/ingest/desired` returns the desired JSON.
 
-Port 1883 is not encrypted. Anyone who knows the fingerprint can log in. Use it for local tests.
+Port 1883 is not encrypted. The bridge listens on it only when `MQTT_PLAINTEXT=1`. The local Compose file sets that and prints a warning. The public overlays set `MQTT_PLAINTEXT=0`. Anyone who knows the fingerprint can log in. Use it for local tests.
 
 ## Certificate
 

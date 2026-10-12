@@ -15,6 +15,10 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+func coapPlaintextNotice(addr string) string {
+	return "CoAP " + addr + " is plaintext UDP with no DTLS. Keep it on a private network."
+}
+
 func main() {
 	viper.AutomaticEnv()
 	viper.SetDefault("COAP_ADDR", ":5683")
@@ -30,11 +34,12 @@ func main() {
 	if err != nil {
 		log.Fatal("pubsub", zap.Error(err))
 	}
-	pc, err := net.ListenPacket("udp", viper.GetString("COAP_ADDR"))
+	addr := viper.GetString("COAP_ADDR")
+	pc, err := net.ListenPacket("udp", addr)
 	if err != nil {
 		log.Fatal("udp", zap.Error(err))
 	}
-	log.Info("coap", zap.String("addr", viper.GetString("COAP_ADDR")))
+	log.Warn(coapPlaintextNotice(addr))
 	serve(pc, func(device string, body []byte) error {
 		return publishReported(ps, device, body)
 	})

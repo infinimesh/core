@@ -25,7 +25,7 @@ docker compose up -d
 
 Services and URLs:
 
-- Console UI: http://console.${BASE_DOMAIN}
+- Console UI: https://console.${BASE_DOMAIN}
 - API (gRPC/Connect/REST via Traefik): http://api.${BASE_DOMAIN}
 - Traefik dashboard: http://traefik.${BASE_DOMAIN}
 

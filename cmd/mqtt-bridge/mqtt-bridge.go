@@ -178,12 +178,14 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	tcp, err := net.Listen("tcp", ":1883")
-	if err != nil {
-		panic(err)
+	if plaintextRequested(viper.GetString("MQTT_PLAINTEXT")) {
+		log.Warn(plaintextWarning())
+		tcp, err := net.Listen("tcp", ":1883")
+		if err != nil {
+			panic(err)
+		}
+		go HandleTCPConnections(tcp)
 	}
-
-	go HandleTCPConnections(tcp)
 
 	{
 		log := log.Named("TLS")
