@@ -21,6 +21,15 @@
       "name": "ShadowService"
     },
     {
+      "name": "RulesService"
+    },
+    {
+      "name": "AuditService"
+    },
+    {
+      "name": "GrantsService"
+    },
+    {
       "name": "InternalService",
       "description": "not revenue"
     },
@@ -519,6 +528,254 @@
         ]
       }
     },
+    "/alarms": {
+      "get": {
+        "operationId": "RulesService_ListAlarms2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Alarms"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "device",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "enum": [
+              "RAISED",
+              "ACKED",
+              "CLEARED"
+            ],
+            "default": "RAISED"
+          },
+          {
+            "name": "anyState",
+            "description": "When true, state is ignored and every alarm is returned.",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "pageToken",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "RulesService"
+        ]
+      }
+    },
+    "/alarms/{rule}/{device}/ack": {
+      "post": {
+        "operationId": "RulesService_AckAlarm2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Alarm"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "rule",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "device",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/RulesServiceAckAlarmBody"
+            }
+          }
+        ],
+        "tags": [
+          "RulesService"
+        ]
+      }
+    },
+    "/alarms/{rule}/{device}/clear": {
+      "post": {
+        "operationId": "RulesService_ClearAlarm2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Alarm"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "rule",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "device",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/RulesServiceClearAlarmBody"
+            }
+          }
+        ],
+        "tags": [
+          "RulesService"
+        ]
+      }
+    },
+    "/audit": {
+      "get": {
+        "operationId": "AuditService_List2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1AuditRecords"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "device",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "account",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "pageToken",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AuditService"
+        ]
+      }
+    },
+    "/consents": {
+      "get": {
+        "operationId": "GrantsService_ListConsent2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Consents"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "account",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "pageToken",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GrantsService"
+        ]
+      }
+    },
     "/devices": {
       "get": {
         "operationId": "DevicesService_List2",
@@ -584,6 +841,38 @@
             "required": true,
             "schema": {
               "$ref": "#/definitions/nodeDevicesV1CreateRequest"
+            }
+          }
+        ],
+        "tags": [
+          "DevicesService"
+        ]
+      }
+    },
+    "/devices/claim-tokens": {
+      "post": {
+        "operationId": "DevicesService_IssueClaim2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ClaimIssueResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1ClaimIssueRequest"
             }
           }
         ],
@@ -808,6 +1097,38 @@
         ]
       }
     },
+    "/devices/states:patchMany": {
+      "post": {
+        "operationId": "ShadowService_PatchMany2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1PatchManyResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1PatchManyRequest"
+            }
+          }
+        ],
+        "tags": [
+          "ShadowService"
+        ]
+      }
+    },
     "/devices/token": {
       "post": {
         "operationId": "DevicesService_MakeDevicesToken2",
@@ -872,6 +1193,36 @@
         ]
       }
     },
+    "/devices/{device}/export": {
+      "get": {
+        "operationId": "AuditService_Export2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ExportResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "device",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AuditService"
+        ]
+      }
+    },
     "/devices/{uuid}": {
       "get": {
         "operationId": "DevicesService_Get2",
@@ -926,6 +1277,31 @@
             "required": false,
             "type": "string",
             "format": "byte"
+          },
+          {
+            "name": "certificate.rolloverFingerprint",
+            "description": "Previous fingerprint that stays valid until the next rotation.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "byte"
+          },
+          {
+            "name": "certificate.revoked",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "certificate.revokedFingerprints",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "byte"
+            },
+            "collectionFormat": "multi"
           },
           {
             "name": "tags",
@@ -986,6 +1362,27 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "quota.maxDevices",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "quota.deviceMessagesPerSecond",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "quota.namespaceMessagesPerSecond",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
           }
         ],
         "tags": [
@@ -1047,6 +1444,31 @@
             "format": "byte"
           },
           {
+            "name": "certificate.rolloverFingerprint",
+            "description": "Previous fingerprint that stays valid until the next rotation.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "byte"
+          },
+          {
+            "name": "certificate.revoked",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "certificate.revokedFingerprints",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "byte"
+            },
+            "collectionFormat": "multi"
+          },
+          {
             "name": "tags",
             "in": "query",
             "required": false,
@@ -1105,6 +1527,27 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "quota.maxDevices",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "quota.deviceMessagesPerSecond",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "quota.namespaceMessagesPerSecond",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
           }
         ],
         "tags": [
@@ -1140,6 +1583,82 @@
             "required": true,
             "schema": {
               "$ref": "#/definitions/v1DevicesServiceUpdateBody"
+            }
+          }
+        ],
+        "tags": [
+          "DevicesService"
+        ]
+      }
+    },
+    "/devices/{uuid}/certificate:revoke": {
+      "post": {
+        "operationId": "DevicesService_RevokeCertificate2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Device"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/DevicesServiceRevokeCertificateBody"
+            }
+          }
+        ],
+        "tags": [
+          "DevicesService"
+        ]
+      }
+    },
+    "/devices/{uuid}/certificate:rotate": {
+      "post": {
+        "operationId": "DevicesService_RotateCertificate2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Device"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/DevicesServiceRotateCertificateBody"
             }
           }
         ],
@@ -1221,6 +1740,188 @@
         ],
         "tags": [
           "DevicesService"
+        ]
+      }
+    },
+    "/devices:bulk": {
+      "post": {
+        "operationId": "DevicesService_BulkCreate2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1BulkCreateResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1BulkCreateRequest"
+            }
+          }
+        ],
+        "tags": [
+          "DevicesService"
+        ]
+      }
+    },
+    "/devices:claim": {
+      "post": {
+        "operationId": "DevicesService_Claim2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ClaimResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1ClaimRequest"
+            }
+          }
+        ],
+        "tags": [
+          "DevicesService"
+        ]
+      }
+    },
+    "/grants": {
+      "get": {
+        "operationId": "GrantsService_List2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Grants"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "node",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "account",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "pageToken",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GrantsService"
+        ]
+      },
+      "post": {
+        "operationId": "GrantsService_Create2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Grant"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "Grant is a time-limited access edge from one account to a device or namespace.",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1Grant"
+            }
+          }
+        ],
+        "tags": [
+          "GrantsService"
+        ]
+      }
+    },
+    "/grants/{id}/revoke": {
+      "post": {
+        "operationId": "GrantsService_Revoke2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Grant"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1GrantsServiceRevokeBody"
+            }
+          }
+        ],
+        "tags": [
+          "GrantsService"
         ]
       }
     },
@@ -1506,6 +2207,45 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "ota.enabled",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "ota.backendUrl",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ota.backend",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "quota.maxDevices",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "quota.deviceMessagesPerSecond",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "quota.namespaceMessagesPerSecond",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
           }
         ],
         "tags": [
@@ -1584,6 +2324,45 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "ota.enabled",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "ota.backendUrl",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ota.backend",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "quota.maxDevices",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "quota.deviceMessagesPerSecond",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "quota.namespaceMessagesPerSecond",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
           }
         ],
         "tags": [
@@ -1700,6 +2479,45 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "ota.enabled",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "ota.backendUrl",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ota.backend",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "quota.maxDevices",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "quota.deviceMessagesPerSecond",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "quota.namespaceMessagesPerSecond",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
           }
         ],
         "tags": [
@@ -1781,6 +2599,45 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "ota.enabled",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "ota.backendUrl",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ota.backend",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "quota.maxDevices",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "quota.deviceMessagesPerSecond",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "quota.namespaceMessagesPerSecond",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
           }
         ],
         "tags": [
@@ -2116,6 +2973,262 @@
         ],
         "tags": [
           "PluginsService"
+        ]
+      }
+    },
+    "/rules": {
+      "get": {
+        "operationId": "RulesService_List2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Rules"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "pageToken",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "RulesService"
+        ]
+      },
+      "post": {
+        "operationId": "RulesService_Create2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Rule"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "Rule is evaluated against each device shadow in its namespace.\nwhen and clear are CEL expressions. Names are reported, desired, connected, device, title, tags, and ns.",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1Rule"
+            }
+          }
+        ],
+        "tags": [
+          "RulesService"
+        ]
+      }
+    },
+    "/rules/{uuid}": {
+      "get": {
+        "operationId": "RulesService_Get2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Rule"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "when",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "clear",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "cooldown",
+            "description": "Shortest time between two raises of the same rule and device, for example 10m.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "repeat",
+            "description": "Fire the actions again this often while the alarm stays raised and unacked, for example 1h.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "onClear",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "RulesService"
+        ]
+      },
+      "delete": {
+        "operationId": "RulesService_Delete2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1DeleteResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "when",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "clear",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "cooldown",
+            "description": "Shortest time between two raises of the same rule and device, for example 10m.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "repeat",
+            "description": "Fire the actions again this often while the alarm stays raised and unacked, for example 1h.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "onClear",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "RulesService"
+        ]
+      },
+      "patch": {
+        "operationId": "RulesService_Update2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Rule"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1RulesServiceUpdateBody"
+            }
+          }
+        ],
+        "tags": [
+          "RulesService"
         ]
       }
     },
@@ -2747,6 +3860,254 @@
         ]
       }
     },
+    "/v1/alarms": {
+      "get": {
+        "operationId": "RulesService_ListAlarms",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Alarms"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "device",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "enum": [
+              "RAISED",
+              "ACKED",
+              "CLEARED"
+            ],
+            "default": "RAISED"
+          },
+          {
+            "name": "anyState",
+            "description": "When true, state is ignored and every alarm is returned.",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "pageToken",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "RulesService"
+        ]
+      }
+    },
+    "/v1/alarms/{rule}/{device}/ack": {
+      "post": {
+        "operationId": "RulesService_AckAlarm",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Alarm"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "rule",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "device",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/RulesServiceAckAlarmBody"
+            }
+          }
+        ],
+        "tags": [
+          "RulesService"
+        ]
+      }
+    },
+    "/v1/alarms/{rule}/{device}/clear": {
+      "post": {
+        "operationId": "RulesService_ClearAlarm",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Alarm"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "rule",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "device",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/RulesServiceClearAlarmBody"
+            }
+          }
+        ],
+        "tags": [
+          "RulesService"
+        ]
+      }
+    },
+    "/v1/audit": {
+      "get": {
+        "operationId": "AuditService_List",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1AuditRecords"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "device",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "account",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "pageToken",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AuditService"
+        ]
+      }
+    },
+    "/v1/consents": {
+      "get": {
+        "operationId": "GrantsService_ListConsent",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Consents"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "account",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "pageToken",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GrantsService"
+        ]
+      }
+    },
     "/v1/devices": {
       "get": {
         "operationId": "DevicesService_List",
@@ -2812,6 +4173,38 @@
             "required": true,
             "schema": {
               "$ref": "#/definitions/nodeDevicesV1CreateRequest"
+            }
+          }
+        ],
+        "tags": [
+          "DevicesService"
+        ]
+      }
+    },
+    "/v1/devices/claim-tokens": {
+      "post": {
+        "operationId": "DevicesService_IssueClaim",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ClaimIssueResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1ClaimIssueRequest"
             }
           }
         ],
@@ -2924,6 +4317,38 @@
         ]
       }
     },
+    "/v1/devices/states:patchMany": {
+      "post": {
+        "operationId": "ShadowService_PatchMany",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1PatchManyResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1PatchManyRequest"
+            }
+          }
+        ],
+        "tags": [
+          "ShadowService"
+        ]
+      }
+    },
     "/v1/devices/token": {
       "post": {
         "operationId": "DevicesService_MakeDevicesToken",
@@ -2985,6 +4410,36 @@
         ],
         "tags": [
           "DevicesService"
+        ]
+      }
+    },
+    "/v1/devices/{device}/export": {
+      "get": {
+        "operationId": "AuditService_Export",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ExportResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "device",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AuditService"
         ]
       }
     },
@@ -3168,6 +4623,31 @@
             "format": "byte"
           },
           {
+            "name": "certificate.rolloverFingerprint",
+            "description": "Previous fingerprint that stays valid until the next rotation.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "byte"
+          },
+          {
+            "name": "certificate.revoked",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "certificate.revokedFingerprints",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "byte"
+            },
+            "collectionFormat": "multi"
+          },
+          {
             "name": "tags",
             "in": "query",
             "required": false,
@@ -3226,6 +4706,27 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "quota.maxDevices",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "quota.deviceMessagesPerSecond",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "quota.namespaceMessagesPerSecond",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
           }
         ],
         "tags": [
@@ -3287,6 +4788,31 @@
             "format": "byte"
           },
           {
+            "name": "certificate.rolloverFingerprint",
+            "description": "Previous fingerprint that stays valid until the next rotation.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "byte"
+          },
+          {
+            "name": "certificate.revoked",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "certificate.revokedFingerprints",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "byte"
+            },
+            "collectionFormat": "multi"
+          },
+          {
             "name": "tags",
             "in": "query",
             "required": false,
@@ -3345,6 +4871,27 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "quota.maxDevices",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "quota.deviceMessagesPerSecond",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "quota.namespaceMessagesPerSecond",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
           }
         ],
         "tags": [
@@ -3380,6 +4927,82 @@
             "required": true,
             "schema": {
               "$ref": "#/definitions/v1DevicesServiceUpdateBody"
+            }
+          }
+        ],
+        "tags": [
+          "DevicesService"
+        ]
+      }
+    },
+    "/v1/devices/{uuid}/certificate:revoke": {
+      "post": {
+        "operationId": "DevicesService_RevokeCertificate",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Device"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/DevicesServiceRevokeCertificateBody"
+            }
+          }
+        ],
+        "tags": [
+          "DevicesService"
+        ]
+      }
+    },
+    "/v1/devices/{uuid}/certificate:rotate": {
+      "post": {
+        "operationId": "DevicesService_RotateCertificate",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Device"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/DevicesServiceRotateCertificateBody"
             }
           }
         ],
@@ -3461,6 +5084,188 @@
         ],
         "tags": [
           "DevicesService"
+        ]
+      }
+    },
+    "/v1/devices:bulk": {
+      "post": {
+        "operationId": "DevicesService_BulkCreate",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1BulkCreateResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1BulkCreateRequest"
+            }
+          }
+        ],
+        "tags": [
+          "DevicesService"
+        ]
+      }
+    },
+    "/v1/devices:claim": {
+      "post": {
+        "operationId": "DevicesService_Claim",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ClaimResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1ClaimRequest"
+            }
+          }
+        ],
+        "tags": [
+          "DevicesService"
+        ]
+      }
+    },
+    "/v1/grants": {
+      "get": {
+        "operationId": "GrantsService_List",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Grants"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "node",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "account",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "pageToken",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GrantsService"
+        ]
+      },
+      "post": {
+        "operationId": "GrantsService_Create",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Grant"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "Grant is a time-limited access edge from one account to a device or namespace.",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1Grant"
+            }
+          }
+        ],
+        "tags": [
+          "GrantsService"
+        ]
+      }
+    },
+    "/v1/grants/{id}/revoke": {
+      "post": {
+        "operationId": "GrantsService_Revoke",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Grant"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1GrantsServiceRevokeBody"
+            }
+          }
+        ],
+        "tags": [
+          "GrantsService"
         ]
       }
     },
@@ -3746,6 +5551,45 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "ota.enabled",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "ota.backendUrl",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ota.backend",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "quota.maxDevices",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "quota.deviceMessagesPerSecond",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "quota.namespaceMessagesPerSecond",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
           }
         ],
         "tags": [
@@ -3824,6 +5668,45 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "ota.enabled",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "ota.backendUrl",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ota.backend",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "quota.maxDevices",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "quota.deviceMessagesPerSecond",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "quota.namespaceMessagesPerSecond",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
           }
         ],
         "tags": [
@@ -3940,6 +5823,45 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "ota.enabled",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "ota.backendUrl",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ota.backend",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "quota.maxDevices",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "quota.deviceMessagesPerSecond",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "quota.namespaceMessagesPerSecond",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
           }
         ],
         "tags": [
@@ -4021,6 +5943,45 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "ota.enabled",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "ota.backendUrl",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ota.backend",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "quota.maxDevices",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "quota.deviceMessagesPerSecond",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "quota.namespaceMessagesPerSecond",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
           }
         ],
         "tags": [
@@ -4440,6 +6401,262 @@
         ]
       }
     },
+    "/v1/rules": {
+      "get": {
+        "operationId": "RulesService_List",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Rules"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "pageToken",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "RulesService"
+        ]
+      },
+      "post": {
+        "operationId": "RulesService_Create",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Rule"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "Rule is evaluated against each device shadow in its namespace.\nwhen and clear are CEL expressions. Names are reported, desired, connected, device, title, tags, and ns.",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1Rule"
+            }
+          }
+        ],
+        "tags": [
+          "RulesService"
+        ]
+      }
+    },
+    "/v1/rules/{uuid}": {
+      "get": {
+        "operationId": "RulesService_Get",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Rule"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "when",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "clear",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "cooldown",
+            "description": "Shortest time between two raises of the same rule and device, for example 10m.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "repeat",
+            "description": "Fire the actions again this often while the alarm stays raised and unacked, for example 1h.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "onClear",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "RulesService"
+        ]
+      },
+      "delete": {
+        "operationId": "RulesService_Delete",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1DeleteResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "when",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "clear",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "cooldown",
+            "description": "Shortest time between two raises of the same rule and device, for example 10m.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "repeat",
+            "description": "Fire the actions again this often while the alarm stays raised and unacked, for example 1h.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "onClear",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "RulesService"
+        ]
+      },
+      "patch": {
+        "operationId": "RulesService_Update",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Rule"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1RulesServiceUpdateBody"
+            }
+          }
+        ],
+        "tags": [
+          "RulesService"
+        ]
+      }
+    },
     "/v1/sessions": {
       "get": {
         "operationId": "SessionsService_Get",
@@ -4597,6 +6814,24 @@
         }
       }
     },
+    "DevicesServiceRevokeCertificateBody": {
+      "type": "object",
+      "properties": {
+        "fingerprint": {
+          "type": "string",
+          "format": "byte",
+          "description": "Empty revokes every fingerprint on the device."
+        }
+      }
+    },
+    "DevicesServiceRotateCertificateBody": {
+      "type": "object",
+      "properties": {
+        "certificate": {
+          "$ref": "#/definitions/v1Certificate"
+        }
+      }
+    },
     "DevicesServiceToggleBasicBody": {
       "type": "object",
       "properties": {
@@ -4626,6 +6861,10 @@
         },
         "config": {
           "type": "object"
+        },
+        "quota": {
+          "$ref": "#/definitions/v1Quota",
+          "description": "Filled on GetByFingerprint from the device's namespace. Not stored."
         }
       }
     },
@@ -4639,6 +6878,12 @@
           "$ref": "#/definitions/v1Level"
         }
       }
+    },
+    "RulesServiceAckAlarmBody": {
+      "type": "object"
+    },
+    "RulesServiceClearAlarmBody": {
+      "type": "object"
     },
     "ShadowServicePatchBody": {
       "type": "object",
@@ -4677,6 +6922,10 @@
         "sequence": {
           "type": "string",
           "format": "uint64"
+        },
+        "tag": {
+          "type": "string",
+          "description": "Tag that was added or removed when event is TAG_ADDED or TAG_REMOVED."
         }
       }
     },
@@ -4862,6 +7111,23 @@
         }
       }
     },
+    "v1Action": {
+      "type": "object",
+      "properties": {
+        "log": {
+          "$ref": "#/definitions/v1LogAction"
+        },
+        "webhook": {
+          "$ref": "#/definitions/v1WebhookAction"
+        },
+        "mqtt": {
+          "$ref": "#/definitions/v1MQTTAction"
+        },
+        "desired": {
+          "type": "object"
+        }
+      }
+    },
     "v1Activity": {
       "type": "object",
       "properties": {
@@ -4870,6 +7136,138 @@
           "additionalProperties": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      }
+    },
+    "v1Alarm": {
+      "type": "object",
+      "properties": {
+        "rule": {
+          "type": "string"
+        },
+        "device": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/definitions/v1AlarmState"
+        },
+        "raisedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "firedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ackedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "clearedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "count": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "namespace": {
+          "type": "string"
+        }
+      }
+    },
+    "v1AlarmState": {
+      "type": "string",
+      "enum": [
+        "RAISED",
+        "ACKED",
+        "CLEARED"
+      ],
+      "default": "RAISED"
+    },
+    "v1Alarms": {
+      "type": "object",
+      "properties": {
+        "alarms": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Alarm"
+          }
+        },
+        "nextPageToken": {
+          "type": "string"
+        }
+      }
+    },
+    "v1AuditRecord": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "account": {
+          "type": "string"
+        },
+        "device": {
+          "type": "string"
+        },
+        "tokenId": {
+          "type": "string",
+          "description": "jti of the token that performed the read, when the token has one."
+        },
+        "at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "action": {
+          "type": "string"
+        }
+      },
+      "description": "AuditRecord is one read of device state. The collection is append-only."
+    },
+    "v1AuditRecords": {
+      "type": "object",
+      "properties": {
+        "records": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1AuditRecord"
+          }
+        },
+        "nextPageToken": {
+          "type": "string"
+        }
+      }
+    },
+    "v1BulkCreateRequest": {
+      "type": "object",
+      "properties": {
+        "namespace": {
+          "type": "string"
+        },
+        "devices": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Device"
+          }
+        }
+      }
+    },
+    "v1BulkCreateResponse": {
+      "type": "object",
+      "properties": {
+        "devices": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Device"
           }
         }
       }
@@ -4886,6 +7284,65 @@
         "fingerprint": {
           "type": "string",
           "format": "byte"
+        },
+        "rolloverFingerprint": {
+          "type": "string",
+          "format": "byte",
+          "description": "Previous fingerprint that stays valid until the next rotation."
+        },
+        "revoked": {
+          "type": "boolean"
+        },
+        "revokedFingerprints": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "byte"
+          }
+        }
+      }
+    },
+    "v1ClaimIssueRequest": {
+      "type": "object",
+      "properties": {
+        "namespace": {
+          "type": "string"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "int64",
+          "description": "Unix seconds. The factory token stops working at this time."
+        }
+      }
+    },
+    "v1ClaimIssueResponse": {
+      "type": "object",
+      "properties": {
+        "token": {
+          "type": "string"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "v1ClaimRequest": {
+      "type": "object",
+      "properties": {
+        "token": {
+          "type": "string"
+        },
+        "device": {
+          "$ref": "#/definitions/v1Device"
+        }
+      }
+    },
+    "v1ClaimResponse": {
+      "type": "object",
+      "properties": {
+        "device": {
+          "$ref": "#/definitions/v1Device"
         }
       }
     },
@@ -4911,6 +7368,50 @@
           "format": "date-time"
         },
         "clientId": {
+          "type": "string"
+        }
+      }
+    },
+    "v1Consent": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "grantor": {
+          "type": "string"
+        },
+        "grantee": {
+          "type": "string"
+        },
+        "scope": {
+          "type": "string"
+        },
+        "at": {
+          "type": "string",
+          "format": "int64"
+        },
+        "revokedAt": {
+          "type": "string",
+          "format": "int64"
+        },
+        "grantId": {
+          "type": "string"
+        }
+      },
+      "description": "Consent records who granted access to whom, for what scope, and when it was revoked."
+    },
+    "v1Consents": {
+      "type": "object",
+      "properties": {
+        "consents": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Consent"
+          }
+        },
+        "nextPageToken": {
           "type": "string"
         }
       }
@@ -4982,6 +7483,10 @@
         },
         "config": {
           "type": "object"
+        },
+        "quota": {
+          "$ref": "#/definitions/v1Quota",
+          "description": "Filled on GetByFingerprint from the device's namespace. Not stored."
         }
       }
     },
@@ -5049,6 +7554,10 @@
         },
         "config": {
           "type": "object"
+        },
+        "quota": {
+          "$ref": "#/definitions/v1Quota",
+          "description": "Filled on GetByFingerprint from the device's namespace. Not stored."
         }
       }
     },
@@ -5081,6 +7590,10 @@
         },
         "config": {
           "type": "object"
+        },
+        "quota": {
+          "$ref": "#/definitions/v1Quota",
+          "description": "Filled on GetByFingerprint from the device's namespace. Not stored."
         }
       }
     },
@@ -5120,6 +7633,24 @@
         }
       }
     },
+    "v1ExportResponse": {
+      "type": "object",
+      "properties": {
+        "device": {
+          "$ref": "#/definitions/v1Device"
+        },
+        "shadow": {
+          "$ref": "#/definitions/v1Shadow"
+        },
+        "history": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "ExportResponse is the device registry entry, the current shadow, and references to stored history."
+    },
     "v1GetCredentialsResponse": {
       "type": "object",
       "properties": {
@@ -5144,6 +7675,84 @@
         }
       }
     },
+    "v1Grant": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "fromAccount": {
+          "type": "string"
+        },
+        "toAccount": {
+          "type": "string"
+        },
+        "node": {
+          "type": "string",
+          "description": "Device or namespace id."
+        },
+        "level": {
+          "$ref": "#/definitions/v1Level"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "int64",
+          "description": "Unix seconds. Required. Access stops at this time."
+        },
+        "scope": {
+          "type": "string"
+        },
+        "revoked": {
+          "type": "boolean"
+        }
+      },
+      "description": "Grant is a time-limited access edge from one account to a device or namespace."
+    },
+    "v1Grants": {
+      "type": "object",
+      "properties": {
+        "grants": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Grant"
+          }
+        },
+        "nextPageToken": {
+          "type": "string"
+        }
+      }
+    },
+    "v1GrantsServiceRevokeBody": {
+      "type": "object",
+      "properties": {
+        "fromAccount": {
+          "type": "string"
+        },
+        "toAccount": {
+          "type": "string"
+        },
+        "node": {
+          "type": "string",
+          "description": "Device or namespace id."
+        },
+        "level": {
+          "$ref": "#/definitions/v1Level"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "int64",
+          "description": "Unix seconds. Required. Access stops at this time."
+        },
+        "scope": {
+          "type": "string"
+        },
+        "revoked": {
+          "type": "boolean"
+        }
+      },
+      "description": "Grant is a time-limited access edge from one account to a device or namespace."
+    },
     "v1LDAPProviders": {
       "type": "object",
       "properties": {
@@ -5167,6 +7776,29 @@
       ],
       "default": "NONE"
     },
+    "v1LogAction": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "v1MQTTAction": {
+      "type": "object",
+      "properties": {
+        "topic": {
+          "type": "string"
+        },
+        "qos": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "retain": {
+          "type": "boolean"
+        }
+      }
+    },
     "v1Namespace": {
       "type": "object",
       "properties": {
@@ -5184,6 +7816,12 @@
         },
         "config": {
           "type": "object"
+        },
+        "ota": {
+          "$ref": "#/definitions/v1OTAConfig"
+        },
+        "quota": {
+          "$ref": "#/definitions/v1Quota"
         }
       }
     },
@@ -5216,6 +7854,12 @@
         },
         "config": {
           "type": "object"
+        },
+        "ota": {
+          "$ref": "#/definitions/v1OTAConfig"
+        },
+        "quota": {
+          "$ref": "#/definitions/v1Quota"
         }
       }
     },
@@ -5249,6 +7893,21 @@
         }
       }
     },
+    "v1OTAConfig": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "backendUrl": {
+          "type": "string"
+        },
+        "backend": {
+          "type": "string"
+        }
+      },
+      "description": "OTAConfig is read by the OTA addon. backend is hawkBit or mender."
+    },
     "v1PairingCreate": {
       "type": "object",
       "properties": {
@@ -5260,6 +7919,37 @@
           "items": {
             "type": "string"
           }
+        }
+      }
+    },
+    "v1PatchManyRequest": {
+      "type": "object",
+      "properties": {
+        "devices": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "desired": {
+          "$ref": "#/definitions/v1State",
+          "description": "Applied as desired state on every device."
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Resolved by the API to devices before the shadow process sees the call."
+        },
+        "tag": {
+          "type": "string"
+        }
+      }
+    },
+    "v1PatchManyResponse": {
+      "type": "object",
+      "properties": {
+        "updated": {
+          "type": "integer",
+          "format": "int32"
         }
       }
     },
@@ -5359,6 +8049,24 @@
         }
       }
     },
+    "v1Quota": {
+      "type": "object",
+      "properties": {
+        "maxDevices": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "deviceMessagesPerSecond": {
+          "type": "number",
+          "format": "double"
+        },
+        "namespaceMessagesPerSecond": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "description": "Quota limits a namespace. Zero means no limit."
+    },
     "v1RemoveRequest": {
       "type": "object",
       "properties": {
@@ -5392,6 +8100,96 @@
         "SHARED"
       ],
       "default": "UNSET"
+    },
+    "v1Rule": {
+      "type": "object",
+      "properties": {
+        "uuid": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "when": {
+          "type": "string"
+        },
+        "clear": {
+          "type": "string"
+        },
+        "cooldown": {
+          "type": "string",
+          "description": "Shortest time between two raises of the same rule and device, for example 10m."
+        },
+        "repeat": {
+          "type": "string",
+          "description": "Fire the actions again this often while the alarm stays raised and unacked, for example 1h."
+        },
+        "onClear": {
+          "type": "boolean"
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Action"
+          }
+        }
+      },
+      "description": "Rule is evaluated against each device shadow in its namespace.\nwhen and clear are CEL expressions. Names are reported, desired, connected, device, title, tags, and ns."
+    },
+    "v1Rules": {
+      "type": "object",
+      "properties": {
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Rule"
+          }
+        },
+        "nextPageToken": {
+          "type": "string"
+        }
+      }
+    },
+    "v1RulesServiceUpdateBody": {
+      "type": "object",
+      "properties": {
+        "namespace": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "when": {
+          "type": "string"
+        },
+        "clear": {
+          "type": "string"
+        },
+        "cooldown": {
+          "type": "string",
+          "description": "Shortest time between two raises of the same rule and device, for example 10m."
+        },
+        "repeat": {
+          "type": "string",
+          "description": "Fire the actions again this often while the alarm stays raised and unacked, for example 1h."
+        },
+        "onClear": {
+          "type": "boolean"
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Action"
+          }
+        }
+      },
+      "description": "Rule is evaluated against each device shadow in its namespace.\nwhen and clear are CEL expressions. Names are reported, desired, connected, device, title, tags, and ns."
     },
     "v1Session": {
       "type": "object",
@@ -5473,6 +8271,10 @@
         "sequence": {
           "type": "string",
           "format": "uint64"
+        },
+        "tag": {
+          "type": "string",
+          "description": "Tag that was added or removed when event is TAG_ADDED or TAG_REMOVED."
         }
       }
     },
@@ -5481,9 +8283,12 @@
       "enum": [
         "STATE",
         "DEVICE_ADDED",
-        "DEVICE_REMOVED"
+        "DEVICE_REMOVED",
+        "TAG_ADDED",
+        "TAG_REMOVED"
       ],
-      "default": "STATE"
+      "default": "STATE",
+      "description": " - TAG_ADDED: A tag was added. tag names it. tags is the full list after the change.\n - TAG_REMOVED: A tag was removed. tag names it. tags is the full list after the change."
     },
     "v1State": {
       "type": "object",
@@ -5499,7 +8304,8 @@
           "type": "string",
           "format": "uint64"
         }
-      }
+      },
+      "description": "State is one section of a device shadow.\ndata.ota, when set, is the over-the-air document:\nversion (string), url (string), sha256 (string).\nReported state also carries state (string), progress (number), and error (string)."
     },
     "v1StateKey": {
       "type": "string",
@@ -5542,6 +8348,17 @@
       "type": "object",
       "properties": {
         "token": {
+          "type": "string"
+        }
+      }
+    },
+    "v1WebhookAction": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string"
+        },
+        "secret": {
           "type": "string"
         }
       }
