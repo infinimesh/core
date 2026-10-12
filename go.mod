@@ -7,6 +7,7 @@ require (
 	connectrpc.com/connect v1.21.0
 	connectrpc.com/grpchealth v1.5.0
 	github.com/Pallinder/go-randomdata v1.2.0
+	github.com/alicebob/miniredis/v2 v2.40.0
 	github.com/arangodb/go-driver v1.6.9
 	github.com/cskr/pubsub v1.0.2
 	github.com/evanphx/json-patch v5.9.0+incompatible
@@ -85,6 +86,7 @@ require (
 	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/tinylib/msgp v1.3.0 // indirect
+	github.com/yuin/gopher-lua v1.1.1 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.46.0 // indirect
 	go.opentelemetry.io/otel/metric v1.46.0 // indirect

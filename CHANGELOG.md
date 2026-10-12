@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- The rules service watches every device in a namespace. A new rule is checked against current device state. A reading can raise an alarm, and that alarm can be acknowledged and cleared. A rule reads `reported.temp` for a value stored at `reported.data.temp`, and `reported.ota` for a value stored at `reported.data.ota`.
+
 ## [v3.4.0-rc.2] - 2026-10-12
 
 ### Fixed

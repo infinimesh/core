@@ -49,30 +49,7 @@ func main() {
 	actions.SetDesired(&desiredPatch{client: client})
 
 	ctx := context.Background()
-	running := map[string]context.CancelFunc{}
-	for {
-		names, err := namespaces(ctx, db)
-		if err != nil {
-			log.Warn("rules", zap.Error(err))
-		}
-		seen := map[string]bool{}
-		for _, ns := range names {
-			seen[ns] = true
-			if _, ok := running[ns]; ok {
-				continue
-			}
-			nsCtx, cancel := context.WithCancel(ctx)
-			running[ns] = cancel
-			go follow(nsCtx, log, db, rdb, client, actions, ns)
-		}
-		for ns, cancel := range running {
-			if !seen[ns] {
-				cancel()
-				delete(running, ns)
-			}
-		}
-		time.Sleep(15 * time.Second)
-	}
+	serve(ctx, log, dbSource{db: db, rdb: rdb}, client, actions)
 }
 
 func namespaces(ctx context.Context, db driver.Database) ([]string, error) {
@@ -93,49 +70,6 @@ func namespaces(ctx context.Context, db driver.Database) ([]string, error) {
 		}
 		if ns != "" {
 			out = append(out, ns)
-		}
-	}
-}
-
-func follow(ctx context.Context, log *zap.Logger, db driver.Database, rdb *redis.Client, client pb.ShadowServiceClient, actions *rules.Actions, ns string) {
-	store, _ := rules.OpenStore("")
-	for ctx.Err() == nil {
-		stream, err := client.StreamShadow(ctx, &pb.StreamShadowRequest{Namespace: ns})
-		if err != nil {
-			log.Warn("stream", zap.String("namespace", ns), zap.Error(err))
-			time.Sleep(2 * time.Second)
-			continue
-		}
-		for {
-			sh, err := stream.Recv()
-			if err != nil {
-				if ctx.Err() == nil {
-					log.Warn("stream closed", zap.String("namespace", ns), zap.Error(err))
-				}
-				break
-			}
-			if sh.GetDevice() == "" {
-				continue
-			}
-			set, err := loadRules(ctx, db, ns)
-			if err != nil {
-				log.Warn("load rules", zap.Error(err))
-				continue
-			}
-			if len(set) == 0 {
-				continue
-			}
-			current, _ := loadAlarms(ctx, db, ns)
-			store.Replace(current)
-			eng, err := rules.NewEngine(set, store, actions)
-			if err != nil {
-				log.Warn("engine", zap.Error(err))
-				continue
-			}
-			rules.Apply(eng, sh)
-			if err := saveAlarms(ctx, db, rdb, ns, store.List()); err != nil {
-				log.Warn("save alarms", zap.Error(err))
-			}
 		}
 	}
 }
