@@ -13,7 +13,7 @@ jobs:
     name: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-go@v7
         with:
@@ -26,17 +26,20 @@ jobs:
       - name: Verify modules
         run: go mod verify
 
-      - name: gofmt
-        run: test -z "$(gofmt -l .)"
-
       - name: release scripts
         run: sh scripts/release_test.sh
+
+      - name: gofmt
+        run: make fmt-check
 
       - name: go vet
         run: go vet ./...
 
-      - name: go test
-        run: go test ./...
+      - name: race
+        run: make race
+
+      - name: fuzz
+        run: make test-fuzz
 
   console:
     name: console
@@ -45,7 +48,7 @@ jobs:
       run:
         working-directory: console
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v6
         with:
@@ -64,7 +67,7 @@ jobs:
     name: govulncheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-go@v7
         with:
