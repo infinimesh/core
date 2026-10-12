@@ -20,24 +20,44 @@ package main
 import (
 	"context"
 	"errors"
+	"slices"
 
 	"github.com/infinimesh/proto/node/access"
 
 	"connectrpc.com/connect"
 
 	"go.uber.org/zap"
+	"google.golang.org/grpc/status"
 
 	inf "github.com/infinimesh/core/pkg/shared"
 	pb "github.com/infinimesh/proto/node"
+	devpb "github.com/infinimesh/proto/node/devices"
+	nspb "github.com/infinimesh/proto/node/namespaces"
 	"github.com/infinimesh/proto/shadow"
 )
 
 // ShadowAPI data strcuture
+type scopeDevices interface {
+	List(context.Context, *connect.Request[pb.QueryRequest]) (*connect.Response[devpb.Devices], error)
+}
+
+type scopeNamespaces interface {
+	List(context.Context, *connect.Request[pb.EmptyMessage]) (*connect.Response[nspb.Namespaces], error)
+	Get(context.Context, *connect.Request[nspb.Namespace]) (*connect.Response[nspb.Namespace], error)
+}
+
 type ShadowAPI struct {
 	pb.UnimplementedShadowServiceServer
 
-	log    *zap.Logger
-	client shadow.ShadowServiceClient
+	log        *zap.Logger
+	client     shadow.ShadowServiceClient
+	devices    scopeDevices
+	namespaces scopeNamespaces
+}
+
+func (s *ShadowAPI) SetRegistry(devices scopeDevices, namespaces scopeNamespaces) {
+	s.devices = devices
+	s.namespaces = namespaces
 }
 
 func NewShadowAPI(log *zap.Logger, client shadow.ShadowServiceClient) *ShadowAPI {
@@ -116,24 +136,104 @@ func (s *ShadowAPI) Remove(ctx context.Context, request *connect.Request[shadow.
 }
 
 // StreamShadow is a method to get the stream for a device
+func (s *ShadowAPI) prepareStream(ctx context.Context, req *shadow.StreamShadowRequest) error {
+	if pool, ok := ctx.Value(inf.InfinimeshDevicesCtxKey).(map[string]access.Level); ok {
+		devices := make([]string, 0, len(pool))
+		for id := range pool {
+			devices = append(devices, id)
+		}
+		slices.Sort(devices)
+		req.Devices = devices
+		req.Namespace = ""
+		req.Namespaces = nil
+		req.Account = ""
+		req.Catalog = nil
+		return nil
+	}
+
+	account, _ := ctx.Value(inf.InfinimeshAccountCtxKey).(string)
+	if account == "" {
+		return connect.NewError(connect.CodeUnauthenticated, errors.New("requested device is outside of token scope or not allowed to post"))
+	}
+	if s.devices == nil || s.namespaces == nil {
+		return connect.NewError(connect.CodeUnavailable, errors.New("device registry is not available"))
+	}
+
+	ns := req.GetNamespace()
+	var namespaces []string
+	if ns != "" {
+		if _, err := s.namespaces.Get(ctx, connect.NewRequest(&nspb.Namespace{Uuid: ns})); err != nil {
+			return asConnect(err)
+		}
+		namespaces = []string{ns}
+	} else {
+		listed, err := s.namespaces.List(ctx, connect.NewRequest(&pb.EmptyMessage{}))
+		if err != nil {
+			return asConnect(err)
+		}
+		for _, item := range listed.Msg.GetNamespaces() {
+			if id := item.GetUuid(); id != "" {
+				namespaces = append(namespaces, id)
+			}
+		}
+		slices.Sort(namespaces)
+	}
+
+	listed, err := s.devices.List(ctx, connect.NewRequest(&pb.QueryRequest{Namespace: ns}))
+	if err != nil {
+		return asConnect(err)
+	}
+	byID := map[string]*devpb.Device{}
+	for _, dev := range listed.Msg.GetDevices() {
+		if dev.GetUuid() != "" {
+			byID[dev.GetUuid()] = dev
+		}
+	}
+	ids := make([]string, 0, len(byID))
+	for id := range byID {
+		ids = append(ids, id)
+	}
+	slices.Sort(ids)
+	catalog := make([]*shadow.DeviceMeta, 0, len(ids))
+	for _, id := range ids {
+		dev := byID[id]
+		namespace := ns
+		if namespace == "" {
+			namespace = dev.GetAccess().GetNamespace()
+		}
+		catalog = append(catalog, &shadow.DeviceMeta{
+			Device:    id,
+			Title:     dev.GetTitle(),
+			Namespace: namespace,
+			Tags:      append([]string(nil), dev.GetTags()...),
+		})
+	}
+	req.Account = account
+	req.Namespace = ns
+	req.Namespaces = namespaces
+	req.Devices = ids
+	req.Catalog = catalog
+	return nil
+}
+
+func asConnect(err error) error {
+	if err == nil {
+		return nil
+	}
+	if st, ok := status.FromError(err); ok {
+		return connect.NewError(connect.Code(st.Code()), errors.New(st.Message()))
+	}
+	return err
+}
+
 func (s *ShadowAPI) StreamShadow(ctx context.Context, request *connect.Request[shadow.StreamShadowRequest], srv *connect.ServerStream[shadow.Shadow]) (err error) {
 	log := s.log.Named("StreamReportedStateChanges")
 	req := request.Msg
-
-	devices_scope, ok := ctx.Value(inf.InfinimeshDevicesCtxKey).(map[string]access.Level)
-	if !ok {
-		return connect.NewError(connect.CodeUnauthenticated, errors.New("requested device is outside of token scope or not allowed to post"))
-	}
-	log.Debug("Scope", zap.Any("devices", devices_scope))
-
-	var pool []string
-	for device := range devices_scope {
-		pool = append(pool, device)
+	if err = s.prepareStream(ctx, req); err != nil {
+		return err
 	}
 
-	req.Devices = pool
-
-	log.Debug("Stream API Method: Streaming started", zap.Strings("devices", pool))
+	log.Debug("Stream API Method: Streaming started", zap.Strings("devices", req.GetDevices()))
 
 	c, err := s.client.StreamShadow(ctx, req)
 	if err != nil {

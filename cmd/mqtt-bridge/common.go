@@ -81,7 +81,7 @@ func HandleConn(c net.Conn, connectPacket *packet.Connect, meta connectMeta, dev
 			log.Warn("Failed to handle Publish", zap.Error(err))
 			return false
 		}
-		ps.TryPub(&pb.Shadow{
+		reported := &pb.Shadow{
 			Device: device.Uuid,
 			Reported: &pb.State{
 				Timestamp: timestamppb.Now(),
@@ -91,7 +91,9 @@ func HandleConn(c net.Conn, connectPacket *packet.Connect, meta connectMeta, dev
 				Connected: true,
 				Timestamp: timestamppb.Now(),
 			},
-		}, "mqtt.incoming")
+		}
+		copyDeviceMeta(reported, device)
+		ps.TryPub(reported, "mqtt.incoming")
 		return true
 	}
 
@@ -112,14 +114,16 @@ func HandleConn(c net.Conn, connectPacket *packet.Connect, meta connectMeta, dev
 			return storeReported(payload)
 		},
 		connected: func(up bool) {
-			ps.TryPub(&pb.Shadow{
+			sh := &pb.Shadow{
 				Device: device.Uuid,
 				Connection: &pb.ConnectionState{
 					Connected: up,
 					Timestamp: timestamppb.Now(),
 					ClientId:  connectPacket.ClientID,
 				},
-			}, "mqtt.incoming")
+			}
+			copyDeviceMeta(sh, device)
+			ps.TryPub(sh, "mqtt.incoming")
 		},
 		subscribed: func(send func([]byte, packet.Properties)) {
 			if back == nil {
@@ -128,13 +132,15 @@ func HandleConn(c net.Conn, connectPacket *packet.Connect, meta connectMeta, dev
 			ps.AddSub(back, "mqtt.outgoing/"+device.Uuid)
 			forward.Do(func() {
 				go handleBackChannel(log, back, send, func() {
-					ps.TryPub(&pb.Shadow{
+					sh := &pb.Shadow{
 						Device: device.Uuid,
 						Connection: &pb.ConnectionState{
 							Connected: true,
 							Timestamp: timestamppb.Now(),
 						},
-					}, "mqtt.incoming")
+					}
+					copyDeviceMeta(sh, device)
+					ps.TryPub(sh, "mqtt.incoming")
 				})
 			})
 			go func() {
@@ -173,6 +179,16 @@ func HandleConn(c net.Conn, connectPacket *packet.Connect, meta connectMeta, dev
 	})
 	if back != nil {
 		unsub(ps, back)
+	}
+}
+
+func copyDeviceMeta(sh *pb.Shadow, device *devpb.Device) {
+	if sh == nil || device == nil {
+		return
+	}
+	sh.Title = device.GetTitle()
+	if tags := device.GetTags(); len(tags) > 0 {
+		sh.Tags = append([]string(nil), tags...)
 	}
 }
 

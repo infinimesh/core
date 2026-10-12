@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/infinimesh/core/pkg/pubsub"
+	shadowsvc "github.com/infinimesh/core/pkg/shadow"
 	pb "github.com/infinimesh/proto/shadow"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"go.uber.org/zap"
@@ -122,6 +123,9 @@ consume:
 			continue
 		}
 		log.Debug("Received message from RabbitMQ", zap.Any("shadow", &shadow))
+		if shadow.EventId == 0 && shadowsvc.Inbound != nil {
+			shadowsvc.Inbound(shadow)
+		}
 		ps.TryPub(shadow, topic, topic+"/"+shadow.Device)
 		msg.Ack(false)
 	}

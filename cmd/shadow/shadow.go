@@ -142,6 +142,8 @@ func main() {
 	}
 
 	srv := shadow.NewShadowServiceServer(log, rdb, ps)
+	srv.SetSequencer(shadow.NewRedisSequencer(rdb))
+	shadow.Inbound = srv.Accept
 
 	s := grpc.NewServer()
 	pb.RegisterShadowServiceServer(s, srv)

@@ -10,6 +10,7 @@ import (
 type DevicesControllerModule interface {
 	Handler() nodeconnect.DevicesServiceHandler
 	SetSigningKey([]byte)
+	SetScopePublisher(ScopePublisher)
 }
 
 type devicesControllerModule struct {
@@ -22,6 +23,10 @@ func (m *devicesControllerModule) Handler() nodeconnect.DevicesServiceHandler {
 
 func (m *devicesControllerModule) SetSigningKey(key []byte) {
 	m.handler.SIGNING_KEY = key
+}
+
+func (m *devicesControllerModule) SetScopePublisher(p ScopePublisher) {
+	m.handler.SetScopePublisher(p)
 }
 
 func NewDevicesControllerModule(log *zap.Logger, db driver.Database,

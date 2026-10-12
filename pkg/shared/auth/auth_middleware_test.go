@@ -2,14 +2,18 @@ package auth
 
 import (
 	"context"
+	"net/http"
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 
 	infinimesh "github.com/infinimesh/core/pkg/shared"
+	"github.com/infinimesh/proto/node/access"
+	"github.com/infinimesh/proto/node/nodeconnect"
 	sesspb "github.com/infinimesh/proto/node/sessions"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -88,6 +92,96 @@ func TestConnectStandardAuthMiddleware_NoSessionFlag(t *testing.T) {
 	assert.NoError(t, err)
 	assert.False(t, logActivity)
 	assert.False(t, sess.checked)
+}
+
+type countJWT struct {
+	claims jwt.MapClaims
+	n      int
+}
+
+func (c *countJWT) Parse(tokenString string, keyFunc jwt.Keyfunc, options ...jwt.ParserOption) (*jwt.Token, error) {
+	c.n++
+	return &jwt.Token{Valid: true, Claims: c.claims}, nil
+}
+
+type fakeStreamConn struct {
+	procedure string
+	header    http.Header
+}
+
+func (f fakeStreamConn) Spec() connect.Spec           { return connect.Spec{Procedure: f.procedure} }
+func (f fakeStreamConn) Peer() connect.Peer           { return connect.Peer{} }
+func (f fakeStreamConn) Receive(any) error            { return nil }
+func (f fakeStreamConn) RequestHeader() http.Header   { return f.header }
+func (f fakeStreamConn) Send(any) error               { return nil }
+func (f fakeStreamConn) ResponseHeader() http.Header  { return http.Header{} }
+func (f fakeStreamConn) ResponseTrailer() http.Header { return http.Header{} }
+
+func TestShadowStreamAuth(t *testing.T) {
+	deviceClaims := jwt.MapClaims{
+		infinimesh.INFINIMESH_DEVICES_CLAIM: map[string]any{"dev": float64(access.Level_READ)},
+	}
+	jwtDevices := &countJWT{claims: deviceClaims}
+	devices := &interceptor{log: zap.NewNop(), jwt: jwtDevices, signing_key: []byte("k")}
+	ctx, _, err := devices.ConnectShadowStreamMiddleware(context.Background(), []byte("k"), "tok")
+	assert.NoError(t, err)
+	assert.Equal(t, 2, jwtDevices.n)
+	pool := ctx.Value(infinimesh.InfinimeshDevicesCtxKey).(map[string]access.Level)
+	assert.Equal(t, access.Level_READ, pool["dev"])
+
+	accountClaims := jwt.MapClaims{
+		infinimesh.INFINIMESH_ACCOUNT_CLAIM:   "acc",
+		infinimesh.INFINIMESH_NOSESSION_CLAIM: true,
+	}
+	jwtAccount := &countJWT{claims: accountClaims}
+	accounts := &interceptor{log: zap.NewNop(), jwt: jwtAccount, signing_key: []byte("k"), sessions: &dummySessions{}}
+	ctx, activity, err := accounts.ConnectShadowStreamMiddleware(context.Background(), []byte("k"), "tok")
+	assert.NoError(t, err)
+	assert.False(t, activity)
+	assert.Equal(t, 2, jwtAccount.n)
+	assert.Equal(t, "acc", ctx.Value(infinimesh.InfinimeshAccountCtxKey))
+
+	sessionClaims := jwt.MapClaims{
+		infinimesh.INFINIMESH_ACCOUNT_CLAIM: "acc",
+		infinimesh.INFINIMESH_SESSION_CLAIM: "sid",
+		"exp":                               float64(time.Now().Add(time.Hour).Unix()),
+	}
+	jwtSession := &countJWT{claims: sessionClaims}
+	sess := &dummySessions{}
+	withSession := &interceptor{log: zap.NewNop(), jwt: jwtSession, signing_key: []byte("k"), sessions: sess}
+	_, activity, err = withSession.ConnectShadowStreamMiddleware(context.Background(), []byte("k"), "tok")
+	assert.NoError(t, err)
+	assert.True(t, activity)
+	assert.True(t, sess.checked)
+	assert.Equal(t, 2, jwtSession.n)
+
+	for _, procedure := range []string{
+		nodeconnect.ShadowServiceGetProcedure,
+		nodeconnect.ShadowServicePatchProcedure,
+		nodeconnect.ShadowServiceRemoveProcedure,
+	} {
+		mw := SelectMiddleware(accounts, procedure)
+		_, _, err = mw(context.Background(), []byte("k"), "tok")
+		assert.Error(t, err, procedure)
+	}
+
+	header := http.Header{"Authorization": []string{"Bearer tok"}}
+	err = devices.WrapStreamingHandler(func(ctx context.Context, _ connect.StreamingHandlerConn) error {
+		pool, _ := ctx.Value(infinimesh.InfinimeshDevicesCtxKey).(map[string]access.Level)
+		if pool["dev"] != access.Level_READ {
+			return assert.AnError
+		}
+		return nil
+	})(context.Background(), fakeStreamConn{procedure: nodeconnect.ShadowServiceStreamShadowProcedure, header: header})
+	assert.NoError(t, err)
+
+	err = accounts.WrapStreamingHandler(func(ctx context.Context, _ connect.StreamingHandlerConn) error {
+		if ctx.Value(infinimesh.InfinimeshAccountCtxKey) != "acc" {
+			return assert.AnError
+		}
+		return nil
+	})(context.Background(), fakeStreamConn{procedure: nodeconnect.ShadowServiceStreamShadowSyncProcedure, header: header})
+	assert.NoError(t, err)
 }
 
 func TestConnectStandardAuthMiddleware_SessionCheckFails(t *testing.T) {

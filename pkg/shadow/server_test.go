@@ -183,12 +183,13 @@ func TestPatch_Success(t *testing.T) {
 		},
 	}
 
-	f.mocks.ps.EXPECT().TryPub(request, "mqtt.incoming", "mqtt.outgoing").
+	f.mocks.ps.EXPECT().TryPub(request, "mqtt.incoming", "mqtt.incoming/"+request.Device, "mqtt.outgoing", "mqtt.outgoing/"+request.Device).
 		Return()
 
 	resp, err := f.service.Patch(f.data.ctx, request)
 
 	assert.NoError(t, err)
+	assert.NotZero(t, resp.EventId)
 	f.mocks.ps.AssertNumberOfCalls(t, "TryPub", 1)
 
 	assert.Equal(t, request.Device, resp.Device)
@@ -198,6 +199,16 @@ func TestPatch_Success(t *testing.T) {
 
 	assert.Equal(t, request.Desired.Data, resp.Desired.Data)
 	assert.NotNil(t, resp.Desired.Timestamp)
+}
+
+func TestPatch_ReportedPublishesDeviceTopic(t *testing.T) {
+	f := newShadowServiceServerFixture(t)
+	request := &pb.Shadow{Device: "dev-a", Reported: &pb.State{}}
+	f.mocks.ps.EXPECT().TryPub(request, "mqtt.incoming", "mqtt.incoming/dev-a").Return()
+
+	resp, err := f.service.Patch(f.data.ctx, request)
+	assert.NoError(t, err)
+	assert.NotZero(t, resp.EventId)
 }
 
 // Remove
@@ -340,7 +351,7 @@ func TestStreamShadow_Success_ServerClosed(t *testing.T) {
 			Device: f.data.uuid,
 		}
 		return true
-	}), "mqtt.incoming", "mqtt.outgoing").Return()
+	}), "mqtt.incoming/"+f.data.uuid, "mqtt.outgoing/"+f.data.uuid).Return()
 	f.mocks.ps.EXPECT().Unsub(mock.MatchedBy(func(ch chan interface{}) bool {
 		close(ch)
 		return true

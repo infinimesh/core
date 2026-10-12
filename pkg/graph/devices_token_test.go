@@ -19,8 +19,12 @@ import (
 )
 
 type fakeICA struct {
-	ok    bool
-	level access.Level
+	ok      bool
+	level   access.Level
+	moveErr error
+	access  *access.Access
+	title   string
+	tags    []string
 }
 
 func (f fakeICA) GetEdgeCol(ctx context.Context, name string) driver.Collection { return nil }
@@ -31,12 +35,25 @@ func (f fakeICA) Link(ctx context.Context, log *zap.Logger, edge driver.Collecti
 	return nil
 }
 func (f fakeICA) Move(ctx context.Context, c InfinimeshController, obj InfinimeshGraphNode, edge driver.Collection, ns string) error {
-	return nil
+	return f.moveErr
 }
 func (f fakeICA) AccessLevel(ctx context.Context, requestor InfinimeshGraphNode, node InfinimeshGraphNode) (bool, access.Level) {
 	return f.ok, f.level
 }
 func (f fakeICA) AccessLevelAndGet(ctx context.Context, log *zap.Logger, account *Account, node InfinimeshGraphNode) error {
+	dev, ok := node.(*Device)
+	if !ok {
+		return nil
+	}
+	if f.access != nil {
+		dev.Access = f.access
+	}
+	if f.title != "" {
+		dev.Title = f.title
+	}
+	if f.tags != nil {
+		dev.Tags = append([]string(nil), f.tags...)
+	}
 	return nil
 }
 func (f fakeICA) ListQuery(ctx context.Context, log *zap.Logger, from InfinimeshGraphNode, children string) (driver.Cursor, error) {

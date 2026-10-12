@@ -17,14 +17,17 @@ package shadow
 
 import (
 	"context"
-
 	"encoding/json"
+	"slices"
+	"sync"
 
 	redis "github.com/go-redis/redis/v8"
 	"github.com/infinimesh/core/pkg/pubsub"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pb "github.com/infinimesh/proto/shadow"
@@ -36,13 +39,27 @@ type ShadowServiceServer struct {
 	log *zap.Logger
 	rdb redis.Cmdable
 	ps  pubsub.PubSub
+
+	ids sequencer
+
+	mu      sync.Mutex
+	catalog map[string]deviceMeta
 }
 
 func NewShadowServiceServer(log *zap.Logger, rdb redis.Cmdable, ps pubsub.PubSub) *ShadowServiceServer {
-	return &ShadowServiceServer{
-		log: log.Named("shadow"),
-		rdb: rdb,
-		ps:  ps,
+	s := &ShadowServiceServer{
+		log:     log.Named("shadow"),
+		rdb:     rdb,
+		ps:      ps,
+		ids:     &atomicSeq{},
+		catalog: map[string]deviceMeta{},
+	}
+	return s
+}
+
+func (s *ShadowServiceServer) SetSequencer(ids sequencer) {
+	if ids != nil {
+		s.ids = ids
 	}
 }
 
@@ -105,13 +122,14 @@ func (s *ShadowServiceServer) Patch(ctx context.Context, req *pb.Shadow) (*pb.Sh
 	topics := []string{}
 	if req.Reported != nil {
 		req.Reported.Timestamp = now
-		topics = append(topics, "mqtt.incoming")
+		topics = append(topics, "mqtt.incoming", "mqtt.incoming/"+req.Device)
 	}
 	if req.Desired != nil {
 		req.Desired.Timestamp = now
-		topics = append(topics, "mqtt.outgoing")
+		topics = append(topics, "mqtt.outgoing", "mqtt.outgoing/"+req.Device)
 	}
 
+	s.stamp(ctx, req)
 	s.ps.TryPub(req, topics...)
 
 	return req, nil
@@ -163,53 +181,151 @@ func (s *ShadowServiceServer) Remove(ctx context.Context, req *pb.RemoveRequest)
 	return result, nil
 }
 
-func (s *ShadowServiceServer) StreamShadow(req *pb.StreamShadowRequest, srv pb.ShadowService_StreamShadowServer) (err error) {
+func (s *ShadowServiceServer) PublishDeviceScope(ctx context.Context, ev *pb.Shadow) (*emptypb.Empty, error) {
+	if ev.GetDevice() == "" {
+		return nil, status.Error(codes.InvalidArgument, "no device specified")
+	}
+	if ev.GetEvent() == pb.ShadowEvent_STATE {
+		return nil, status.Error(codes.InvalidArgument, "scope event required")
+	}
+	s.remember(ev)
+	s.stamp(ctx, ev)
+	s.ps.TryPub(ev, lifecycleTopic)
+	return &emptypb.Empty{}, nil
+}
+
+func (s *ShadowServiceServer) Accept(sh *pb.Shadow) {
+	if sh == nil {
+		return
+	}
+	s.stamp(context.Background(), sh)
+}
+
+func (s *ShadowServiceServer) StreamShadow(req *pb.StreamShadowRequest, srv pb.ShadowService_StreamShadowServer) error {
 	log := s.log.Named("stream")
 	log.Debug("Request received", zap.Any("req", req))
 
-	if len(req.GetDevices()) == 0 {
+	scope, meta, devices := scopeFromRequest(req)
+	if len(devices) == 0 && !scope.live() {
 		return status.Error(codes.InvalidArgument, "no devices specified")
 	}
-	devices := map[string]bool{}
-	for _, id := range req.GetDevices() {
-		devices[id] = true
+	for id, item := range meta {
+		s.remember(&pb.Shadow{
+			Device:    id,
+			Title:     item.title,
+			Namespace: item.namespace,
+			Tags:      item.tags,
+			Event:     pb.ShadowEvent_DEVICE_ADDED,
+		})
 	}
 
-	if req.Sync {
-		func() {
-			log.Debug("Sending current state")
-			r, err := s.Get(srv.Context(), &pb.GetRequest{
-				Pool: req.GetDevices(),
-			})
-			if err != nil {
-				log.Warn("Couldn't get current devices Shadow state", zap.Error(err))
-				return
+	ctx := srv.Context()
+	if scope.live() {
+		ids := make([]string, 0, len(devices))
+		for id := range devices {
+			ids = append(ids, id)
+		}
+		slices.Sort(ids)
+		for _, id := range ids {
+			item := meta[id]
+			ev := &pb.Shadow{
+				Device:    id,
+				Title:     item.title,
+				Namespace: item.namespace,
+				Tags:      item.tags,
+				Event:     pb.ShadowEvent_DEVICE_ADDED,
 			}
-			for _, s := range r.GetShadows() {
-				srv.Send(s)
+			if ev.Namespace == "" {
+				ev.Namespace = scope.namespace
 			}
-		}()
+			if err := s.send(ctx, srv, ev, meta); err != nil {
+				log.Warn("Unable to send message", zap.Error(err))
+				return nil
+			}
+		}
+	}
+
+	if req.Sync && len(devices) > 0 {
+		pool := make([]string, 0, len(devices))
+		for id := range devices {
+			pool = append(pool, id)
+		}
+		slices.Sort(pool)
+		r, err := s.Get(ctx, &pb.GetRequest{Pool: pool})
+		if err != nil {
+			log.Warn("Couldn't get current devices Shadow state", zap.Error(err))
+		} else {
+			for _, sh := range r.GetShadows() {
+				if err := s.send(ctx, srv, sh, meta); err != nil {
+					log.Warn("Unable to send message", zap.Error(err))
+				}
+			}
+		}
 	}
 
 	messages := make(chan interface{}, 10)
-	s.ps.AddSub(messages, "mqtt.incoming", "mqtt.outgoing")
+	topics := subscriptionTopics(devices, scope.live())
+	s.ps.AddSub(messages, topics...)
 	defer unsub(s.ps, messages)
 
 	log.Debug("Listening for messages")
 
 	for msg := range messages {
-		shadow := msg.(*pb.Shadow)
-		if _, ok := devices[shadow.GetDevice()]; !ok {
+		incoming, ok := msg.(*pb.Shadow)
+		if !ok || incoming == nil {
 			continue
 		}
-		err := srv.Send(shadow)
-		if err != nil {
+		if incoming.GetEvent() == pb.ShadowEvent_DEVICE_ADDED || incoming.GetEvent() == pb.ShadowEvent_DEVICE_REMOVED {
+			if !scope.wants(incoming) {
+				continue
+			}
+			id := incoming.GetDevice()
+			switch incoming.GetEvent() {
+			case pb.ShadowEvent_DEVICE_ADDED:
+				s.remember(incoming)
+				meta[id] = deviceMeta{title: incoming.GetTitle(), namespace: incoming.GetNamespace(), tags: append([]string(nil), incoming.GetTags()...)}
+				if _, exists := devices[id]; !exists {
+					devices[id] = struct{}{}
+					in, out := deviceTopics(id)
+					s.ps.AddSub(messages, in, out)
+				}
+			case pb.ShadowEvent_DEVICE_REMOVED:
+				if _, exists := devices[id]; !exists {
+					continue
+				}
+				delete(devices, id)
+				delete(meta, id)
+				if incoming.GetAccount() == "" {
+					s.remember(incoming)
+				}
+				in, out := deviceTopics(id)
+				go s.ps.Unsub(messages, in, out)
+			}
+			if err := s.send(ctx, srv, incoming, meta); err != nil {
+				log.Warn("Unable to send message", zap.Error(err))
+				return nil
+			}
+			continue
+		}
+		if _, watching := devices[incoming.GetDevice()]; !watching {
+			continue
+		}
+		if err := s.send(ctx, srv, incoming, meta); err != nil {
 			log.Warn("Unable to send message", zap.Error(err))
 			return nil
 		}
 	}
 
 	return nil
+}
+
+func (s *ShadowServiceServer) send(ctx context.Context, srv pb.ShadowService_StreamShadowServer, sh *pb.Shadow, meta map[string]deviceMeta) error {
+	out := proto.Clone(sh).(*pb.Shadow)
+	s.fill(out, meta)
+	if out.EventId == 0 && s.ids != nil {
+		out.EventId = s.ids.Next(ctx)
+	}
+	return srv.Send(out)
 }
 
 func unsub[T chan any](ps pubsub.PubSub, ch chan any) {
