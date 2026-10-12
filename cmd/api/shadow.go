@@ -27,6 +27,7 @@ import (
 	"connectrpc.com/connect"
 
 	"go.uber.org/zap"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/status"
 
 	"github.com/infinimesh/core/pkg/apierr"
@@ -244,6 +245,12 @@ func asConnect(err error) error {
 		return err
 	}
 	if st, ok := status.FromError(err); ok {
+		for _, detail := range st.Details() {
+			info, ok := detail.(*errdetails.ErrorInfo)
+			if ok && info.GetDomain() == apierr.Domain && info.GetReason() != "" {
+				return apierr.New(connect.Code(st.Code()), info.GetReason(), st.Message())
+			}
+		}
 		return apierr.Code(connect.Code(st.Code()), st.Message())
 	}
 	return err

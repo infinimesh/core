@@ -19,7 +19,7 @@ All notable changes to this project will be documented in this file.
 - Reported shadow writes require `post` or manage level. Desired writes require manage level.
 - List methods return one page. `page_size` defaults to 100 and is at most 500. `page_token` is an offset.
 - A shadow stream replays events after `resume_after`. Each event has `sequence`. Reported and desired state versions increment when that side is patched.
-- API errors are Connect errors with an `ErrorInfo` reason on domain `infinimesh.org`.
+- API errors are Connect errors with an `ErrorInfo` reason on domain `infinimesh.org`. Shadow process errors carry the same reason, and the API keeps it.
 - The gateway reads at most 1 MB from a request body and allows 120 requests a minute per client address. It proxies `/v1/ingest` to the API.
 - A GitHub release attaches `api.swagger.json`.
 - Plugin queues `plugin.<name>` are durable. Each message carries the device title, namespace, and tags. A queue of that name left from before this change has to be deleted before the shadow service declares it again.
