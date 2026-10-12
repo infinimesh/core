@@ -3,7 +3,7 @@
 #
 #   docker compose -f docker-compose.yaml -f docker-compose.public.yml up -d
 #
-# See docs/public-tls.md. Leave this file off for infinimesh.local.
+# See docs/public-tls.md. Leave this file off for the local 127.0.0.1.nip.io default.
 
 services:
   proxy:

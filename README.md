@@ -28,13 +28,18 @@ cp .env.example .env
 docker compose up -d
 ```
 
+Open http://console.127.0.0.1.nip.io
+
+It redirects to HTTPS with a local self-signed certificate, so accept the browser warning.
+
+Log in as `infinimesh` / `infinimesh`. Change the password right away.
+
 Images come from GHCR. Set `INFINIMESH_VERSION` in `.env` to pin a release.
 
-`BASE_DOMAIN` in `.env` is the root host for all services. The default is `infinimesh.local`. Set it to `127.0.0.1.nip.io` and you do not need to touch `/etc/hosts`. If you keep the default, add these names to `/etc/hosts`: `console`, `api`, `traefik` and `media`, each followed by `.infinimesh.local`.
+`BASE_DOMAIN` in `.env` is the root host for all services. The default, `127.0.0.1.nip.io`, resolves to your own machine, so it works locally with no `/etc/hosts` edits. For real use, set `BASE_DOMAIN` to your own domain (see [docs/public-tls.md](docs/public-tls.md)).
 
-Then open:
+Other services:
 
-- Console: `http://console.${BASE_DOMAIN}`
 - API (gRPC, Connect, REST): `http://api.${BASE_DOMAIN}`
 - Traefik dashboard: `http://traefik.${BASE_DOMAIN}`
 

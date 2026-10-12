@@ -8,7 +8,7 @@ import {
 } from "@/utils/access";
 
 export const baseURL = import.meta.env.DEV
-  ? "http://api.infinimesh.local" // jshint ignore:line
+  ? "http://api.127.0.0.1.nip.io" // jshint ignore:line
   : window.location.origin.replace("console.", "api.");
 
 export const useAppStore = defineStore("app", {

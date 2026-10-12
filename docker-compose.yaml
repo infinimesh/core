@@ -12,6 +12,7 @@ services:
   proxy:
     image: traefik:2.10.4
     labels:
+      - traefik.enable=true
       - traefik.http.routers.api.rule=Host(`traefik.${BASE_DOMAIN}`)
       - traefik.http.routers.api.entrypoints=https
       - traefik.http.routers.api.tls.certresolver=letsencrypt
@@ -32,6 +33,7 @@ services:
       - proxy
       - gateway
     labels:
+      - traefik.enable=true
       - traefik.http.routers.console.rule=Host(`console.${BASE_DOMAIN}`)
       - traefik.http.routers.console.entrypoints=https
       - traefik.http.routers.console.tls.certresolver=letsencrypt
@@ -44,6 +46,7 @@ services:
       - api
       - proxy
     labels:
+      - traefik.enable=true
       - traefik.http.routers.gateway.rule=Host(`api.${BASE_DOMAIN}`)
       - traefik.http.routers.gateway.entrypoints=https
       - traefik.http.routers.gateway.tls.certresolver=letsencrypt
@@ -94,6 +97,7 @@ services:
     image: "ghcr.io/infinimesh/core/api:${INFINIMESH_VERSION}"
     restart: always
     labels:
+      - traefik.enable=true
       - traefik.http.routers.api.rule=Host(`api.${BASE_DOMAIN}`)
       - traefik.http.routers.api.entrypoints=grpc
       - traefik.http.routers.api.service=api@docker
@@ -156,11 +160,14 @@ services:
     volumes:
       - data:/var/lib/arangodb3
 
-  # Comment this service and HTTP_FS on gateway to disable http-fs
+  # Optional. The http-fs image is not published on GHCR, so this service
+  # only starts with `docker compose --profile media up -d` once you have it.
   http-fs:
     image: ghcr.io/infinimesh/http-fs:latest
+    profiles: ["media"]
     restart: always
     labels:
+      - traefik.enable=true
       - traefik.http.routers.http-fs.rule=Host(`media.${BASE_DOMAIN}`)
       - traefik.http.routers.http-fs.entrypoints=https
       - traefik.http.routers.http-fs.tls.certresolver=letsencrypt
@@ -176,6 +183,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL}
       SIGNING_KEY: "${SIGNING_KEY}"
     labels:
+      - traefik.enable=true
       - traefik.http.routers.pairing.rule=Host(`api.${BASE_DOMAIN}`)&&PathPrefix("/infinimesh.handsfree.")
       - traefik.http.routers.pairing.entrypoints=grpc
       - traefik.http.services.pairing.loadbalancer.server.port=8000
