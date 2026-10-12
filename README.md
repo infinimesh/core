@@ -49,7 +49,7 @@ Default logins. Change them before you expose anything.
 - ArangoDB, inside the Compose network: user `root`, password `openSesame`
 - RabbitMQ, inside the Compose network: `infinimesh` / `infinimesh` (from `.env`)
 
-MQTT listens on 1883 (plain) and 8883 (TLS with `hack/server.crt` and `hack/server.key`).
+MQTT listens on 1883 (plain) and 8883 (TLS with `hack/server.crt` and `hack/server.key`). `hack/server-ec.crt` is a P-256 certificate with a subject alternative name for localhost. Small-device TLS is in [docs/guides/small-devices-tls.md](docs/guides/small-devices-tls.md).
 
 ## When not to use it
 
