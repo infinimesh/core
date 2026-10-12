@@ -107,6 +107,10 @@ grep -q "pnpm@9" "$console_df" || {
   echo "console image must install pnpm 9 to match the lockfile" >&2
   exit 1
 }
+grep -q 'COPY ./pkg/observe ./pkg/observe' "$console_df" || {
+  echo "console image must copy pkg/observe" >&2
+  exit 1
+}
 
 sh -n "$root/scripts/buf_lint_pin.sh"
 grep -q 'sh scripts/buf_lint_pin.sh' "$root/.github/workflows/go.yml" || {

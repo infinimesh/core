@@ -20,6 +20,7 @@ COPY go.mod go.sum ./
 RUN GOPROXY=https://proxy.golang.org,direct go mod download
 
 COPY ./cmd/console ./cmd/console
+COPY ./pkg/observe ./pkg/observe
 RUN CGO_ENABLED=0 go build -ldflags="-s -w" -buildvcs=false ./cmd/console
 RUN upx ./console
 
