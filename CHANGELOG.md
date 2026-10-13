@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [v3.4.0-rc.11] - 2026-10-13
 
 ### Fixed
 - `POST /v1/devices/token` returns 400 when a device access level is not `NONE`, `READ`, `MGMT`, `ADMIN`, or `ROOT`. `MANAGE` is not a level. An empty device list is not minted.
