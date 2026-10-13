@@ -93,10 +93,10 @@ go build -o inf .
 A short session against the local stack:
 
 ```bash
-API=http://api.${BASE_DOMAIN}:8000
+API=api.localhost:443
 
-# log in as the admin account
-inf login --api "$API" --username infinimesh --password infinimesh --insecure
+# log in as the admin account. The default Traefik certificate does not cover api.localhost.
+inf login --api "$API" --username infinimesh --password infinimesh --insecure-skip-verify
 
 # list namespaces and devices
 inf namespaces list

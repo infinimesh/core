@@ -779,6 +779,9 @@ func (c *DevicesController) MakeDevicesToken(ctx context.Context, _req *connect.
 		c.auditDevice(ctx, auditToken, "", requestor, jwtID(token_string))
 		return connect.NewResponse(&pb.TokenResponse{Token: token_string}), nil
 	}
+	if len(req.GetDevices()) == 0 {
+		return nil, apierr.Code(connect.CodeInvalidArgument, "a device token needs at least one device with access NONE, READ, MGMT, ADMIN, or ROOT")
+	}
 
 	for uuid := range req.GetDevices() {
 		ok, level := c.ica_repo.AccessLevel(ctx, &acc, NewBlankDeviceDocument(uuid))

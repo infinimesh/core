@@ -48,14 +48,14 @@ Change these for anything beyond local testing.
   ```bash
   go install github.com/infinimesh/inf-cli@main
   ```
-- Point the CLI at the local API (port defaults to 8000):
+- Point the CLI at `api.localhost:443`. The default Traefik certificate does not cover `api.localhost`, so skip verification:
   ```bash
-  inf login --api http://api.${BASE_DOMAIN}:8000 --username infinimesh --password infinimesh --insecure
-  inf namespaces create demo
-  inf namespaces use demo
-  inf devices create demo-sensor
-  inf devices token demo-sensor > demo-sensor.token
+  inf login --api api.localhost:443 --username infinimesh --password infinimesh --insecure-skip-verify
+  inf login --root --api api.localhost:443 --username infinimesh --password infinimesh --insecure-skip-verify
+  inf ns create --title demo --max-devices 10
+  inf --token "$ADDON" ota assign --device <device> --version 1.2.3
   ```
+  `--root` is the token for `inf plugins create` and `inf plugins delete`. `inf plugins create` prints the addon bearer once. Pass it with `--token`. Quotas are `--max-devices`, `--device-mps`, and `--namespace-mps` on `inf ns create` and `inf ns update`. Zero means unlimited.
 - Shadow/MQTT examples are in [device-auth.md](device-auth.md).
 
 ## Public domain

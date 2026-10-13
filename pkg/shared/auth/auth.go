@@ -317,11 +317,8 @@ func (i *interceptor) ConnectStandardAuthMiddleware(_ctx context.Context, signin
 		ctx = metadata.AppendToOutgoingContext(ctx, infinimesh.INFINIMESH_JTI_CLAIM, jti)
 	}
 
-	if root := token[infinimesh.INFINIMESH_ROOT_CLAIM]; root != nil {
-		r, ok := root.(bool)
-		if ok {
-			ctx = context.WithValue(ctx, infinimesh.InfinimeshRootCtxKey, r)
-		}
+	if root, ok := claimBool(token[infinimesh.INFINIMESH_ROOT_CLAIM]); ok {
+		ctx = context.WithValue(ctx, infinimesh.InfinimeshRootCtxKey, root)
 	}
 
 	return
@@ -421,6 +418,28 @@ func (i *interceptor) ConnectDeviceAuthMiddleware(_ctx context.Context, signingK
 	ctx = context.WithValue(ctx, infinimesh.InfinimeshDevicesCtxKey, pool)
 
 	return
+}
+
+func claimBool(v any) (bool, bool) {
+	switch t := v.(type) {
+	case bool:
+		return t, true
+	case string:
+		switch strings.ToLower(t) {
+		case "true", "1":
+			return true, true
+		case "false", "0":
+			return false, true
+		}
+	case float64:
+		if t == 1 {
+			return true, true
+		}
+		if t == 0 {
+			return false, true
+		}
+	}
+	return false, false
 }
 
 func connectValidateToken(jwth JWTHandler, signing_key []byte, tokenString string) (jwt.MapClaims, error) {

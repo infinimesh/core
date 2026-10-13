@@ -74,6 +74,18 @@ func TestConnectStandardAuthMiddleware_SessionOK(t *testing.T) {
 	assert.Equal(t, true, ctx.Value(infinimesh.InfinimeshRootCtxKey))
 }
 
+func TestConnectStandardAuthMiddleware_RootString(t *testing.T) {
+	claims := jwt.MapClaims{
+		infinimesh.INFINIMESH_ACCOUNT_CLAIM:   "acc",
+		infinimesh.INFINIMESH_NOSESSION_CLAIM: true,
+		infinimesh.INFINIMESH_ROOT_CLAIM:      "true",
+	}
+	interceptor := &interceptor{log: zap.NewNop(), jwt: stubJWT{claims: claims}, sessions: &dummySessions{}, signing_key: []byte("k")}
+	ctx, _, err := interceptor.ConnectStandardAuthMiddleware(context.Background(), []byte("k"), "stub-token")
+	assert.NoError(t, err)
+	assert.Equal(t, true, ctx.Value(infinimesh.InfinimeshRootCtxKey))
+}
+
 func TestConnectStandardAuthMiddleware_NoSessionFlag(t *testing.T) {
 	claims := jwt.MapClaims{
 		infinimesh.INFINIMESH_ACCOUNT_CLAIM:   "acc",

@@ -87,6 +87,17 @@ func (a *auditCapture) Record(_ context.Context, action, device, account, tokenI
 	a.rows = append(a.rows, auditRow{action, device, account, tokenID})
 }
 
+func TestMakeDevicesToken_EmptyDevices(t *testing.T) {
+	ctrl := &DevicesController{
+		InfinimeshBaseController: InfinimeshBaseController{log: zap.NewNop()},
+		SIGNING_KEY:              []byte("secret"),
+	}
+	ctx := context.WithValue(context.Background(), inf.InfinimeshAccountCtxKey, schema.ROOT_ACCOUNT_KEY)
+	_, err := ctrl.MakeDevicesToken(ctx, connect.NewRequest(&pb.DevicesTokenRequest{}))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "at least one device")
+}
+
 func TestMakeDevicesToken_Success(t *testing.T) {
 	ctrl := &DevicesController{
 		InfinimeshBaseController: InfinimeshBaseController{

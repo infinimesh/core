@@ -1,6 +1,9 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -63,8 +66,62 @@ func wrapGateway(next http.Handler, apiHost string, secure bool) http.Handler {
 			proxy.ServeHTTP(w, r)
 			return
 		}
+		if r.Method == http.MethodPost && (r.URL.Path == "/v1/devices/token" || r.URL.Path == "/devices/token") {
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			r.Body = io.NopCloser(bytes.NewReader(body))
+			if msg := invalidDeviceToken(body); msg != "" {
+				http.Error(w, msg, http.StatusBadRequest)
+				return
+			}
+		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func invalidDeviceToken(body []byte) string {
+	if len(bytes.TrimSpace(body)) == 0 {
+		return ""
+	}
+	var raw struct {
+		Stream  bool                       `json:"stream"`
+		Devices map[string]json.RawMessage `json:"devices"`
+	}
+	if json.Unmarshal(body, &raw) != nil {
+		return ""
+	}
+	if raw.Stream {
+		return ""
+	}
+	if len(raw.Devices) == 0 {
+		return "a device token needs at least one device with access NONE, READ, MGMT, ADMIN, or ROOT"
+	}
+	for id, level := range raw.Devices {
+		if !validAccessLevel(level) {
+			return "access level for " + id + " must be NONE, READ, MGMT, ADMIN, or ROOT"
+		}
+	}
+	return ""
+}
+
+func validAccessLevel(raw json.RawMessage) bool {
+	var name string
+	if json.Unmarshal(raw, &name) == nil {
+		switch name {
+		case "NONE", "READ", "MGMT", "ADMIN", "ROOT":
+			return true
+		default:
+			return false
+		}
+	}
+	var n float64
+	if json.Unmarshal(raw, &n) == nil && n == float64(int(n)) && n >= 0 && n <= 4 {
+		return true
+	}
+	return false
 }
 
 func clientIP(r *http.Request) string {

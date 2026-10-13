@@ -41,6 +41,10 @@ var (
 		Name: "shadow_streams",
 		Help: "Open shadow streams.",
 	})
+	Up = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "infinimesh_up",
+		Help: "1 while this process is serving /metrics.",
+	})
 )
 
 // Start serves /metrics and, when OTEL_EXPORTER_OTLP_ENDPOINT is set, exports traces.
@@ -54,6 +58,7 @@ func Listen(addr string) {
 	if addr == "" {
 		addr = ":2112"
 	}
+	Up.Set(1)
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
 	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 5 * time.Second}

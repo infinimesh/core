@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,6 +26,33 @@ func TestGatewayRateLimit(t *testing.T) {
 	h.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusTooManyRequests, rr.Code)
 	assert.Equal(t, gatewayRatePerIP, hits)
+}
+
+func TestDeviceTokenRejectsManage(t *testing.T) {
+	var hits int
+	next := http.HandlerFunc(func(http.ResponseWriter, *http.Request) { hits++ })
+	h := wrapGateway(next, "api:8000", false)
+	req := httptest.NewRequest(http.MethodPost, "/v1/devices/token", strings.NewReader(`{"devices":{"dev-1":"MANAGE"}}`))
+	req.RemoteAddr = "10.1.1.1:9"
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Contains(t, rr.Body.String(), "MGMT")
+	assert.Equal(t, 0, hits)
+
+	req = httptest.NewRequest(http.MethodPost, "/v1/devices/token", strings.NewReader(`{"devices":{"dev-1":2}}`))
+	req.RemoteAddr = "10.1.1.1:9"
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, 1, hits)
+
+	req = httptest.NewRequest(http.MethodPost, "/v1/devices/token", strings.NewReader(`{"devices":{}}`))
+	req.RemoteAddr = "10.1.1.1:9"
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+	assert.Equal(t, 1, hits)
 }
 
 func TestClientIPUsesForwardedFor(t *testing.T) {
