@@ -77,23 +77,20 @@
     </n-collapse-item>
 
     <n-collapse-item title="OTA" name="ota">
-      <n-grid v-if="ota" responsive="screen">
-        <n-grid-item :span="8">Version</n-grid-item>
-        <n-grid-item :span="16">{{ ota.version }}</n-grid-item>
-        <n-grid-item :span="8">URL</n-grid-item>
-        <n-grid-item :span="16">{{ ota.url }}</n-grid-item>
-        <n-grid-item :span="8">SHA256</n-grid-item>
-        <n-grid-item :span="16">{{ ota.sha256 }}</n-grid-item>
-        <n-grid-item :span="8">Size</n-grid-item>
-        <n-grid-item :span="16">{{ ota.size }}</n-grid-item>
+      <n-grid responsive="screen">
+        <n-grid-item :span="8">Target</n-grid-item>
+        <n-grid-item :span="16">{{ desiredOta.version || "—" }}</n-grid-item>
         <n-grid-item :span="8">Status</n-grid-item>
-        <n-grid-item :span="16">{{ ota.status }}</n-grid-item>
+        <n-grid-item :span="16">{{ reportedOta.status || "—" }}</n-grid-item>
+        <n-grid-item :span="8">Reported version</n-grid-item>
+        <n-grid-item :span="16">{{ reportedOta.version || "—" }}</n-grid-item>
+        <n-grid-item :span="8">URL</n-grid-item>
+        <n-grid-item :span="16">{{ reportedOta.url || "—" }}</n-grid-item>
         <n-grid-item :span="8">Error</n-grid-item>
-        <n-grid-item :span="16">{{ ota.error }}</n-grid-item>
+        <n-grid-item :span="16">{{ reportedOta.error || "—" }}</n-grid-item>
         <n-grid-item :span="8">Updated</n-grid-item>
-        <n-grid-item :span="16">{{ ota.updated_at }}</n-grid-item>
+        <n-grid-item :span="16">{{ reportedOta.updated_at || "—" }}</n-grid-item>
       </n-grid>
-      <n-text v-else depth="3">No reported OTA status.</n-text>
       <n-space style="margin-top: 8px">
         <n-input v-model:value="otaVersion" placeholder="Target version" />
         <n-button type="primary" :disabled="!otaVersion" @click="assignOTA">Assign</n-button>
@@ -125,12 +122,12 @@ import {
   NGrid,
   NGridItem,
   NSpace,
-  NText,
 } from "naive-ui";
 
 import { Shadow } from "infinimesh-proto/build/es/shadow/shadow_pb";
 import { Timestamp } from "@bufbuild/protobuf";
 import { useAppStore } from "@/store/app";
+import { otaRecord } from "@/ota";
 
 const CopyOutline = defineAsyncComponent(() => import("@vicons/ionicons5/CopyOutline"))
 
@@ -178,10 +175,8 @@ const reported = computed(() => {
   return state.reported;
 });
 
-const ota = computed(() => {
-  if (!reported.value || !reported.value.data) return null
-  return reported.value.data.ota || null
-})
+const reportedOta = computed(() => otaRecord(props.state, "reported") || {})
+const desiredOta = computed(() => otaRecord(props.state, "desired") || {})
 const otaVersion = ref("")
 const app = useAppStore()
 // The on/off switch is on the namespace page. It stays off until an OTA addon is registered.

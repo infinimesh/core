@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v3.4.0-rc.13] - 2026-10-13
+
+### Fixed
+- The console footer shows the version stamped at build time.
+- The namespace picker loads the full namespace list, including one just created.
+- Rules and alarms load when the page opens.
+- A device shows whether its namespace has OTA on, the desired target, and the reported status.
+- The theme toggle applies light, dark, or the system theme.
+
 ## [v3.4.0-rc.12] - 2026-10-13
 
 ## [v3.4.0-rc.11] - 2026-10-13

@@ -2,7 +2,7 @@
   <n-space justify="space-between" align="center">
     <n-spin size="small" v-show="loading" />
     <n-select v-model:value="selected" :options="options" :style="{ minWidth: '15vw' }" filterable />
-    <n-button type="primary" size="small" ghost circle @click="() => store.fetchNamespaces()">
+    <n-button type="primary" size="small" ghost circle @click="() => store.fetchNamespaces(true)">
       <template #icon>
         <n-icon>
           <refresh-outline />
@@ -44,8 +44,6 @@ watch(namespaces, () => {
 });
 
 onMounted(() => {
-  if (Object.keys(store.namespaces).length == 0) {
-    store.fetchNamespaces();
-  }
+  store.fetchNamespaces(true);
 })
 </script>

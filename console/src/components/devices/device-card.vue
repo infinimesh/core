@@ -48,7 +48,7 @@
             {{ tag }}
           </n-tag>
         </template>
-        <div>OTA {{ otaLabel }}</div>
+        <div>{{ otaLine }}</div>
         <n-space align="center" :style="{ visibility: hover ? '' : 'hidden', marginTop: '1rem' }">
           <edit-tags-modal :device="device" @save="handleUpdateTags" v-if="access_lvl_conv(device) > 1" />
           <move v-if="access_lvl_conv(device) >= 3" type="device" :obj="device" @move="handleMove" />
@@ -155,7 +155,7 @@ import { baseURL, useAppStore } from "@/store/app";
 import { usePluginsStore } from "@/store/plugins";
 
 import { access_lvl_conv } from "@/utils/access";
-import { otaStatusLabel } from "@/ota";
+import { deviceOTALine } from "@/ota";
 import { storeToRefs } from "pinia";
 import { PluginKind } from "infinimesh-proto/build/es/plugins/plugins_pb";
 
@@ -199,7 +199,12 @@ const subscribed = computed(() => {
 });
 
 const state = computed(() => store.device_state(device.value.uuid))
-const otaLabel = computed(() => otaStatusLabel(state.value))
+const nss = useNSStore()
+const otaLine = computed(() => {
+  const id = device.value.access && device.value.access.namespace
+  const ns = id && nss.namespaces[id]
+  return deviceOTALine(ns && ns.ota, state.value)
+})
 
 const bulb_color = computed(() => {
   if (device.value.enabled === null) return "gray";
@@ -366,8 +371,6 @@ async function handleMove(ns, resolve, reject) {
     reject(e)
   }
 }
-
-const nss = useNSStore()
 
 const hover = ref(false)
 </script>

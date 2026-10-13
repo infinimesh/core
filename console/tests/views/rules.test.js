@@ -60,6 +60,14 @@ vi.mock("@/store/rules", () => ({
 }))
 
 describe("Rules page", () => {
+  test("loads rules and alarms without a refresh click", async () => {
+    selected.value = "ns-1"
+    calls.length = 0
+    mount(Rules, { global: { plugins: [createPinia()] } })
+    await flushPromises()
+    expect(calls.map((call) => call.method)).toEqual(expect.arrayContaining(["list", "listAlarms"]))
+  })
+
   test("starts on the header namespace", async () => {
     selected.value = "ns-1"
     const wrapper = mount(Rules, {

@@ -4,7 +4,7 @@ import path from "path";
 import svgLoader from "vite-svg-loader";
 
 // https://vitejs.dev/config/
-export default defineConfig(({ command }) => {
+export default defineConfig(() => {
   let conf = {
     plugins: [vue(), svgLoader()],
     resolve: {
@@ -14,19 +14,12 @@ export default defineConfig(({ command }) => {
     },
     define: {
       STATE_MAX_ROWS: "10",
+      "import.meta.env.VITE_INFINIMESH_VERSION_TAG": JSON.stringify(process.env.INFINIMESH_VERSION_TAG || "development"),
     },
     build: {
       chunkSizeWarningLimit: 2000,
     },
   };
-
-  if (command == "build") {
-    conf.define.INFINIMESH_VERSION_TAG = `'${process.env.INFINIMESH_VERSION_TAG}'`;
-    if (!process.env.INFINIMESH_VERSION_TAG)
-      conf.define.INFINIMESH_VERSION_TAG = "development";
-
-    console.log(`Using version tag: ${conf.define.INFINIMESH_VERSION_TAG}`);
-  }
 
   return conf;
 });

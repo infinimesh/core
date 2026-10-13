@@ -1,5 +1,5 @@
 <template>
-  <n-dropdown :options="options" trigger="hover" @select="v => pick = v">
+  <n-dropdown :options="options" trigger="hover" @select="choose">
     <n-button type="primary" size="large" ghost circle><template #icon>
         <n-icon :component="icons[theme]" />
       </template></n-button>
@@ -7,12 +7,13 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, defineAsyncComponent } from "vue"
+import { watch, onMounted, defineAsyncComponent } from "vue"
 import { NDropdown, NButton, NIcon, useOsTheme } from 'naive-ui';
 import { storeToRefs } from 'pinia';
 import { useAppStore } from "@/store/app"
 
 import { renderIcon } from "@/utils";
+import { resolveTheme } from "@/theme";
 
 const MoonOutline = defineAsyncComponent(() => import("@vicons/ionicons5/MoonOutline"))
 const SunnyOutline = defineAsyncComponent(() => import("@vicons/ionicons5/SunnyOutline"))
@@ -41,10 +42,15 @@ const options = [{
 
 const osThemeRef = useOsTheme();
 
-function setTheme(val) {
-  theme.value = val === "system" ? osThemeRef.value : pick.value
+function applyTheme(value) {
+  theme.value = resolveTheme(value, osThemeRef.value)
 }
 
-watch(pick, setTheme)
-onMounted(() => setTheme(pick.value))
+function choose(value) {
+  pick.value = value
+}
+
+watch(pick, applyTheme)
+watch(osThemeRef, () => applyTheme(pick.value))
+onMounted(() => applyTheme(pick.value))
 </script>
