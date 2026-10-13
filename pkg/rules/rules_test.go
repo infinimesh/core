@@ -17,26 +17,26 @@ func TestStepCooldownAndAck(t *testing.T) {
 	}
 	rule := &Rule{Name: "hot", Cooldown: duration(10 * time.Minute)}
 	now := time.Date(2026, 10, 12, 8, 0, 0, 0, time.UTC)
-	ev, err := store.Step(rule, "dev", "pump", true, true, false, true, now)
+	ev, err := store.Step(rule, "dev", true, true, false, true, now)
 	if err != nil || ev == nil || ev.Kind != "raised" {
 		t.Fatalf("raise: %v %v", ev, err)
 	}
-	ev, err = store.Step(rule, "dev", "pump", false, true, true, true, now.Add(time.Minute))
+	ev, err = store.Step(rule, "dev", false, true, true, true, now.Add(time.Minute))
 	if err != nil || ev == nil || ev.Kind != "cleared" {
 		t.Fatalf("clear: %v %v", ev, err)
 	}
-	ev, err = store.Step(rule, "dev", "pump", true, true, false, true, now.Add(2*time.Minute))
+	ev, err = store.Step(rule, "dev", true, true, false, true, now.Add(2*time.Minute))
 	if err != nil || ev != nil {
 		t.Fatalf("cooldown should hold, got %v %v", ev, err)
 	}
-	ev, err = store.Step(rule, "dev", "pump", true, true, false, true, now.Add(11*time.Minute))
+	ev, err = store.Step(rule, "dev", true, true, false, true, now.Add(11*time.Minute))
 	if err != nil || ev == nil || ev.Kind != "raised" || ev.Alarm.Count != 2 {
 		t.Fatalf("second raise: %v %v", ev, err)
 	}
 	if _, err := store.Ack("hot", "dev", now.Add(12*time.Minute)); err != nil {
 		t.Fatal(err)
 	}
-	ev, err = store.Step(rule, "dev", "pump", true, true, false, true, now.Add(time.Hour))
+	ev, err = store.Step(rule, "dev", true, true, false, true, now.Add(time.Hour))
 	if err != nil || ev != nil {
 		t.Fatalf("acked alarm must not repeat, got %v %v", ev, err)
 	}

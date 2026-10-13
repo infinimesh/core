@@ -8,6 +8,7 @@ import (
 
 	"github.com/arangodb/go-driver"
 	"github.com/go-redis/redis/v8"
+	"github.com/infinimesh/core/pkg/graph"
 	"github.com/infinimesh/core/pkg/graph/schema"
 	logger "github.com/infinimesh/core/pkg/log"
 	"github.com/infinimesh/core/pkg/observe"
@@ -19,7 +20,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/structpb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func main() {
@@ -110,21 +110,16 @@ func loadAlarms(ctx context.Context, db driver.Database, ns string) ([]*rules.Al
 	defer cr.Close()
 	var out []*rules.Alarm
 	for {
-		var a rpb.Alarm
-		_, err := cr.ReadDocument(ctx, &a)
+		var doc graph.StoredAlarm
+		_, err := cr.ReadDocument(ctx, &doc)
 		if driver.IsNoMoreDocuments(err) {
 			return out, nil
 		}
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, fromProtoAlarm(&a))
+		out = append(out, doc.Alarm())
 	}
-}
-
-type alarmDoc struct {
-	*rpb.Alarm
-	driver.DocumentMeta
 }
 
 func saveAlarms(ctx context.Context, db driver.Database, rdb *redis.Client, ns string, list []*rules.Alarm) error {
@@ -133,11 +128,10 @@ func saveAlarms(ctx context.Context, db driver.Database, rdb *redis.Client, ns s
 		return err
 	}
 	for _, a := range list {
-		doc := toProtoAlarm(a, ns)
-		key := a.Rule + "_" + a.Device
-		_, err := col.ReplaceDocument(ctx, key, doc)
+		doc := graph.AlarmDocument(a, ns)
+		_, err := col.ReplaceDocument(ctx, doc.Key, doc)
 		if err != nil {
-			_, err = col.CreateDocument(ctx, alarmDoc{Alarm: doc, DocumentMeta: driver.DocumentMeta{Key: key}})
+			_, err = col.CreateDocument(ctx, doc)
 		}
 		if err != nil {
 			return err
@@ -149,59 +143,37 @@ func saveAlarms(ctx context.Context, db driver.Database, rdb *redis.Client, ns s
 		if err := rdb.Set(ctx, fmt.Sprintf("rules:alarm:%s:%s:%s", ns, a.Rule, a.Device), raw, 0).Err(); err != nil {
 			return err
 		}
+		if a.Title != "" && a.Title != a.Rule {
+			_ = rdb.Del(ctx, fmt.Sprintf("rules:alarm:%s:%s:%s", ns, a.Title, a.Device)).Err()
+		}
 	}
-	return nil
+	return removeOtherAlarms(ctx, db, ns, list)
 }
 
-func fromProtoAlarm(a *rpb.Alarm) *rules.Alarm {
-	out := &rules.Alarm{Rule: a.GetRule(), Device: a.GetDevice(), Title: a.GetTitle(), Count: int(a.GetCount())}
-	switch a.GetState() {
-	case rpb.AlarmState_ACKED:
-		out.State = rules.Acked
-	case rpb.AlarmState_CLEARED:
-		out.State = rules.Cleared
-	default:
-		out.State = rules.Raised
+func removeOtherAlarms(ctx context.Context, db driver.Database, ns string, list []*rules.Alarm) error {
+	rulesKept := make([]string, 0, len(list))
+	seen := map[string]struct{}{}
+	for _, a := range list {
+		if a == nil || a.Rule == "" {
+			continue
+		}
+		if _, ok := seen[a.Rule]; ok {
+			continue
+		}
+		seen[a.Rule] = struct{}{}
+		rulesKept = append(rulesKept, a.Rule)
 	}
-	if t := a.GetRaisedAt(); t != nil {
-		out.RaisedAt = t.AsTime()
+	q := `FOR a IN @@col FILTER a.namespace == @ns REMOVE a IN @@col`
+	bind := map[string]interface{}{"@col": schema.ALARMS_COL, "ns": ns}
+	if len(rulesKept) > 0 {
+		q = `FOR a IN @@col FILTER a.namespace == @ns AND a.rule NOT IN @rules REMOVE a IN @@col`
+		bind["rules"] = rulesKept
 	}
-	if t := a.GetFiredAt(); t != nil {
-		out.FiredAt = t.AsTime()
+	cr, err := db.Query(ctx, q, bind)
+	if err != nil {
+		return err
 	}
-	if t := a.GetAckedAt(); t != nil {
-		out.AckedAt = t.AsTime()
-	}
-	if t := a.GetClearedAt(); t != nil {
-		out.ClearedAt = t.AsTime()
-	}
-	return out
-}
-
-func toProtoAlarm(a *rules.Alarm, ns string) *rpb.Alarm {
-	st := rpb.AlarmState_RAISED
-	switch a.State {
-	case rules.Acked:
-		st = rpb.AlarmState_ACKED
-	case rules.Cleared:
-		st = rpb.AlarmState_CLEARED
-	}
-	out := &rpb.Alarm{
-		Rule: a.Rule, Device: a.Device, Title: a.Title, State: st, Count: int32(a.Count), Namespace: ns,
-	}
-	if !a.RaisedAt.IsZero() {
-		out.RaisedAt = timestamppb.New(a.RaisedAt)
-	}
-	if !a.FiredAt.IsZero() {
-		out.FiredAt = timestamppb.New(a.FiredAt)
-	}
-	if !a.AckedAt.IsZero() {
-		out.AckedAt = timestamppb.New(a.AckedAt)
-	}
-	if !a.ClearedAt.IsZero() {
-		out.ClearedAt = timestamppb.New(a.ClearedAt)
-	}
-	return out
+	return cr.Close()
 }
 
 type desiredPatch struct {

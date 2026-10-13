@@ -228,10 +228,13 @@ func TestCreate_Success(t *testing.T) {
 		access.Level_ADMIN, access.Role_OWNER,
 	).Return(nil)
 
+	seen := &graphAudit{}
+	f.ctrl.SetAuditor(seen)
 	res, err := f.ctrl.Create(f.data.ctx, connect.NewRequest(&f.data.create_req))
 	assert.NoError(t, err)
 	assert.NotNil(t, res)
 	assert.Equal(t, f.data.dev_uuid, res.Msg.GetDevice().GetUuid())
+	assert.Equal(t, []graphAuditRow{{action: "create", device: f.data.dev_uuid, account: f.data.acc_uuid}}, seen.rows)
 }
 
 // Create with Handfree
@@ -467,9 +470,24 @@ func TestCreateHf_Success(t *testing.T) {
 
 	f.mocks.col.On("ReplaceDocument", f.data.ctx, mock.Anything, mock.Anything).Return(driver.DocumentMeta{}, nil)
 
+	seen := &graphAudit{}
+	f.ctrl.SetAuditor(seen)
 	res, err := f.ctrl.Create(f.data.ctx, connect.NewRequest(&f.data.create_hf_req))
 	assert.NoError(t, err)
 	assert.NotNil(t, res)
+	assert.Equal(t, []graphAuditRow{{action: "create", device: f.data.dev_uuid, account: f.data.acc_uuid}}, seen.rows)
+}
+
+type graphAuditRow struct {
+	action, device, account, tokenID string
+}
+
+type graphAudit struct {
+	rows []graphAuditRow
+}
+
+func (a *graphAudit) Record(_ context.Context, action, device, account, tokenID string) {
+	a.rows = append(a.rows, graphAuditRow{action, device, account, tokenID})
 }
 
 // Delete

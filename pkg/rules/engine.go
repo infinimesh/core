@@ -23,10 +23,11 @@ func NewEngine(rules []*Rule, store *Store, actions *Actions) (*Engine, error) {
 		if r == nil || r.Name == "" {
 			return nil, fmt.Errorf("rule name is required")
 		}
-		if seen[r.Name] {
+		id := r.alarmKey()
+		if seen[id] {
 			return nil, fmt.Errorf("rule %s: name used twice", r.Name)
 		}
-		seen[r.Name] = true
+		seen[id] = true
 		if r.when, err = compile(env, r.When); err != nil {
 			return nil, fmt.Errorf("rule %s: when: %w", r.Name, err)
 		}
@@ -66,7 +67,7 @@ func (e *Engine) Check(v Vars, shadow map[string]any) {
 		if r.clear != nil {
 			clear, clearOK = eval(r.clear, v)
 		}
-		ev, err := e.store.Step(r, v.Device, v.Title, when, whenOK, clear, clearOK, now)
+		ev, err := e.store.Step(r, v.Device, when, whenOK, clear, clearOK, now)
 		if err != nil || ev == nil || (ev.Kind == "cleared" && !r.OnClear) {
 			continue
 		}

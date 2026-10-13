@@ -197,6 +197,18 @@ type memSource struct {
 	alarms []*rules.Alarm
 }
 
+func TestAlarmsForRulesDropsNameKey(t *testing.T) {
+	set := []*rules.Rule{{ID: "id-a", Name: "hot"}, {ID: "id-b", Name: "hot"}}
+	kept := alarmsForRules(set, []*rules.Alarm{
+		{Rule: "hot", Device: "d1", State: rules.Raised},
+		{Rule: "id-a", Device: "d1", State: rules.Acked},
+		{Rule: "id-b", Device: "d2", State: rules.Raised},
+	})
+	if len(kept) != 2 || kept[0].Rule != "id-a" || kept[1].Rule != "id-b" {
+		t.Fatalf("%+v", kept)
+	}
+}
+
 func (m *memSource) setRules(rs ...*rules.Rule) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

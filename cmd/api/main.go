@@ -273,6 +273,9 @@ func main() {
 				auditCtrl.SetShadow(shadowpb.NewShadowServiceClient(conn))
 			}
 		}
+		if devMod != nil {
+			devMod.SetAuditor(auditCtrl)
+		}
 		path, handler := nodeconnect.NewAuditServiceHandler(auditCtrl, interceptors)
 		router.PathPrefix(path).Handler(handler)
 	}

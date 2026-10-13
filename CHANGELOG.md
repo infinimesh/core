@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- Acknowledging an alarm and then clearing it no longer fails. An alarm is stored as plain fields. Its key is the rule uuid, and `title` is the rule name. Deleting a rule deletes its alarms.
+- Creating a device and minting a device token are written to the audit log. `GET /v1/audit` returns those rows for `device` and for `account`.
+
 ## [v3.4.0-rc.3] - 2026-10-13
 
 ### Fixed

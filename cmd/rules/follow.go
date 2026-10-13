@@ -256,6 +256,30 @@ func applyCurrent(ctx context.Context, log *zap.Logger, src namespaceSource, cli
 	}
 }
 
+func alarmsForRules(set []*rules.Rule, current []*rules.Alarm) []*rules.Alarm {
+	keep := map[string]struct{}{}
+	for _, r := range set {
+		if r == nil {
+			continue
+		}
+		id := r.Name
+		if r.ID != "" {
+			id = r.ID
+		}
+		keep[id] = struct{}{}
+	}
+	out := make([]*rules.Alarm, 0, len(current))
+	for _, a := range current {
+		if a == nil {
+			continue
+		}
+		if _, ok := keep[a.Rule]; ok {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
 func applyShadow(ctx context.Context, log *zap.Logger, src namespaceSource, actions *rules.Actions, store *rules.Store, ns string, sh *pb.Shadow) {
 	if sh.GetDevice() == "" || sh.GetEvent() != pb.ShadowEvent_STATE {
 		return
@@ -273,7 +297,7 @@ func applyShadow(ctx context.Context, log *zap.Logger, src namespaceSource, acti
 		log.Warn("load alarms", zap.Error(err))
 		return
 	}
-	store.Replace(current)
+	store.Replace(alarmsForRules(set, current))
 	eng, err := rules.NewEngine(set, store, actions)
 	if err != nil {
 		log.Warn("engine", zap.Error(err))

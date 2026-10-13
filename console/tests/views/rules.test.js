@@ -28,7 +28,7 @@ function http() {
       if (url === "/v1/rules") {
         return Promise.resolve({ data: { rules: [{ uuid: "rule-1", name: "Hot", when: "true" }] } })
       }
-      return Promise.resolve({ data: { alarms: [] } })
+      return Promise.resolve({ data: { alarms: [{ rule: "rule-uuid", title: "Hot", device: "dev-1", state: 0 }] } })
     },
     delete(url) {
       calls.push({ method: "delete", url })
@@ -72,5 +72,6 @@ describe("Rules page", () => {
     await wrapper.vm.$.appContext.app.runWithContext(() => wrapper.vm.remove(wrapper.vm.rules[0]))
     await flushPromises()
     expect(calls).toContainEqual({ method: "delete", url: "/v1/rules/rule-1" })
+    expect(wrapper.text()).toContain("Hot")
   })
 })

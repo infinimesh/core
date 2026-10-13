@@ -19,6 +19,16 @@ func TestFromProtoRejectsBadCEL(t *testing.T) {
 	}
 }
 
+func TestFromProtoKeepsUUID(t *testing.T) {
+	r, err := FromProto(&rpb.Rule{Uuid: "id-a", Name: "hot", When: "true"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.ID != "id-a" || r.Name != "hot" {
+		t.Fatalf("%+v", r)
+	}
+}
+
 func TestFromProtoWebhook(t *testing.T) {
 	body, err := structpb.NewStruct(map[string]any{"fan": "on"})
 	if err != nil {

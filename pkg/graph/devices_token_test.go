@@ -75,6 +75,18 @@ func (f fakeICA) EnsureRootExists(_log *zap.Logger, rdb *redis.Client, passwd st
 	return nil
 }
 
+type auditCapture struct {
+	rows []auditRow
+}
+
+type auditRow struct {
+	action, device, account, tokenID string
+}
+
+func (a *auditCapture) Record(_ context.Context, action, device, account, tokenID string) {
+	a.rows = append(a.rows, auditRow{action, device, account, tokenID})
+}
+
 func TestMakeDevicesToken_Success(t *testing.T) {
 	ctrl := &DevicesController{
 		InfinimeshBaseController: InfinimeshBaseController{
@@ -93,9 +105,14 @@ func TestMakeDevicesToken_Success(t *testing.T) {
 		Exp: time.Now().Add(time.Hour).Unix(),
 	}
 
+	seen := &auditCapture{}
+	ctrl.SetAuditor(seen)
 	resp, err := ctrl.MakeDevicesToken(ctx, connect.NewRequest(req))
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp.Msg.GetToken())
+	if len(seen.rows) != 1 || seen.rows[0].action != auditToken || seen.rows[0].device != "dev1" || seen.rows[0].account != schema.ROOT_ACCOUNT_KEY || seen.rows[0].tokenID == "" {
+		t.Fatalf("%+v", seen.rows)
+	}
 
 	parsed, err := jwt.Parse(resp.Msg.GetToken(), func(tk *jwt.Token) (interface{}, error) {
 		return ctrl.SIGNING_KEY, nil

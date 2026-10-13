@@ -18,6 +18,7 @@ type File struct {
 // Rule raises an alarm for a device when When is true, and clears it when
 // Clear is true (or, without Clear, when When is false again).
 type Rule struct {
+	ID       string   `yaml:"-"`
 	Name     string   `yaml:"name"`
 	When     string   `yaml:"when"`
 	Clear    string   `yaml:"clear"`
@@ -28,6 +29,16 @@ type Rule struct {
 
 	when  cel.Program
 	clear cel.Program
+}
+
+func (r *Rule) alarmKey() string {
+	if r != nil && r.ID != "" {
+		return r.ID
+	}
+	if r == nil {
+		return ""
+	}
+	return r.Name
 }
 
 // Action is one thing to do when an alarm is raised (or cleared, with

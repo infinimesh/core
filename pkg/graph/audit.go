@@ -2,6 +2,7 @@ package graph
 
 import (
 	"context"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/arangodb/go-driver"
@@ -17,9 +18,38 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+const (
+	auditRead   = "read"
+	auditCreate = "create"
+	auditToken  = "token"
+)
+
+type storedAudit struct {
+	ID      string     `json:"id"`
+	Account string     `json:"account,omitempty"`
+	Device  string     `json:"device,omitempty"`
+	TokenID string     `json:"token_id,omitempty"`
+	At      storedTime `json:"at,omitempty"`
+	Action  string     `json:"action,omitempty"`
+}
+
+func (s storedAudit) Proto() *apb.AuditRecord {
+	out := &apb.AuditRecord{
+		Id: s.ID, Account: s.Account, Device: s.Device, TokenId: s.TokenID, Action: s.Action,
+	}
+	if !time.Time(s.At).IsZero() {
+		out.At = timestamppb.New(time.Time(s.At))
+	}
+	return out
+}
+
+type auditCol interface {
+	CreateDocument(ctx context.Context, document interface{}) (driver.DocumentMeta, error)
+}
+
 type AuditController struct {
 	InfinimeshBaseController
-	col    driver.Collection
+	col    auditCol
 	ica    InfinimeshCommonActionsRepo
 	shadow shadowGetter
 }
@@ -39,14 +69,21 @@ func NewAuditController(log *zap.Logger, db driver.Database, ica InfinimeshCommo
 }
 
 func (c *AuditController) RecordRead(ctx context.Context, device, account, tokenID string) {
-	if c == nil || c.col == nil || device == "" || (account == "" && tokenID == "") {
+	if device == "" || (account == "" && tokenID == "") {
 		return
 	}
-	rec := &apb.AuditRecord{
-		Id: uuid.NewString(), Account: account, Device: device, TokenId: tokenID,
-		At: timestamppb.Now(), Action: "read",
+	c.Record(ctx, auditRead, device, account, tokenID)
+}
+
+func (c *AuditController) Record(ctx context.Context, action, device, account, tokenID string) {
+	if c == nil || c.col == nil || action == "" || (device == "" && account == "" && tokenID == "") {
+		return
 	}
-	if _, err := c.col.CreateDocument(ctx, rec); err != nil {
+	rec := storedAudit{
+		ID: uuid.NewString(), Account: account, Device: device, TokenID: tokenID,
+		At: storedTime(time.Now().UTC()), Action: action,
+	}
+	if _, err := c.col.CreateDocument(ctx, rec); err != nil && c.log != nil {
 		c.log.Warn("audit write failed", zap.String("device", device), zap.Error(err))
 	}
 }
@@ -80,7 +117,7 @@ RETURN a`, map[string]interface{}{
 	defer cr.Close()
 	var all []*apb.AuditRecord
 	for {
-		var rec apb.AuditRecord
+		var rec storedAudit
 		_, err := cr.ReadDocument(ctx, &rec)
 		if driver.IsNoMoreDocuments(err) {
 			break
@@ -88,7 +125,7 @@ RETURN a`, map[string]interface{}{
 		if err != nil {
 			return nil, apierr.Code(connect.CodeInternal, "could not list the audit log")
 		}
-		all = append(all, &rec)
+		all = append(all, rec.Proto())
 	}
 	page, next := cutPage(all, req.Msg.GetPageSize(), req.Msg.GetPageToken())
 	return connect.NewResponse(&apb.AuditRecords{Records: page, NextPageToken: next}), nil

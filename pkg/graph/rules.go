@@ -15,7 +15,6 @@ import (
 	"github.com/infinimesh/proto/node/access"
 	rpb "github.com/infinimesh/proto/node/rules"
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type RulesController struct {
@@ -118,10 +117,24 @@ func (c *RulesController) Delete(ctx context.Context, req *connect.Request[rpb.R
 	if err != nil {
 		return nil, err
 	}
+	if err := c.deleteAlarms(ctx, r.GetUuid(), r.GetName()); err != nil {
+		return nil, err
+	}
 	if _, err := c.col.RemoveDocument(ctx, r.GetUuid()); err != nil {
 		return nil, apierr.Code(connect.CodeInternal, "could not delete the rule")
 	}
 	return connect.NewResponse(&pb.DeleteResponse{}), nil
+}
+
+func (c *RulesController) deleteAlarms(ctx context.Context, rule, name string) error {
+	cr, err := c.db.Query(ctx, `FOR a IN @@col FILTER a.rule == @rule OR a.rule == @name REMOVE a IN @@col`, map[string]interface{}{
+		"@col": schema.ALARMS_COL, "rule": rule, "name": name,
+	})
+	if err != nil {
+		return apierr.Code(connect.CodeInternal, "could not delete the rule")
+	}
+	defer cr.Close()
+	return nil
 }
 
 func (c *RulesController) ListAlarms(ctx context.Context, req *connect.Request[rpb.ListAlarmsRequest]) (*connect.Response[rpb.Alarms], error) {
@@ -140,21 +153,22 @@ func (c *RulesController) ListAlarms(ctx context.Context, req *connect.Request[r
 	defer cr.Close()
 	var all []*rpb.Alarm
 	for {
-		var a rpb.Alarm
-		_, err := cr.ReadDocument(ctx, &a)
+		var doc StoredAlarm
+		_, err := cr.ReadDocument(ctx, &doc)
 		if driver.IsNoMoreDocuments(err) {
 			break
 		}
 		if err != nil {
 			return nil, apierr.Code(connect.CodeInternal, "could not list alarms")
 		}
+		a := doc.Proto()
 		if req.Msg.GetDevice() != "" && a.GetDevice() != req.Msg.GetDevice() {
 			continue
 		}
 		if !req.Msg.GetAnyState() && a.GetState() != req.Msg.GetState() {
 			continue
 		}
-		all = append(all, &a)
+		all = append(all, a)
 	}
 	page, next := cutPage(all, req.Msg.GetPageSize(), req.Msg.GetPageToken())
 	return connect.NewResponse(&rpb.Alarms{Alarms: page, NextPageToken: next}), nil
@@ -169,28 +183,29 @@ func (c *RulesController) ClearAlarm(ctx context.Context, req *connect.Request[r
 }
 
 func (c *RulesController) setAlarm(ctx context.Context, ref *rpb.AlarmRef, state rpb.AlarmState) (*connect.Response[rpb.Alarm], error) {
-	key := ref.GetRule() + "_" + ref.GetDevice()
-	var a rpb.Alarm
-	if _, err := c.alarms.ReadDocument(ctx, key, &a); err != nil {
+	key := AlarmKey(ref.GetRule(), ref.GetDevice())
+	var doc StoredAlarm
+	if _, err := c.alarms.ReadDocument(ctx, key, &doc); err != nil {
 		return nil, apierr.Code(connect.CodeNotFound, "alarm not found")
 	}
-	if err := c.requireNS(ctx, a.GetNamespace(), access.Level_MGMT); err != nil {
+	if err := c.requireNS(ctx, doc.Namespace, access.Level_MGMT); err != nil {
 		return nil, err
 	}
-	if state == rpb.AlarmState_ACKED && a.GetState() != rpb.AlarmState_RAISED {
+	if state == rpb.AlarmState_ACKED && string(doc.State) != rules.Raised {
 		return nil, apierr.Code(connect.CodeFailedPrecondition, "alarm is not raised")
 	}
-	a.State = state
-	now := timestamppb.New(time.Now().UTC())
+	now := storedTime(time.Now().UTC())
 	if state == rpb.AlarmState_ACKED {
-		a.AckedAt = now
+		doc.State = alarmState(rules.Acked)
+		doc.AckedAt = now
 	} else {
-		a.ClearedAt = now
+		doc.State = alarmState(rules.Cleared)
+		doc.ClearedAt = now
 	}
-	if _, err := c.alarms.ReplaceDocument(ctx, key, &a); err != nil {
+	if _, err := c.alarms.ReplaceDocument(ctx, key, doc); err != nil {
 		return nil, apierr.Code(connect.CodeInternal, "could not update the alarm")
 	}
-	return connect.NewResponse(&a), nil
+	return connect.NewResponse(doc.Proto()), nil
 }
 
 func (c *RulesController) load(ctx context.Context, id string, level access.Level) (*rpb.Rule, error) {
