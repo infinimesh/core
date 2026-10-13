@@ -350,6 +350,7 @@ func TestCreateHf_FailsOn_EmptyPayloadAndDelete(t *testing.T) {
 	).Return(nil)
 
 	f.mocks.ica_repo.On("AccessLevelAndGet", f.data.ctx, mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
+	f.mocks.col.On("ReadDocument", f.data.ctx, f.data.dev_uuid, mock.Anything).Return(driver.DocumentMeta{}, assert.AnError)
 
 	f.mocks.hfc.On("Send", f.data.ctx, mock.Anything).Return(&pairing.ControlPacket{
 		Payload: []string{},
@@ -493,19 +494,38 @@ func (a *graphAudit) Record(_ context.Context, action, device, account, tokenID,
 // Delete
 //
 
+func TestGetUnknownDevice(t *testing.T) {
+	f := newDevicesControllerFixture(t)
+	f.mocks.ica_repo.On("AccessLevelAndGet", f.data.ctx, mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
+	f.mocks.col.On("ReadDocument", f.data.ctx, f.data.dev_uuid, mock.Anything).Return(driver.DocumentMeta{}, assert.AnError)
+	res, err := f.ctrl.Get(f.data.ctx, connect.NewRequest(&devpb.Device{Uuid: f.data.dev_uuid}))
+	assert.Nil(t, res)
+	assert.EqualError(t, err, "not_found: Device not found")
+}
+
+func TestGetDeviceWithoutAccess(t *testing.T) {
+	f := newDevicesControllerFixture(t)
+	f.mocks.ica_repo.On("AccessLevelAndGet", f.data.ctx, mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
+	f.mocks.col.On("ReadDocument", f.data.ctx, f.data.dev_uuid, mock.Anything).Return(driver.DocumentMeta{Key: f.data.dev_uuid}, nil)
+	res, err := f.ctrl.Get(f.data.ctx, connect.NewRequest(&devpb.Device{Uuid: f.data.dev_uuid}))
+	assert.Nil(t, res)
+	assert.EqualError(t, err, "not_found: Not enough Access Rights")
+}
+
 func TestDelete_FailsOn_AccessLevelAndGet(t *testing.T) {
 	f := newDevicesControllerFixture(t)
 
 	f.mocks.ica_repo.On("AccessLevelAndGet", f.data.ctx, mock.Anything, mock.Anything, mock.Anything).Return(
 		assert.AnError,
 	)
+	f.mocks.col.On("ReadDocument", f.data.ctx, f.data.dev_uuid, mock.Anything).Return(driver.DocumentMeta{}, assert.AnError)
 	res, err := f.ctrl.Delete(f.data.ctx, connect.NewRequest(&devpb.Device{
 		Uuid: f.data.dev_uuid,
 	}))
 
 	assert.Nil(t, res)
 	assert.Error(t, err)
-	assert.Equal(t, "not_found: Account not found or not enough Access Rights", err.Error())
+	assert.Equal(t, "not_found: Device not found", err.Error())
 }
 
 func TestDelete_FailsOn_AccessLevel_NotEnoughAccess(t *testing.T) {
@@ -590,7 +610,7 @@ func TestMakeDevicesToken_FailsOn_AccessLevel_NotFound(t *testing.T) {
 
 	assert.Nil(t, res)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Account not found or not enough Access Rights to device:")
+	assert.Contains(t, err.Error(), "Device not found:")
 }
 
 func TestMakeDevicesToken_FailsOn_AccessLevel_NotEnoughAccess(t *testing.T) {
