@@ -293,6 +293,9 @@ func main() {
 		if rulesCtrl != nil {
 			rulesCtrl.SetAuditor(auditCtrl)
 		}
+		if plugCtrl != nil {
+			plugCtrl.SetAuditor(auditCtrl)
+		}
 		path, handler := nodeconnect.NewAuditServiceHandler(auditCtrl, interceptors)
 		router.PathPrefix(path).Handler(handler)
 	}

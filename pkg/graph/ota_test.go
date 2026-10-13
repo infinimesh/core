@@ -1,10 +1,16 @@
 package graph
 
 import (
+	"context"
 	"testing"
 
+	"github.com/arangodb/go-driver"
+	driver_mocks "github.com/infinimesh/core/mocks/github.com/arangodb/go-driver"
 	nspb "github.com/infinimesh/proto/node/namespaces"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 func TestValidOTAConfig(t *testing.T) {
@@ -19,6 +25,20 @@ func TestValidOTAConfig(t *testing.T) {
 	assert.EqualError(t, ValidOTAConfig(&nspb.OTAConfig{Enabled: true}, 0), "ota cannot be enabled until an OTA addon is registered")
 	assert.False(t, OTAActive(&nspb.OTAConfig{Enabled: true}))
 	assert.True(t, OTAActive(&nspb.OTAConfig{Enabled: true, AddonRegistered: true}))
+}
+
+func TestNamespaceConfigIgnoresAccount(t *testing.T) {
+	col := driver_mocks.NewMockCollection(t)
+	col.On("ReadDocument", mock.Anything, "plant", mock.Anything).Run(func(args mock.Arguments) {
+		doc := args.Get(2).(*nspb.Namespace)
+		doc.Ota = &nspb.OTAConfig{Enabled: true, Provider: "hawkbit"}
+	}).Return(driver.DocumentMeta{ID: driver.NewDocumentID("Namespaces", "plant")}, nil)
+	ctrl := &NamespacesController{log: zap.NewNop(), col: col}
+	ns, err := ctrl.Config(context.Background(), "plant")
+	require.NoError(t, err)
+	require.Equal(t, "plant", ns.GetUuid())
+	require.Equal(t, "hawkbit", ns.GetOta().GetProvider())
+	require.True(t, ns.GetOta().GetEnabled())
 }
 
 func TestKeepOTABackend(t *testing.T) {

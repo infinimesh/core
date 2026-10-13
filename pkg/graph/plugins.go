@@ -71,6 +71,38 @@ type PluginsController struct {
 
 	db         driver.Database
 	signingKey []byte
+	audit      pluginAuditor
+}
+
+type pluginAuditor interface {
+	Record(ctx context.Context, action, device, account, tokenID, namespace string)
+}
+
+const (
+	auditPluginCreate = "plugin_create"
+	auditPluginDelete = "plugin_delete"
+)
+
+func (c *PluginsController) SetAuditor(a pluginAuditor) {
+	if c != nil {
+		c.audit = a
+	}
+}
+
+func (c *PluginsController) auditPlugin(ctx context.Context, action, namespace string) {
+	if c == nil || c.audit == nil {
+		return
+	}
+	account, _ := ctx.Value(inf.InfinimeshAccountCtxKey).(string)
+	jti, _ := ctx.Value(inf.InfinimeshJTICtxKey).(string)
+	c.audit.Record(ctx, action, "", account, jti, namespace)
+}
+
+func pluginNamespace(p *pb.Plugin) string {
+	if p == nil || p.Namespace == nil {
+		return ""
+	}
+	return *p.Namespace
 }
 
 func (c *PluginsController) SetSigningKey(key []byte) {
@@ -206,6 +238,7 @@ func (c *PluginsController) Create(ctx context.Context, req *connect.Request[pb.
 	}
 
 	log.Debug("Created", zap.String("plugin", plugin.Uuid))
+	c.auditPlugin(ctx, auditPluginCreate, pluginNamespace(plugin.Plugin))
 	resp := connect.NewResponse(plugin.Plugin)
 	saveIdem(req.Header(), "plugins.create", resp.Msg)
 	return resp, nil
@@ -351,10 +384,13 @@ func (c *PluginsController) Delete(ctx context.Context, req *connect.Request[pb.
 		return nil, StatusFromString(connect.CodePermissionDenied, "Not enough access rights to delete this Plugin")
 	}
 
+	var cur pb.Plugin
+	_, _ = c.col.ReadDocument(ctx, plug.Uuid, &cur)
 	_, err := c.col.RemoveDocument(ctx, plug.Uuid)
 	if err != nil {
 		return nil, StatusFromString(connect.CodeInternal, "Error while deleting Plugin: %v", err)
 	}
+	c.auditPlugin(ctx, auditPluginDelete, pluginNamespace(&cur))
 
 	return connect.NewResponse(plug), nil
 }
