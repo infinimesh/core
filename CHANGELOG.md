@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v3.4.0-rc.14] - 2026-10-13
+
+### Fixed
+- `inf alarms list` and `inf rules create` accept `-n` for the namespace.
+- `inf` creates the config folder when that folder is missing.
+
 ## [v3.4.0-rc.13] - 2026-10-13
 
 ### Fixed
