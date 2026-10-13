@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- The console calls Connect on `infinimesh.node.v1` and `infinimesh.plugins.v1`. Login uses `/infinimesh.node.v1.AccountsService/Token`.
+- `POST` account token with no `auth` returns `invalid_argument`. It does not crash the API.
+
 ## [v3.4.0-rc.4] - 2026-10-13
 
 ### Fixed

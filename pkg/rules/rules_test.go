@@ -42,6 +42,27 @@ func TestStepCooldownAndAck(t *testing.T) {
 	}
 }
 
+func TestClearedAlarmReturnsWhileConditionHolds(t *testing.T) {
+	store, err := OpenStore("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rule := &Rule{Name: "hot"}
+	now := time.Date(2026, 10, 13, 8, 0, 0, 0, time.UTC)
+	ev, err := store.Step(rule, "dev", true, true, false, true, now)
+	if err != nil || ev == nil || ev.Kind != "raised" || ev.Alarm.Title != "hot" {
+		t.Fatalf("raise: %v %v", ev, err)
+	}
+	ev, err = store.Step(rule, "dev", true, true, true, true, now.Add(time.Second))
+	if err != nil || ev == nil || ev.Kind != "cleared" {
+		t.Fatalf("clear: %v %v", ev, err)
+	}
+	ev, err = store.Step(rule, "dev", true, true, false, true, now.Add(2*time.Second))
+	if err != nil || ev == nil || ev.Kind != "raised" || ev.Alarm.Count != 2 || ev.Alarm.Title != "hot" {
+		t.Fatalf("raise again: %v %v", ev, err)
+	}
+}
+
 func TestCELAndWebhook(t *testing.T) {
 	var mu sync.Mutex
 	var got Payload
