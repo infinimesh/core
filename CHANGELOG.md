@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- `hawkbit`, `mender`, and `webhook` OTA writes require the bearer token issued when the OTA plugin was created. The `x-infinimesh-ota-provider` header is not a credential. Provider `none` still accepts a manage-level account, and a device token with manage access.
+- `POST /v1/devices/ota:assign` and a single device state patch accept an account token. A missing account does not crash the API.
+- A successful `desired.ota` write records audit action `ota_assign`. Acknowledging or clearing an alarm records `alarm_ack` or `alarm_clear`. `GET /v1/audit?namespace=` lists rows for that namespace.
+- The default alarm list includes acknowledged alarms and leaves out cleared ones.
+- Turning OTA off keeps `backend_url` and `backend` when the request omits them.
+- Creating an OTA plugin returns its bearer token once.
+- The rules page starts on the namespace selected in the header. Deleting a rule asks for confirmation.
+
 ## [v3.4.0-rc.6] - 2026-10-13
 
 ### Added

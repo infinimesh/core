@@ -25,17 +25,18 @@ const (
 )
 
 type storedAudit struct {
-	ID      string     `json:"id"`
-	Account string     `json:"account,omitempty"`
-	Device  string     `json:"device,omitempty"`
-	TokenID string     `json:"token_id,omitempty"`
-	At      storedTime `json:"at,omitempty"`
-	Action  string     `json:"action,omitempty"`
+	ID        string     `json:"id"`
+	Account   string     `json:"account,omitempty"`
+	Device    string     `json:"device,omitempty"`
+	TokenID   string     `json:"token_id,omitempty"`
+	At        storedTime `json:"at,omitempty"`
+	Action    string     `json:"action,omitempty"`
+	Namespace string     `json:"namespace,omitempty"`
 }
 
 func (s storedAudit) Proto() *apb.AuditRecord {
 	out := &apb.AuditRecord{
-		Id: s.ID, Account: s.Account, Device: s.Device, TokenId: s.TokenID, Action: s.Action,
+		Id: s.ID, Account: s.Account, Device: s.Device, TokenId: s.TokenID, Action: s.Action, Namespace: s.Namespace,
 	}
 	if !time.Time(s.At).IsZero() {
 		out.At = timestamppb.New(time.Time(s.At))
@@ -72,16 +73,16 @@ func (c *AuditController) RecordRead(ctx context.Context, device, account, token
 	if device == "" || (account == "" && tokenID == "") {
 		return
 	}
-	c.Record(ctx, auditRead, device, account, tokenID)
+	c.Record(ctx, auditRead, device, account, tokenID, "")
 }
 
-func (c *AuditController) Record(ctx context.Context, action, device, account, tokenID string) {
+func (c *AuditController) Record(ctx context.Context, action, device, account, tokenID, namespace string) {
 	if c == nil || c.col == nil || action == "" || (device == "" && account == "" && tokenID == "") {
 		return
 	}
 	rec := storedAudit{
 		ID: uuid.NewString(), Account: account, Device: device, TokenID: tokenID,
-		At: storedTime(time.Now().UTC()), Action: action,
+		At: storedTime(time.Now().UTC()), Action: action, Namespace: namespace,
 	}
 	if _, err := c.col.CreateDocument(ctx, rec); err != nil && c.log != nil {
 		c.log.Warn("audit write failed", zap.String("device", device), zap.Error(err))
@@ -90,8 +91,14 @@ func (c *AuditController) Record(ctx context.Context, action, device, account, t
 
 func (c *AuditController) List(ctx context.Context, req *connect.Request[apb.ListAuditRequest]) (*connect.Response[apb.AuditRecords], error) {
 	requestor, _ := ctx.Value(inf.InfinimeshAccountCtxKey).(string)
-	if req.Msg.GetDevice() == "" && req.Msg.GetAccount() == "" {
-		return nil, apierr.Code(connect.CodeInvalidArgument, "device or account is required")
+	if req.Msg.GetDevice() == "" && req.Msg.GetAccount() == "" && req.Msg.GetNamespace() == "" {
+		return nil, apierr.Code(connect.CodeInvalidArgument, "device, account, or namespace is required")
+	}
+	if ns := req.Msg.GetNamespace(); ns != "" {
+		ok, level := c.ica.AccessLevel(ctx, NewBlankAccountDocument(requestor), NewBlankNamespaceDocument(ns))
+		if !ok || level < access.Level_READ {
+			return nil, apierr.Code(connect.CodePermissionDenied, "Not enough Access Rights")
+		}
 	}
 	if dev := req.Msg.GetDevice(); dev != "" {
 		ok, level := c.ica.AccessLevel(ctx, NewBlankAccountDocument(requestor), NewBlankDeviceDocument(dev))
@@ -106,10 +113,10 @@ func (c *AuditController) List(ctx context.Context, req *connect.Request[apb.Lis
 		}
 	}
 	cr, err := c.db.Query(ctx, `FOR a IN @@col
-FILTER (@device == "" OR a.device == @device) AND (@account == "" OR a.account == @account)
+FILTER (@device == "" OR a.device == @device) AND (@account == "" OR a.account == @account) AND (@namespace == "" OR a.namespace == @namespace)
 SORT a.at DESC
 RETURN a`, map[string]interface{}{
-		"@col": schema.AUDIT_COL, "device": req.Msg.GetDevice(), "account": req.Msg.GetAccount(),
+		"@col": schema.AUDIT_COL, "device": req.Msg.GetDevice(), "account": req.Msg.GetAccount(), "namespace": req.Msg.GetNamespace(),
 	})
 	if err != nil {
 		return nil, apierr.Code(connect.CodeInternal, "could not list the audit log")

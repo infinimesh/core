@@ -560,6 +560,7 @@
           },
           {
             "name": "state",
+            "description": "RAISED is the default and returns raised and acknowledged alarms.\nACKED returns acknowledged alarms. CLEARED returns cleared alarms.",
             "in": "query",
             "required": false,
             "type": "string",
@@ -726,6 +727,12 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
@@ -884,7 +891,7 @@
     "/devices/ota:assign": {
       "post": {
         "summary": "Assign an OTA target version",
-        "description": "Sets desired.data.ota.version and updated_at. Example body: {\"namespace\":\"plant\",\"version\":\"1.4.0\"}. A tag: {\"namespace\":\"plant\",\"tag\":\"line-a\",\"version\":\"1.4.0\"}. A device list: {\"devices\":[\"dev-1\",\"dev-2\"],\"version\":\"1.4.0\"}. results has one entry per device. Header x-infinimesh-ota-provider must match Namespace.ota.provider when that provider is hawkbit, mender, or webhook. Each success is an audit row with action ota_assign.",
+        "description": "Sets desired.data.ota.version and updated_at. A manage-level account token is accepted when the namespace provider is none. Example body: {\"namespace\":\"plant\",\"version\":\"1.4.0\"}. A tag: {\"namespace\":\"plant\",\"tag\":\"line-a\",\"version\":\"1.4.0\"}. A device list: {\"devices\":[\"dev-1\",\"dev-2\"],\"version\":\"1.4.0\"}. results has one entry per device. When the namespace provider is hawkbit, mender, or webhook, the caller is the OTA plugin bearer token from plugin create, not an account token. Each success is an audit row with action ota_assign.",
         "operationId": "ShadowService_AssignOTA2",
         "responses": {
           "200": {
@@ -909,13 +916,6 @@
             "schema": {
               "$ref": "#/definitions/v1AssignOTARequest"
             }
-          },
-          {
-            "name": "x-infinimesh-ota-provider",
-            "description": "Must equal the namespace OTA provider when that provider is hawkbit, mender, or webhook. Omit it when the provider is none.",
-            "in": "header",
-            "required": false,
-            "type": "string"
           }
         ],
         "tags": [
@@ -2861,6 +2861,27 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "provider",
+            "description": "provider is hawkbit, mender, or webhook. Required when kind is OTA.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "tokenId",
+            "description": "token_id is the jti of the addon token. It is not the secret.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "token",
+            "description": "token is the addon bearer token. Create returns it once. It is not stored.",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
@@ -2969,6 +2990,27 @@
           },
           {
             "name": "embeddedConf.frameUrl",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "provider",
+            "description": "provider is hawkbit, mender, or webhook. Required when kind is OTA.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "tokenId",
+            "description": "token_id is the jti of the addon token. It is not the secret.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "token",
+            "description": "token is the addon bearer token. Create returns it once. It is not stored.",
             "in": "query",
             "required": false,
             "type": "string"
@@ -3931,6 +3973,7 @@
           },
           {
             "name": "state",
+            "description": "RAISED is the default and returns raised and acknowledged alarms.\nACKED returns acknowledged alarms. CLEARED returns cleared alarms.",
             "in": "query",
             "required": false,
             "type": "string",
@@ -4097,6 +4140,12 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
@@ -4255,7 +4304,7 @@
     "/v1/devices/ota:assign": {
       "post": {
         "summary": "Assign an OTA target version",
-        "description": "Sets desired.data.ota.version and updated_at. Example body: {\"namespace\":\"plant\",\"version\":\"1.4.0\"}. A tag: {\"namespace\":\"plant\",\"tag\":\"line-a\",\"version\":\"1.4.0\"}. A device list: {\"devices\":[\"dev-1\",\"dev-2\"],\"version\":\"1.4.0\"}. results has one entry per device. Header x-infinimesh-ota-provider must match Namespace.ota.provider when that provider is hawkbit, mender, or webhook. Each success is an audit row with action ota_assign.",
+        "description": "Sets desired.data.ota.version and updated_at. A manage-level account token is accepted when the namespace provider is none. Example body: {\"namespace\":\"plant\",\"version\":\"1.4.0\"}. A tag: {\"namespace\":\"plant\",\"tag\":\"line-a\",\"version\":\"1.4.0\"}. A device list: {\"devices\":[\"dev-1\",\"dev-2\"],\"version\":\"1.4.0\"}. results has one entry per device. When the namespace provider is hawkbit, mender, or webhook, the caller is the OTA plugin bearer token from plugin create, not an account token. Each success is an audit row with action ota_assign.",
         "operationId": "ShadowService_AssignOTA",
         "responses": {
           "200": {
@@ -4280,13 +4329,6 @@
             "schema": {
               "$ref": "#/definitions/v1AssignOTARequest"
             }
-          },
-          {
-            "name": "x-infinimesh-ota-provider",
-            "description": "Must equal the namespace OTA provider when that provider is hawkbit, mender, or webhook. Omit it when the provider is none.",
-            "in": "header",
-            "required": false,
-            "type": "string"
           }
         ],
         "tags": [
@@ -6325,6 +6367,27 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "provider",
+            "description": "provider is hawkbit, mender, or webhook. Required when kind is OTA.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "tokenId",
+            "description": "token_id is the jti of the addon token. It is not the secret.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "token",
+            "description": "token is the addon bearer token. Create returns it once. It is not stored.",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
@@ -6433,6 +6496,27 @@
           },
           {
             "name": "embeddedConf.frameUrl",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "provider",
+            "description": "provider is hawkbit, mender, or webhook. Required when kind is OTA.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "tokenId",
+            "description": "token_id is the jti of the addon token. It is not the secret.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "token",
+            "description": "token is the addon bearer token. Create returns it once. It is not stored.",
             "in": "query",
             "required": false,
             "type": "string"
@@ -7358,9 +7442,12 @@
         },
         "action": {
           "type": "string"
+        },
+        "namespace": {
+          "type": "string"
         }
       },
-      "description": "AuditRecord is one audit log row. action is read, create, token, or ota_assign.\nThe collection is append-only."
+      "description": "AuditRecord is one audit log row. action is read, create, token, ota_assign, alarm_ack, or alarm_clear.\nThe collection is append-only."
     },
     "v1AuditRecords": {
       "type": "object",
@@ -8173,6 +8260,18 @@
         },
         "embeddedConf": {
           "$ref": "#/definitions/v1EmbededPluginConf"
+        },
+        "provider": {
+          "type": "string",
+          "description": "provider is hawkbit, mender, or webhook. Required when kind is OTA."
+        },
+        "tokenId": {
+          "type": "string",
+          "description": "token_id is the jti of the addon token. It is not the secret."
+        },
+        "token": {
+          "type": "string",
+          "description": "token is the addon bearer token. Create returns it once. It is not stored."
         }
       }
     },
@@ -8236,6 +8335,18 @@
         },
         "embeddedConf": {
           "$ref": "#/definitions/v1EmbededPluginConf"
+        },
+        "provider": {
+          "type": "string",
+          "description": "provider is hawkbit, mender, or webhook. Required when kind is OTA."
+        },
+        "tokenId": {
+          "type": "string",
+          "description": "token_id is the jti of the addon token. It is not the secret."
+        },
+        "token": {
+          "type": "string",
+          "description": "token is the addon bearer token. Create returns it once. It is not stored."
         }
       }
     },

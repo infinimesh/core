@@ -28,6 +28,8 @@ const INFINIMESH_STREAM_CLAIM = "stream"
 const INFINIMESH_NAMESPACE_CLAIM = "namespace"
 const INFINIMESH_POST_CLAIM = "post"
 const INFINIMESH_JTI_CLAIM = "jti"
+const INFINIMESH_PLUGIN_CLAIM = "plugin"
+const INFINIMESH_OTA_PROVIDER_CLAIM = "ota_provider"
 
 const InfinimeshRootCtxKey = ContextKey(INFINIMESH_ROOT_CLAIM)
 const InfinimeshAccountCtxKey = ContextKey(INFINIMESH_ACCOUNT_CLAIM)
@@ -37,3 +39,5 @@ const InfinimeshStreamCtxKey = ContextKey(INFINIMESH_STREAM_CLAIM)
 const InfinimeshNamespaceCtxKey = ContextKey(INFINIMESH_NAMESPACE_CLAIM)
 const InfinimeshPostCtxKey = ContextKey(INFINIMESH_POST_CLAIM)
 const InfinimeshJTICtxKey = ContextKey(INFINIMESH_JTI_CLAIM)
+const InfinimeshPluginCtxKey = ContextKey(INFINIMESH_PLUGIN_CLAIM)
+const InfinimeshOTAProviderCtxKey = ContextKey(INFINIMESH_OTA_PROVIDER_CLAIM)

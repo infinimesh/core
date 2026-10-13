@@ -17,12 +17,23 @@ import (
 	"go.uber.org/zap"
 )
 
+type alarmAuditor interface {
+	Record(ctx context.Context, action, device, account, tokenID, namespace string)
+}
+
 type RulesController struct {
 	InfinimeshBaseController
 	col    driver.Collection
 	alarms driver.Collection
 	ica    InfinimeshCommonActionsRepo
 	ns2r   driver.Collection
+	audit  alarmAuditor
+}
+
+func (c *RulesController) SetAuditor(a alarmAuditor) {
+	if c != nil {
+		c.audit = a
+	}
 }
 
 func NewRulesController(log *zap.Logger, db driver.Database, ica InfinimeshCommonActionsRepo) *RulesController {
@@ -165,7 +176,7 @@ func (c *RulesController) ListAlarms(ctx context.Context, req *connect.Request[r
 		if req.Msg.GetDevice() != "" && a.GetDevice() != req.Msg.GetDevice() {
 			continue
 		}
-		if !req.Msg.GetAnyState() && a.GetState() != req.Msg.GetState() {
+		if !alarmVisible(req.Msg.GetState(), req.Msg.GetAnyState(), a.GetState()) {
 			continue
 		}
 		all = append(all, a)
@@ -205,7 +216,30 @@ func (c *RulesController) setAlarm(ctx context.Context, ref *rpb.AlarmRef, state
 	if _, err := c.alarms.ReplaceDocument(ctx, key, doc); err != nil {
 		return nil, apierr.Code(connect.CodeInternal, "could not update the alarm")
 	}
+	if c.audit != nil {
+		account, _ := ctx.Value(inf.InfinimeshAccountCtxKey).(string)
+		jti, _ := ctx.Value(inf.InfinimeshJTICtxKey).(string)
+		action := "alarm_ack"
+		if state == rpb.AlarmState_CLEARED {
+			action = "alarm_clear"
+		}
+		c.audit.Record(ctx, action, doc.Device, account, jti, doc.Namespace)
+	}
 	return connect.NewResponse(doc.Proto()), nil
+}
+
+func alarmVisible(want rpb.AlarmState, any bool, got rpb.AlarmState) bool {
+	if any {
+		return true
+	}
+	switch want {
+	case rpb.AlarmState_ACKED:
+		return got == rpb.AlarmState_ACKED
+	case rpb.AlarmState_CLEARED:
+		return got == rpb.AlarmState_CLEARED
+	default:
+		return got != rpb.AlarmState_CLEARED
+	}
 }
 
 func (c *RulesController) load(ctx context.Context, id string, level access.Level) (*rpb.Rule, error) {
