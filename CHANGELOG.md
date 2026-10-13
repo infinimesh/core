@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [v3.4.0-rc.7] - 2026-10-13
+
 ### Fixed
 - `hawkbit`, `mender`, and `webhook` OTA writes require the bearer token issued when the OTA plugin was created. The `x-infinimesh-ota-provider` header is not a credential. Provider `none` still accepts a manage-level account, and a device token with manage access.
 - `POST /v1/devices/ota:assign` and a single device state patch accept an account token. A missing account does not crash the API.
