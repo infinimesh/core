@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [v3.4.0-rc.9] - 2026-10-13
+
 ### Fixed
 - An addon `ota_assign` row records the plugin uuid and the addon token id.
 - `POST /v1/devices/ota:assign` tells a device token that bulk assign needs an account or addon token. The single-device state patch still accepts a device token.
