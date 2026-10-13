@@ -172,6 +172,7 @@ const ota = computed(() => {
   return reported.value.data.ota || null
 })
 const otaVersion = ref("")
+// The on/off switch is "Enable OTA" on the namespace page. This card only shows reported.data.ota and writes desired.data.ota.version.
 function assignOTA() {
   const base = desired.value && desired.value.data ? { ...desired.value.data } : {}
   base.ota = { ...(base.ota || {}), version: otaVersion.value }

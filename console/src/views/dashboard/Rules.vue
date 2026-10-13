@@ -53,11 +53,11 @@
 import { computed, ref } from "vue"
 import { NSpin, NH1, NH2, NSpace, NSelect, NButton, NForm, NFormItem, NInput, NTable, NThead, NTr, useMessage } from "naive-ui"
 import { storeToRefs } from "pinia"
-import { useAppStore } from "@/store/app"
 import { useNSStore } from "@/store/namespaces"
+import { useRulesStore } from "@/store/rules"
 
-const app = useAppStore()
 const ns = useNSStore()
+const rulesApi = useRulesStore()
 const { namespaces_list } = storeToRefs(ns)
 const message = useMessage()
 const loading = ref(false)
@@ -90,10 +90,10 @@ async function load() {
   if (!namespace.value) return
   loading.value = true
   try {
-    const listed = await app.http.get("/v1/rules", { params: { namespace: namespace.value } })
-    rules.value = listed.data.rules || []
-    const raised = await app.http.get("/v1/alarms", { params: { namespace: namespace.value, any_state: true } })
-    alarms.value = raised.data.alarms || []
+    const listed = await rulesApi.client.list({ namespace: namespace.value })
+    rules.value = listed.rules || []
+    const raised = await rulesApi.client.listAlarms({ namespace: namespace.value, anyState: true })
+    alarms.value = raised.alarms || []
   } catch (err) {
     message.error(err.message)
   }
@@ -114,9 +114,9 @@ async function save() {
   }
   try {
     if (body.uuid) {
-      await app.http.patch(`/v1/rules/${body.uuid}`, body)
+      await rulesApi.client.update(body)
     } else {
-      await app.http.post("/v1/rules", body)
+      await rulesApi.client.create(body)
     }
     message.success("Rule saved")
     await load()
@@ -127,7 +127,7 @@ async function save() {
 
 async function remove(rule) {
   try {
-    await app.http.delete(`/v1/rules/${encodeURIComponent(rule.uuid)}`)
+    await rulesApi.client.delete({ uuid: rule.uuid })
     if (form.value.uuid === rule.uuid) {
       form.value = { uuid: "", name: "", when: "", clear: "", cooldown: "", webhook: "" }
     }
@@ -140,7 +140,12 @@ async function remove(rule) {
 
 async function act(alarm, kind) {
   try {
-    await app.http.post(`/v1/alarms/${encodeURIComponent(alarm.rule)}/${encodeURIComponent(alarm.device)}/${kind}`, {})
+    const ref = { rule: alarm.rule, device: alarm.device }
+    if (kind === "ack") {
+      await rulesApi.client.ackAlarm(ref)
+    } else {
+      await rulesApi.client.clearAlarm(ref)
+    }
     await load()
   } catch (err) {
     message.error(err.message)

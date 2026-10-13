@@ -6,6 +6,37 @@ import Rules from "@/views/dashboard/Rules.vue"
 
 const calls = []
 
+const client = {
+  list() {
+    calls.push({ method: "list" })
+    return Promise.resolve({ rules: [{ uuid: "rule-1", name: "Hot", when: "true" }] })
+  },
+  listAlarms(req) {
+    calls.push({ method: "listAlarms", req })
+    return Promise.resolve({ alarms: [{ rule: "rule-uuid", title: "Hot", device: "dev-1", state: 0 }] })
+  },
+  create(body) {
+    calls.push({ method: "create", body })
+    return Promise.resolve({})
+  },
+  update(body) {
+    calls.push({ method: "update", body })
+    return Promise.resolve({})
+  },
+  delete(body) {
+    calls.push({ method: "delete", body })
+    return Promise.resolve({})
+  },
+  ackAlarm(body) {
+    calls.push({ method: "ackAlarm", body })
+    return Promise.resolve({})
+  },
+  clearAlarm(body) {
+    calls.push({ method: "clearAlarm", body })
+    return Promise.resolve({})
+  },
+}
+
 vi.mock("naive-ui", async () => {
   const actual = await vi.importActual("naive-ui")
   return {
@@ -21,57 +52,45 @@ vi.mock("@/store/namespaces", () => ({
   }),
 }))
 
-function http() {
-  return {
-    get(url, cfg) {
-      calls.push({ method: "get", url, params: cfg && cfg.params })
-      if (url === "/v1/rules") {
-        return Promise.resolve({ data: { rules: [{ uuid: "rule-1", name: "Hot", when: "true" }] } })
-      }
-      return Promise.resolve({ data: { alarms: [{ rule: "rule-uuid", title: "Hot", device: "dev-1", state: 0 }] } })
-    },
-    delete(url) {
-      calls.push({ method: "delete", url })
-      return Promise.resolve({})
-    },
-    post() {
-      return Promise.resolve({})
-    },
-    patch() {
-      return Promise.resolve({})
-    },
-    interceptors: { response: { use() {} } },
-  }
-}
+vi.mock("@/store/rules", () => ({
+  useRulesStore: () => ({ client }),
+}))
 
 describe("Rules page", () => {
-  test("loads alarms with any_state and deletes a rule", async () => {
+  test("lists, creates, and deletes through RulesService", async () => {
     calls.length = 0
     const wrapper = mount(Rules, {
-      global: {
-        plugins: [createPinia()],
-        provide: {
-          axios: { create: () => http() },
-        },
-      },
+      global: { plugins: [createPinia()] },
     })
     await wrapper.vm.$.appContext.app.runWithContext(async () => {
       wrapper.vm.namespace = "ns-1"
-      await wrapper.vm.load()
+      wrapper.vm.form = { uuid: "", name: "Hot", when: "reported.temp > 70", clear: "", cooldown: "", webhook: "" }
+      await wrapper.vm.save()
     })
     await flushPromises()
 
     expect(calls).toContainEqual({
-      method: "get",
-      url: "/v1/alarms",
-      params: { namespace: "ns-1", any_state: true },
+      method: "create",
+      body: {
+        uuid: undefined,
+        namespace: "ns-1",
+        name: "Hot",
+        when: "reported.temp > 70",
+        clear: "",
+        cooldown: "",
+        actions: [{ log: { message: "alarm" } }],
+      },
+    })
+    expect(calls).toContainEqual({
+      method: "listAlarms",
+      req: { namespace: "ns-1", anyState: true },
     })
 
     const del = wrapper.findAll("button").find((button) => button.text() === "Delete")
     expect(del).toBeTruthy()
     await wrapper.vm.$.appContext.app.runWithContext(() => wrapper.vm.remove(wrapper.vm.rules[0]))
     await flushPromises()
-    expect(calls).toContainEqual({ method: "delete", url: "/v1/rules/rule-1" })
+    expect(calls).toContainEqual({ method: "delete", body: { uuid: "rule-1" } })
     expect(wrapper.text()).toContain("Hot")
   })
 })

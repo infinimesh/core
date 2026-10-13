@@ -36,8 +36,10 @@ describe("console connect services", () => {
         expect(service.typeName).toMatch(/\.v1\.[A-Za-z]+Service$/)
       }
     }
-    const { AccountsService } = await import("infinimesh-proto/build/es/node/node_connect")
+    const { AccountsService, RulesService } = await import("infinimesh-proto/build/es/node/node_connect")
     expect(AccountsService.typeName).toBe("infinimesh.node.v1.AccountsService")
     expect(AccountsService.methods.token.name).toBe("Token")
+    expect(RulesService.typeName).toBe("infinimesh.node.v1.RulesService")
+    expect(RulesService.methods.create.name).toBe("Create")
   })
 })

@@ -28,7 +28,7 @@ docker compose up -d
 
 Open https://console.127.0.0.1.nip.io
 
-It redirects to HTTPS with a local self-signed certificate, so accept the browser warning.
+It redirects to HTTPS with a local self-signed certificate. Accept that certificate separately for `https://console.$BASE_DOMAIN`, `https://api.$BASE_DOMAIN`, and `https://media.$BASE_DOMAIN`. The browser keeps one exception per host. With `BASE_DOMAIN=localhost` those hosts are `console.localhost`, `api.localhost`, and `media.localhost`. Until `api` is accepted, login fails with no message. Until `media` is accepted, the media page shows `Offline :(`.
 
 Log in as `infinimesh` / `infinimesh`. Change the password right away.
 
