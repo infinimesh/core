@@ -1,0 +1,34 @@
+name: Check pins
+
+# Reusable from inf-cli, platform-operator, k8s and website:
+#   uses: infinimesh/core/.github/workflows/check-pins.yml@main
+on:
+  workflow_call:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "41 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pins:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        if: github.repository != 'infinimesh/core'
+        with:
+          repository: infinimesh/core
+          ref: main
+          path: .pins
+          sparse-checkout: scripts/check-pins.sh
+          sparse-checkout-cone-mode: false
+      - name: Pinned core versions exist and are not behind the newest stable release
+        run: bash "$([ -f .pins/scripts/check-pins.sh ] && echo .pins/scripts || echo scripts)/check-pins.sh"
+      - name: check-pins self test
+        if: github.repository == 'infinimesh/core'
+        run: bash scripts/check-pins_test.sh

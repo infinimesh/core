@@ -1,0 +1,146 @@
+name: Release orchestrator
+
+# After a core tag has published its images (Docker Build) and its GitHub
+# release (Publish Release), release inf-cli, platform-operator and k8s at the
+# same version, then verify their releases. A final release also opens a pin
+# bump PR in core. Needs the infinimesh-release GitHub App
+# (org secrets RELEASE_APP_ID and RELEASE_APP_PRIVATE_KEY).
+on:
+  workflow_run:
+    workflows: ["Docker Build"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Core tag to fan out, e.g. v3.4.0 or v3.4.0-rc.11"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-orchestrator
+  cancel-in-progress: false
+
+env:
+  DOWNSTREAM: "inf-cli platform-operator k8s"
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      prerelease: ${{ steps.v.outputs.prerelease }}
+      enabled: ${{ steps.v.outputs.enabled }}
+    steps:
+      - id: v
+        env:
+          INPUT: ${{ inputs.version || github.event.workflow_run.head_branch }}
+          HAS_APP: ${{ secrets.RELEASE_APP_ID != '' && secrets.RELEASE_APP_PRIVATE_KEY != '' }}
+        run: |
+          v="$INPUT"
+          if printf '%s\n' "$v" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$'; then
+            pre=true
+          elif printf '%s\n' "$v" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            pre=false
+          else
+            echo "::notice::$v is not vX.Y.Z or vX.Y.Z-rc.N, nothing to release downstream."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if [ "$HAS_APP" != "true" ]; then
+            echo "::warning::RELEASE_APP_ID / RELEASE_APP_PRIVATE_KEY are not set. Skipping the downstream release of $v. See RELEASING.md."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          { echo "version=$v"; echo "prerelease=$pre"; echo "enabled=true"; } >> "$GITHUB_OUTPUT"
+
+  fanout:
+    needs: plan
+    if: needs.plan.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      V: ${{ needs.plan.outputs.version }}
+      PRE: ${{ needs.plan.outputs.prerelease }}
+    steps:
+      - uses: actions/create-github-app-token@v2
+        id: app
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: infinimesh
+          repositories: core,inf-cli,platform-operator,k8s
+
+      - name: Wait for the core GitHub release
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+        run: |
+          for _ in $(seq 1 30); do
+            gh release view "$V" -R infinimesh/core >/dev/null 2>&1 && { echo "core release $V exists"; exit 0; }
+            sleep 20
+          done
+          echo "::error::core release $V did not appear"; exit 1
+
+      - name: Dispatch core-release
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+        run: |
+          for r in $DOWNSTREAM; do
+            jq -n --arg v "$V" --argjson p "$PRE" '{event_type:"core-release",client_payload:{version:$v,prerelease:$p}}' \
+              | gh api "repos/infinimesh/$r/dispatches" --input -
+            echo "dispatched $V to $r"
+          done
+
+      - name: Verify downstream releases
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+        run: |
+          pending="$DOWNSTREAM"
+          for _ in $(seq 1 90); do
+            left=""
+            for r in $pending; do
+              if gh release view "$V" -R "infinimesh/$r" >/dev/null 2>&1; then
+                echo "ok $r $V" >> "$GITHUB_STEP_SUMMARY"
+              else
+                left="$left $r"
+              fi
+            done
+            pending=$left
+            [ -z "$pending" ] && exit 0
+            sleep 30
+          done
+          for r in $pending; do echo "::error::infinimesh/$r has no release $V after 45 minutes"; done
+          exit 1
+
+  pins:
+    needs: [plan, fanout]
+    if: needs.plan.outputs.enabled == 'true' && needs.plan.outputs.prerelease == 'false'
+    runs-on: ubuntu-latest
+    env:
+      V: ${{ needs.plan.outputs.version }}
+    steps:
+      - uses: actions/create-github-app-token@v2
+        id: app
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: infinimesh
+          repositories: core
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ steps.app.outputs.token }}
+      - name: Open the pin bump PR
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+        run: |
+          sh scripts/bump-pins.sh "$V"
+          if git diff --quiet; then echo "pins already at $V"; exit 0; fi
+          b="release/pins-$V"
+          git config user.name "infinimesh-release[bot]"
+          git config user.email "infinimesh-release[bot]@users.noreply.github.com"
+          git switch -c "$b"
+          git commit -am "Pin core $V"
+          git push -f origin "$b"
+          gh pr create --base main --head "$b" --title "Pin core $V" --body "Points .env.example, README and docs at $V." || true
+          gh pr merge "$b" --squash --auto --delete-branch || echo "::warning::auto-merge not available, merge the PR by hand"
