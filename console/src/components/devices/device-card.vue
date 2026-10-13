@@ -48,6 +48,7 @@
             {{ tag }}
           </n-tag>
         </template>
+        <div>OTA {{ otaLabel }}</div>
         <n-space align="center" :style="{ visibility: hover ? '' : 'hidden', marginTop: '1rem' }">
           <edit-tags-modal :device="device" @save="handleUpdateTags" v-if="access_lvl_conv(device) > 1" />
           <move v-if="access_lvl_conv(device) >= 3" type="device" :obj="device" @move="handleMove" />
@@ -69,14 +70,14 @@
             </n-tab-pane>
 
             <n-tab-pane name="default" tab="JSON">
-              <device-state-collapse :state="state" :patch="patch" :debug="debug" @submit="handlePatchDesired"
+              <device-state-collapse :state="state" :device="device.uuid" :patch="patch" :debug="debug" @submit="handlePatchDesired"
                 @submit-debug="handlePatchReported" />
             </n-tab-pane>
           </n-tabs>
 
         </template>
         <template v-else>
-          <device-state-collapse :state="state" :patch="patch" :debug="debug" @submit="handlePatchDesired"
+          <device-state-collapse :state="state" :device="device.uuid" :patch="patch" :debug="debug" @submit="handlePatchDesired"
             @submit-debug="handlePatchReported" />
         </template>
 
@@ -154,6 +155,7 @@ import { baseURL, useAppStore } from "@/store/app";
 import { usePluginsStore } from "@/store/plugins";
 
 import { access_lvl_conv } from "@/utils/access";
+import { otaStatusLabel } from "@/ota";
 import { storeToRefs } from "pinia";
 import { PluginKind } from "infinimesh-proto/build/es/plugins/plugins_pb";
 
@@ -197,6 +199,7 @@ const subscribed = computed(() => {
 });
 
 const state = computed(() => store.device_state(device.value.uuid))
+const otaLabel = computed(() => otaStatusLabel(state.value))
 
 const bulb_color = computed(() => {
   if (device.value.enabled === null) return "gray";

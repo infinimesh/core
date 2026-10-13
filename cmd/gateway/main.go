@@ -70,6 +70,13 @@ func init() {
 	caFile = viper.GetString("APISERVER_CA_FILE")
 }
 
+func gatewayHeader(key string) (string, bool) {
+	if strings.EqualFold(key, "x-infinimesh-ota-provider") {
+		return "x-infinimesh-ota-provider", true
+	}
+	return runtime.DefaultHeaderMatcher(key)
+}
+
 func main() {
 	defer func() {
 		_ = log.Sync()
@@ -86,7 +93,7 @@ func main() {
 		log.Fatal("Failed to configure TLS for API server", zap.Error(err))
 	}
 
-	gwmux := runtime.NewServeMux()
+	gwmux := runtime.NewServeMux(runtime.WithIncomingHeaderMatcher(gatewayHeader))
 	creds := insecure.NewCredentials()
 	if tlsConfig != nil {
 		creds = credentials.NewTLS(tlsConfig)

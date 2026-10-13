@@ -37,12 +37,16 @@ type fakeScopeNamespaces struct {
 	got    string
 	getErr error
 	items  []*nspb.Namespace
+	byID   map[string]*nspb.Namespace
 }
 
 func (f *fakeScopeNamespaces) Get(_ context.Context, req *connect.Request[nspb.Namespace]) (*connect.Response[nspb.Namespace], error) {
 	f.got = req.Msg.GetUuid()
 	if f.getErr != nil {
 		return nil, f.getErr
+	}
+	if ns, ok := f.byID[req.Msg.GetUuid()]; ok {
+		return connect.NewResponse(ns), nil
 	}
 	return connect.NewResponse(&nspb.Namespace{Uuid: req.Msg.GetUuid()}), nil
 }
