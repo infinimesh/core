@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+- `POST /v1/devices/token` returns 400 when a device access level is not `NONE`, `READ`, `MGMT`, `ADMIN`, or `ROOT`. `MANAGE` is not a level. An empty device list is not minted.
+- Native gRPC on `api.$BASE_DOMAIN:443` uses HTTP/2 to the API, the same as the gRPC entrypoint. Root and addon claims stay on that call.
+- Local CLI examples use `api.localhost:443` and `--insecure-skip-verify`. The default Traefik certificate does not cover that name.
+- `/metrics` includes `infinimesh_up`.
+
 ## [v3.4.0-rc.10] - 2026-10-13
 
 ### Fixed

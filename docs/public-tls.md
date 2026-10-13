@@ -108,7 +108,7 @@ Log in with the CLI against port 443:
 inf login --api api.example.com:443 --username infinimesh --password 'your-admin-password'
 ```
 
-The CLI uses TLS unless you pass `--insecure`, and it skips certificate verification. A host with no port, including an `https://` URL, is dialed on port 8000. Port 8000 here is plaintext h2c, and the public overlays do not publish it.
+The CLI uses TLS unless you pass `--insecure`. Certificate checks stay on. Pass `--ca-file` for a private CA, or `--insecure-skip-verify` when the certificate does not match the host. A local Compose stack uses the default Traefik certificate, which does not cover `api.localhost`, so that login passes `--insecure-skip-verify`. A host with no port, including an `https://` URL, is dialed on port 443. Port 8000 is plaintext h2c, and the public overlays do not publish it. The HTTPS route to the API is HTTP/2.
 
 Devices connect to `mqtt.$BASE_DOMAIN` port `8883`. The listener requires a client certificate (`tls.RequireAnyClientCert`). The server certificate is the Let's Encrypt certificate for `mqtt.$BASE_DOMAIN`, so the system CA bundle validates it. Register the device certificate as in [device-auth.md](device-auth.md):
 

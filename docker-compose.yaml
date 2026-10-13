@@ -110,6 +110,7 @@ services:
       - traefik.http.routers.api_connect.tls.certresolver=letsencrypt
       - traefik.http.routers.api_connect.service=api_connect@docker
       - traefik.http.services.api_connect.loadbalancer.server.port=8000
+      - traefik.http.services.api_connect.loadbalancer.server.scheme=h2c
 
     depends_on:
       - db
