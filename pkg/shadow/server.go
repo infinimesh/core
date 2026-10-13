@@ -150,16 +150,20 @@ func (s *ShadowServiceServer) PatchMany(ctx context.Context, req *pb.PatchManyRe
 		return nil, rpcErr(connect.CodeInvalidArgument, "devices and desired state are required")
 	}
 	var n int32
+	var results []*pb.DevicePatchResult
 	for _, id := range req.GetDevices() {
 		if id == "" {
 			continue
 		}
+		res := &pb.DevicePatchResult{Device: id}
 		if _, err := s.Patch(ctx, &pb.Shadow{Device: id, Desired: req.GetDesired()}); err != nil {
-			return nil, err
+			res.Error = patchErrText(err)
+		} else {
+			n++
 		}
-		n++
+		results = append(results, res)
 	}
-	return &pb.PatchManyResponse{Updated: n}, nil
+	return &pb.PatchManyResponse{Updated: n, Results: results}, nil
 }
 
 func (s *ShadowServiceServer) Patch(ctx context.Context, req *pb.Shadow) (*pb.Shadow, error) {
@@ -169,8 +173,14 @@ func (s *ShadowServiceServer) Patch(ctx context.Context, req *pb.Shadow) (*pb.Sh
 	if req.GetDevice() == "" {
 		return nil, rpcErr(connect.CodeInvalidArgument, "no device specified")
 	}
+	if err := ValidateState(req.Reported); err != nil {
+		return nil, err
+	}
+	if err := ValidateState(req.Desired); err != nil {
+		return nil, err
+	}
 
-	s.bumpVersions(ctx, req)
+	prevReported, prevDesired := s.bumpVersions(ctx, req)
 	now := timestamppb.Now()
 	topics := []string{}
 	if req.Reported != nil {
@@ -184,6 +194,7 @@ func (s *ShadowServiceServer) Patch(ctx context.Context, req *pb.Shadow) (*pb.Sh
 
 	s.stamp(ctx, req)
 	s.ps.TryPub(req, topics...)
+	s.publishOTA(ctx, req, topics, otaEvents(prevReported, prevDesired, req))
 	if req.Reported != nil || req.Desired != nil {
 		observe.ShadowWrites.Inc()
 	}
@@ -458,28 +469,29 @@ func eventInStream(devices map[string]struct{}, scope streamScope, ev *pb.Shadow
 	return scope.live() && scope.wants(ev)
 }
 
-func (s *ShadowServiceServer) bumpVersions(ctx context.Context, req *pb.Shadow) {
+func (s *ShadowServiceServer) bumpVersions(ctx context.Context, req *pb.Shadow) (prevReported, prevDesired *pb.State) {
 	if req.GetReported() != nil {
-		req.Reported.Version = s.nextVersion(ctx, req.GetDevice(), pb.StateKey_REPORTED)
+		prevReported, req.Reported.Version = s.previousState(ctx, req.GetDevice(), pb.StateKey_REPORTED)
 	}
 	if req.GetDesired() != nil {
-		req.Desired.Version = s.nextVersion(ctx, req.GetDevice(), pb.StateKey_DESIRED)
+		prevDesired, req.Desired.Version = s.previousState(ctx, req.GetDevice(), pb.StateKey_DESIRED)
 	}
+	return prevReported, prevDesired
 }
 
-func (s *ShadowServiceServer) nextVersion(ctx context.Context, device string, key pb.StateKey) uint64 {
+func (s *ShadowServiceServer) previousState(ctx context.Context, device string, key pb.StateKey) (*pb.State, uint64) {
 	if s.rdb == nil {
-		return 1
+		return nil, 1
 	}
 	raw, err := s.rdb.Get(ctx, Key(device, key)).Result()
 	if err != nil {
-		return 1
+		return nil, 1
 	}
 	var state pb.State
 	if json.Unmarshal([]byte(raw), &state) != nil {
-		return 1
+		return nil, 1
 	}
-	return state.GetVersion() + 1
+	return &state, state.GetVersion() + 1
 }
 
 func (s *ShadowServiceServer) expand(ctx context.Context, patch *pb.Shadow) *pb.Shadow {

@@ -22,6 +22,9 @@
           <n-space justify="end" align="flex-end" style="height: 100%;">
             <device-create />
             <device-register v-if="console_services.pairing != undefined" />
+            <n-input v-model:value="otaVersion" placeholder="OTA version" style="width: 140px" />
+            <n-input v-model:value="otaTag" placeholder="Tag (optional)" style="width: 140px" />
+            <n-button :disabled="!otaVersion" @click="assignOTA">Assign OTA</n-button>
           </n-space>
         </n-grid-item>
       </n-grid>
@@ -43,7 +46,8 @@
 
 <script setup>
 import { defineAsyncComponent, watch, ref } from "vue"
-import { NSpin, NH1, NText, NIcon, NButton, NGrid, NGridItem, NSpace, NNumberAnimation, NSelect, NFlex } from "naive-ui";
+import { NSpin, NH1, NText, NIcon, NButton, NGrid, NGridItem, NSpace, NNumberAnimation, NSelect, NFlex, NInput, useMessage } from "naive-ui";
+import { assignBody } from "@/ota";
 
 import { useAppStore } from "@/store/app";
 import { useDevicesStore } from "@/store/devices";
@@ -173,6 +177,34 @@ async function load_plugin() {
 }
 
 watch(selected, load_plugin)
+
+const otaVersion = ref("")
+const otaTag = ref("")
+const message = useMessage()
+async function assignOTA() {
+  const body = assignBody({
+    namespace: selected.value,
+    tag: otaTag.value.trim(),
+    version: otaVersion.value.trim(),
+  })
+  if (!body.namespace && !body.tag) {
+    message.error("Pick a namespace or a tag")
+    return
+  }
+  try {
+    const res = await app.http.post("/v1/devices/ota:assign", body)
+    const failed = (res.data.results || []).filter((row) => row.error)
+    const updated = res.data.updated || 0
+    if (failed.length) {
+      message.error(`${updated} updated, ${failed.length} failed: ${failed[0].error}`)
+      return
+    }
+    message.success(`${updated} updated`)
+    otaVersion.value = ""
+  } catch (e) {
+    message.error("OTA assign failed: " + e.message)
+  }
+}
 
 function handleRefresh() {
   store.fetchDevices(true);

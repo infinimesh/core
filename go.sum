@@ -82,8 +82,8 @@ github.com/grpc-ecosystem/grpc-gateway/v2 v2.31.0 h1:Bd7KaOxzULLxtZ/K5s1aLbWhR0+
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.31.0/go.mod h1:nN7ts3dFXKtCZWc//yfkpcQNKJABg16/uDVAZpLDalo=
 github.com/hashicorp/hcl v1.0.0 h1:0Anlzjpi4vEasTeNFn2mLJgTSwt0+6sfsiTG8qcWGx4=
 github.com/hashicorp/hcl v1.0.0/go.mod h1:E5yfLk+7swimpb2L/Alb/PJmXilQ/rhwaUYs4T20WEQ=
-github.com/infinimesh/proto v1.0.1-0.20261012182122-6a57eb0872de h1:PifW80n1v/Mm0tvrzJyPorVvWWQa7tJNoFuK+CLMD5Q=
-github.com/infinimesh/proto v1.0.1-0.20261012182122-6a57eb0872de/go.mod h1:bC0x2UQ/Q+IGz7knKtpLAXwnWGQ2smUZi4pq85dKHQ8=
+github.com/infinimesh/proto v1.0.1-0.20261013095642-fe000893d2f9 h1:rf9KwoPthK10cXNwLrvPRi4kVsxv/KdXNhDRLAXCio0=
+github.com/infinimesh/proto v1.0.1-0.20261013095642-fe000893d2f9/go.mod h1:bC0x2UQ/Q+IGz7knKtpLAXwnWGQ2smUZi4pq85dKHQ8=
 github.com/klauspost/compress v1.18.0 h1:c/Cqfb0r+Yi+JtIEq73FWXVkRonBlf0CRNYc8Zttxdo=
 github.com/klauspost/compress v1.18.0/go.mod h1:2Pp+KzxcywXVXMr50+X0Q/Lsb43OQHYWRCY2AiWywWQ=
 github.com/klauspost/cpuid/v2 v2.0.1/go.mod h1:FInQzS24/EEf25PyTYn52gqo7WaD8xa0213Md/qVLRg=

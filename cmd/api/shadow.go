@@ -55,6 +55,7 @@ type ShadowAPI struct {
 	client     shadow.ShadowServiceClient
 	devices    scopeDevices
 	namespaces scopeNamespaces
+	auditor    otaAuditor
 }
 
 func (s *ShadowAPI) SetRegistry(devices scopeDevices, namespaces scopeNamespaces) {
@@ -103,6 +104,11 @@ func (s *ShadowAPI) Patch(ctx context.Context, request *connect.Request[shadow.S
 
 	if err = authorizeShadowWrite(ctx, devices_scope, shadow.GetDevice(), shadow.GetReported() != nil, shadow.GetDesired() != nil); err != nil {
 		return nil, err
+	}
+	if stateHasOTA(shadow.GetDesired()) {
+		if err = s.authorizeDesiredOTA(ctx, providerHeader(ctx, request.Header()), shadow.GetDevice()); err != nil {
+			return nil, err
+		}
 	}
 
 	res, err := s.client.Patch(ctx, shadow)
@@ -261,25 +267,19 @@ func (s *ShadowAPI) PatchMany(ctx context.Context, request *connect.Request[shad
 	if msg.GetDesired() == nil {
 		return nil, apierr.Code(connect.CodeInvalidArgument, "desired state is required")
 	}
-	if s.devices == nil {
-		return nil, apierr.Code(connect.CodeUnavailable, "device registry is not available")
+	if stateHasOTA(msg.GetDesired()) {
+		patched, err := s.patchDesiredOTA(ctx, providerHeader(ctx, request.Header()), msg.GetNamespace(), msg.GetTag(), msg.GetDevices(), msg.GetDesired(), false)
+		if err != nil {
+			return nil, err
+		}
+		return connect.NewResponse(patched), nil
 	}
-	ns := msg.GetNamespace()
-	listed, err := s.devices.List(ctx, connect.NewRequest(&pb.QueryRequest{Namespace: ns}))
+	devs, err := s.manageableDevices(ctx, msg.GetNamespace(), msg.GetTag())
 	if err != nil {
 		return nil, err
 	}
 	var ids []string
-	for _, dev := range listed.Msg.GetDevices() {
-		if ns != "" && dev.GetAccess().GetNamespace() != ns {
-			continue
-		}
-		if msg.GetTag() != "" && !slices.Contains(dev.GetTags(), msg.GetTag()) {
-			continue
-		}
-		if dev.GetAccess().GetLevel() < access.Level_MGMT {
-			continue
-		}
+	for _, dev := range devs {
 		ids = append(ids, dev.GetUuid())
 	}
 	if len(msg.GetDevices()) > 0 {
@@ -293,6 +293,30 @@ func (s *ShadowAPI) PatchMany(ctx context.Context, request *connect.Request[shad
 		return nil, asConnect(err)
 	}
 	return connect.NewResponse(res), nil
+}
+
+func (s *ShadowAPI) manageableDevices(ctx context.Context, ns, tag string) ([]*devpb.Device, error) {
+	if s.devices == nil {
+		return nil, apierr.Code(connect.CodeUnavailable, "device registry is not available")
+	}
+	listed, err := s.devices.List(ctx, connect.NewRequest(&pb.QueryRequest{Namespace: ns}))
+	if err != nil {
+		return nil, err
+	}
+	var out []*devpb.Device
+	for _, dev := range listed.Msg.GetDevices() {
+		if ns != "" && dev.GetAccess().GetNamespace() != ns {
+			continue
+		}
+		if tag != "" && !slices.Contains(dev.GetTags(), tag) {
+			continue
+		}
+		if dev.GetAccess().GetLevel() < access.Level_MGMT {
+			continue
+		}
+		out = append(out, dev)
+	}
+	return out, nil
 }
 
 func (s *ShadowAPI) StreamShadow(ctx context.Context, request *connect.Request[shadow.StreamShadowRequest], srv *connect.ServerStream[shadow.Shadow]) (err error) {

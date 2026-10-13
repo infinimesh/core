@@ -70,13 +70,17 @@
           <n-tr v-if="expand.has(ns.uuid)">
             <td colspan="5">
               <n-space>
-                <n-switch :value="!!(otaOf(ns).enabled)" @update:value="(v) => saveOTA(ns, v)" />
+                <n-switch :value="otaSwitchOn(otaOf(ns))" :disabled="!otaOf(ns).addonRegistered"
+                  @update:value="(v) => saveOTA(ns, v)" />
                 <span>Enable OTA</span>
-                <n-select style="width: 140px" :value="otaOf(ns).backend || 'hawkBit'"
-                  :options="[{ label: 'hawkBit', value: 'hawkBit' }, { label: 'Mender', value: 'mender' }]"
-                  @update:value="(v) => saveOTA(ns, !!otaOf(ns).enabled, v)" />
-                <n-input style="width: 280px" :default-value="otaOf(ns).backendUrl || ''" placeholder="Backend URL"
-                  @blur="(e) => saveOTA(ns, !!otaOf(ns).enabled, otaOf(ns).backend || 'hawkBit', e.target.value)" />
+                <n-text v-if="!otaOf(ns).addonRegistered" depth="3">Register an OTA addon first.</n-text>
+                <n-select style="width: 140px" :disabled="!otaSwitchOn(otaOf(ns))"
+                  :value="otaOf(ns).provider || 'none'" :options="otaProviders"
+                  @update:value="(v) => saveOTA(ns, true, v)" />
+                <n-input v-if="(otaOf(ns).provider || 'none') === 'webhook'" style="width: 280px"
+                  :disabled="!otaSwitchOn(otaOf(ns))" :default-value="otaOf(ns).webhookUrl || ''"
+                  placeholder="Webhook URL"
+                  @blur="(e) => saveOTA(ns, true, 'webhook', e.target.value)" />
               </n-space>
               <ns-joins :namespace="ns.uuid"
                 :admin="access_role_conv(ns) == Role.OWNER || access_lvl_conv(ns) == Role.ROOT" />
@@ -135,6 +139,7 @@ import { Role } from "infinimesh-proto/build/es/node/access/access_pb"
 import { useNSStore } from "@/store/namespaces";
 import { useAppStore } from "@/store/app";
 import { access_lvl_conv, access_role_conv } from "@/utils/access";
+import { otaProviders, otaSwitchOn } from "@/ota";
 
 const RefreshOutline = defineAsyncComponent(() => import("@vicons/ionicons5/RefreshOutline"))
 const ChevronForwardOutline = defineAsyncComponent(() => import("@vicons/ionicons5/ChevronForwardOutline"))
@@ -210,25 +215,24 @@ async function toggleNS(ns) {
     message.error("Failed to load OTA setting: " + e.message)
   }
 }
-async function saveOTA(ns, enabled, backend, backendUrl) {
+async function saveOTA(ns, enabled, provider, webhookUrl) {
   const current = otaOf(ns)
+  const next = {
+    enabled,
+    provider: provider || current.provider || "none",
+    webhookUrl: webhookUrl !== undefined ? webhookUrl : (current.webhookUrl || ""),
+    addonRegistered: !!current.addonRegistered,
+  }
   try {
     await app.http.patch(`/v1/namespaces/${ns.uuid}`, {
       uuid: ns.uuid,
       ota: {
-        enabled,
-        backend: backend || current.backend || "hawkBit",
-        backendUrl: backendUrl !== undefined ? backendUrl : (current.backendUrl || ""),
+        enabled: next.enabled,
+        provider: next.provider,
+        webhookUrl: next.webhookUrl,
       },
     })
-    otaState.value = {
-      ...otaState.value,
-      [ns.uuid]: {
-        enabled,
-        backend: backend || current.backend || "hawkBit",
-        backendUrl: backendUrl !== undefined ? backendUrl : (current.backendUrl || ""),
-      },
-    }
+    otaState.value = { ...otaState.value, [ns.uuid]: next }
     message.success("OTA setting saved")
   } catch (e) {
     message.error("Failed to save OTA setting: " + e.message)

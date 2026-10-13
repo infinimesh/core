@@ -881,6 +881,48 @@
         ]
       }
     },
+    "/devices/ota:assign": {
+      "post": {
+        "summary": "Assign an OTA target version",
+        "description": "Sets desired.data.ota.version and updated_at. Example body: {\"namespace\":\"plant\",\"version\":\"1.4.0\"}. A tag: {\"namespace\":\"plant\",\"tag\":\"line-a\",\"version\":\"1.4.0\"}. A device list: {\"devices\":[\"dev-1\",\"dev-2\"],\"version\":\"1.4.0\"}. results has one entry per device. Header x-infinimesh-ota-provider must match Namespace.ota.provider when that provider is hawkbit, mender, or webhook. Each success is an audit row with action ota_assign.",
+        "operationId": "ShadowService_AssignOTA2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1AssignOTAResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "AssignOTARequest sets desired.data.ota.version on each selected device.",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1AssignOTARequest"
+            }
+          },
+          {
+            "name": "x-infinimesh-ota-provider",
+            "description": "Must equal the namespace OTA provider when that provider is hawkbit, mender, or webhook. Omit it when the provider is none.",
+            "in": "header",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ShadowService"
+        ]
+      }
+    },
     "/devices/states": {
       "get": {
         "operationId": "ShadowService_Get2",
@@ -1099,6 +1141,8 @@
     },
     "/devices/states:patchMany": {
       "post": {
+        "summary": "Patch desired state on many devices",
+        "description": "Example body: {\"namespace\":\"plant\",\"tag\":\"line-a\",\"desired\":{\"data\":{\"ota\":{\"version\":\"1.4.0\"}}}}. results has one entry per device. A non-empty error means that device was not updated.",
         "operationId": "ShadowService_PatchMany2",
         "responses": {
           "200": {
@@ -2146,6 +2190,24 @@
             "type": "string"
           },
           {
+            "name": "ota.provider",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ota.webhookUrl",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ota.addonRegistered",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
             "name": "quota.maxDevices",
             "in": "query",
             "required": false,
@@ -2263,6 +2325,24 @@
             "type": "string"
           },
           {
+            "name": "ota.provider",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ota.webhookUrl",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ota.addonRegistered",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
             "name": "quota.maxDevices",
             "in": "query",
             "required": false,
@@ -2289,6 +2369,8 @@
         ]
       },
       "patch": {
+        "summary": "Update a namespace, including its OTA provider",
+        "description": "Example body: {\"uuid\":\"ns-1\",\"ota\":{\"enabled\":true,\"provider\":\"webhook\",\"webhookUrl\":\"https://ota.example/hook\"}}. provider is none, hawkbit, mender, or webhook. enabled can be true only when a plugin of kind OTA is registered. addonRegistered is ignored on write.",
         "operationId": "NamespacesService_Update2",
         "responses": {
           "200": {
@@ -2418,6 +2500,24 @@
             "type": "string"
           },
           {
+            "name": "ota.provider",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ota.webhookUrl",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ota.addonRegistered",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
             "name": "quota.maxDevices",
             "in": "query",
             "required": false,
@@ -2536,6 +2636,24 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "ota.provider",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ota.webhookUrl",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ota.addonRegistered",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           },
           {
             "name": "quota.maxDevices",
@@ -2727,13 +2845,14 @@
           },
           {
             "name": "kind",
-            "description": " - EMBEDDED: Plugin will be embedded into Console as Page",
+            "description": " - EMBEDDED: Plugin will be embedded into Console as Page\n - OTA: An OTA addon. Registering one lets a namespace turn OTA on.",
             "in": "query",
             "required": false,
             "type": "string",
             "enum": [
               "UNKNOWN",
-              "EMBEDDED"
+              "EMBEDDED",
+              "OTA"
             ],
             "default": "UNKNOWN"
           },
@@ -2837,13 +2956,14 @@
           },
           {
             "name": "kind",
-            "description": " - EMBEDDED: Plugin will be embedded into Console as Page",
+            "description": " - EMBEDDED: Plugin will be embedded into Console as Page\n - OTA: An OTA addon. Registering one lets a namespace turn OTA on.",
             "in": "query",
             "required": false,
             "type": "string",
             "enum": [
               "UNKNOWN",
-              "EMBEDDED"
+              "EMBEDDED",
+              "OTA"
             ],
             "default": "UNKNOWN"
           },
@@ -4132,6 +4252,48 @@
         ]
       }
     },
+    "/v1/devices/ota:assign": {
+      "post": {
+        "summary": "Assign an OTA target version",
+        "description": "Sets desired.data.ota.version and updated_at. Example body: {\"namespace\":\"plant\",\"version\":\"1.4.0\"}. A tag: {\"namespace\":\"plant\",\"tag\":\"line-a\",\"version\":\"1.4.0\"}. A device list: {\"devices\":[\"dev-1\",\"dev-2\"],\"version\":\"1.4.0\"}. results has one entry per device. Header x-infinimesh-ota-provider must match Namespace.ota.provider when that provider is hawkbit, mender, or webhook. Each success is an audit row with action ota_assign.",
+        "operationId": "ShadowService_AssignOTA",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1AssignOTAResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "AssignOTARequest sets desired.data.ota.version on each selected device.",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1AssignOTARequest"
+            }
+          },
+          {
+            "name": "x-infinimesh-ota-provider",
+            "description": "Must equal the namespace OTA provider when that provider is hawkbit, mender, or webhook. Omit it when the provider is none.",
+            "in": "header",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ShadowService"
+        ]
+      }
+    },
     "/v1/devices/states/stream": {
       "get": {
         "operationId": "ShadowService_StreamShadow",
@@ -4238,6 +4400,8 @@
     },
     "/v1/devices/states:patchMany": {
       "post": {
+        "summary": "Patch desired state on many devices",
+        "description": "Example body: {\"namespace\":\"plant\",\"tag\":\"line-a\",\"desired\":{\"data\":{\"ota\":{\"version\":\"1.4.0\"}}}}. results has one entry per device. A non-empty error means that device was not updated.",
         "operationId": "ShadowService_PatchMany",
         "responses": {
           "200": {
@@ -5409,6 +5573,24 @@
             "type": "string"
           },
           {
+            "name": "ota.provider",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ota.webhookUrl",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ota.addonRegistered",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
             "name": "quota.maxDevices",
             "in": "query",
             "required": false,
@@ -5526,6 +5708,24 @@
             "type": "string"
           },
           {
+            "name": "ota.provider",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ota.webhookUrl",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ota.addonRegistered",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
             "name": "quota.maxDevices",
             "in": "query",
             "required": false,
@@ -5552,6 +5752,8 @@
         ]
       },
       "patch": {
+        "summary": "Update a namespace, including its OTA provider",
+        "description": "Example body: {\"uuid\":\"ns-1\",\"ota\":{\"enabled\":true,\"provider\":\"webhook\",\"webhookUrl\":\"https://ota.example/hook\"}}. provider is none, hawkbit, mender, or webhook. enabled can be true only when a plugin of kind OTA is registered. addonRegistered is ignored on write.",
         "operationId": "NamespacesService_Update",
         "responses": {
           "200": {
@@ -5681,6 +5883,24 @@
             "type": "string"
           },
           {
+            "name": "ota.provider",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ota.webhookUrl",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ota.addonRegistered",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
             "name": "quota.maxDevices",
             "in": "query",
             "required": false,
@@ -5799,6 +6019,24 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "ota.provider",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ota.webhookUrl",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "ota.addonRegistered",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           },
           {
             "name": "quota.maxDevices",
@@ -6071,13 +6309,14 @@
           },
           {
             "name": "kind",
-            "description": " - EMBEDDED: Plugin will be embedded into Console as Page",
+            "description": " - EMBEDDED: Plugin will be embedded into Console as Page\n - OTA: An OTA addon. Registering one lets a namespace turn OTA on.",
             "in": "query",
             "required": false,
             "type": "string",
             "enum": [
               "UNKNOWN",
-              "EMBEDDED"
+              "EMBEDDED",
+              "OTA"
             ],
             "default": "UNKNOWN"
           },
@@ -6181,13 +6420,14 @@
           },
           {
             "name": "kind",
-            "description": " - EMBEDDED: Plugin will be embedded into Console as Page",
+            "description": " - EMBEDDED: Plugin will be embedded into Console as Page\n - OTA: An OTA addon. Registering one lets a namespace turn OTA on.",
             "in": "query",
             "required": false,
             "type": "string",
             "enum": [
               "UNKNOWN",
-              "EMBEDDED"
+              "EMBEDDED",
+              "OTA"
             ],
             "default": "UNKNOWN"
           },
@@ -7042,6 +7282,60 @@
         }
       }
     },
+    "v1AssignOTARequest": {
+      "type": "object",
+      "example": {
+        "namespace": "plant",
+        "version": "1.4.0"
+      },
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "description": "Every manageable device in this namespace. Combine with tag to narrow the set."
+        },
+        "tag": {
+          "type": "string"
+        },
+        "devices": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "When set, only these devices are assigned. Each one is listed in results."
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "description": "AssignOTARequest sets desired.data.ota.version on each selected device."
+    },
+    "v1AssignOTAResponse": {
+      "type": "object",
+      "example": {
+        "updated": 2,
+        "results": [
+          {
+            "device": "dev-1"
+          },
+          {
+            "device": "dev-2"
+          }
+        ]
+      },
+      "properties": {
+        "updated": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1DevicePatchResult"
+          }
+        }
+      }
+    },
     "v1AuditRecord": {
       "type": "object",
       "properties": {
@@ -7066,7 +7360,7 @@
           "type": "string"
         }
       },
-      "description": "AuditRecord is one read of device state. The collection is append-only."
+      "description": "AuditRecord is one audit log row. action is read, create, token, or ota_assign.\nThe collection is append-only."
     },
     "v1AuditRecords": {
       "type": "object",
@@ -7345,6 +7639,18 @@
           "items": {
             "type": "string"
           }
+        }
+      }
+    },
+    "v1DevicePatchResult": {
+      "type": "object",
+      "properties": {
+        "device": {
+          "type": "string"
+        },
+        "error": {
+          "type": "string",
+          "description": "Empty when the patch was stored."
         }
       }
     },
@@ -7733,6 +8039,11 @@
     },
     "v1OTAConfig": {
       "type": "object",
+      "example": {
+        "enabled": true,
+        "provider": "webhook",
+        "webhookUrl": "https://ota.example/hook"
+      },
       "properties": {
         "enabled": {
           "type": "boolean"
@@ -7742,9 +8053,18 @@
         },
         "backend": {
           "type": "string"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "webhookUrl": {
+          "type": "string"
+        },
+        "addonRegistered": {
+          "type": "boolean"
         }
       },
-      "description": "OTAConfig is read by the OTA addon. backend is hawkBit or mender."
+      "description": "OTAConfig names who may write desired.ota.\nenabled can be set only when an OTA addon is registered: a plugin of kind OTA\nthat is public, or whose namespace is this namespace.\nprovider is none, hawkbit, mender, or webhook. Empty is none.\nwebhook_url is required when provider is webhook.\nbackend_url and backend are ignored.\naddon_registered is set on read and ignored on write."
     },
     "v1PairingCreate": {
       "type": "object",
@@ -7762,6 +8082,18 @@
     },
     "v1PatchManyRequest": {
       "type": "object",
+      "example": {
+        "namespace": "plant",
+        "tag": "line-a",
+        "desired": {
+          "data": {
+            "ota": {
+              "version": "1.4.0",
+              "updated_at": "2026-10-13T12:00:00Z"
+            }
+          }
+        }
+      },
       "properties": {
         "devices": {
           "type": "array",
@@ -7784,10 +8116,29 @@
     },
     "v1PatchManyResponse": {
       "type": "object",
+      "example": {
+        "updated": 1,
+        "results": [
+          {
+            "device": "dev-1"
+          },
+          {
+            "device": "dev-2",
+            "error": "ota status must be idle, downloading, installing, success, or failed"
+          }
+        ]
+      },
       "properties": {
         "updated": {
           "type": "integer",
           "format": "int32"
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1DevicePatchResult"
+          }
         }
       }
     },
@@ -7829,10 +8180,11 @@
       "type": "string",
       "enum": [
         "UNKNOWN",
-        "EMBEDDED"
+        "EMBEDDED",
+        "OTA"
       ],
       "default": "UNKNOWN",
-      "description": "- EMBEDDED: Plugin will be embedded into Console as Page"
+      "description": " - EMBEDDED: Plugin will be embedded into Console as Page\n - OTA: An OTA addon. Registering one lets a namespace turn OTA on."
     },
     "v1Plugins": {
       "type": "object",
@@ -8123,10 +8475,12 @@
         "DEVICE_ADDED",
         "DEVICE_REMOVED",
         "TAG_ADDED",
-        "TAG_REMOVED"
+        "TAG_REMOVED",
+        "OTA_TARGET_SET",
+        "OTA_STATUS_CHANGED"
       ],
       "default": "STATE",
-      "description": " - TAG_ADDED: A tag was added. tag names it. tags is the full list after the change.\n - TAG_REMOVED: A tag was removed. tag names it. tags is the full list after the change."
+      "description": " - TAG_ADDED: A tag was added. tag names it. tags is the full list after the change.\n - TAG_REMOVED: A tag was removed. tag names it. tags is the full list after the change.\n - OTA_TARGET_SET: desired.data.ota.version changed.\n - OTA_STATUS_CHANGED: reported.data.ota.status changed."
     },
     "v1State": {
       "type": "object",
@@ -8143,7 +8497,7 @@
           "format": "uint64"
         }
       },
-      "description": "State is one section of a device shadow.\ndata.ota, when set, is the over-the-air document:\nversion (string), url (string), sha256 (string).\nReported state also carries state (string), progress (number), and error (string)."
+      "description": "State is one section of a device shadow.\ndata.ota, when present, is an object. A patch may set any subset of these fields:\nversion (string), url (string), sha256 (64 lowercase hex characters),\nsize (number, zero or greater), status (idle, downloading, installing, success, or failed),\nerror (string), updated_at (RFC3339). Any other key is rejected, including state and progress.\nA null data.ota clears the document."
     },
     "v1StateKey": {
       "type": "string",

@@ -151,6 +151,7 @@ func (c *NamespacesController) Get(ctx context.Context, ns *connect.Request[nspb
 	if result.Access.Level < access.Level_READ {
 		return nil, apierr.Code(connect.CodePermissionDenied, "Not enough Access Rights")
 	}
+	c.markOTAAddon(ctx, result.Namespace)
 
 	return connect.NewResponse(result.Namespace), nil
 }
@@ -191,8 +192,13 @@ func (c *NamespacesController) Update(ctx context.Context, req *connect.Request[
 		changed = true
 	}
 	if ns.Ota != nil {
-		if ns.Ota.GetEnabled() && ns.Ota.GetBackend() != "hawkBit" && ns.Ota.GetBackend() != "mender" {
-			return nil, apierr.Code(connect.CodeInvalidArgument, "ota backend must be hawkBit or mender")
+		ns.Ota.AddonRegistered = false
+		addons, err := c.countOTAAddons(ctx, ns.Uuid)
+		if err != nil {
+			return nil, apierr.Code(connect.CodeInternal, "could not check OTA addons")
+		}
+		if err := ValidOTAConfig(ns.Ota, addons); err != nil {
+			return nil, apierr.Code(connect.CodeInvalidArgument, err.Error())
 		}
 		curr.Ota = ns.Ota
 		changed = true
@@ -208,6 +214,7 @@ func (c *NamespacesController) Update(ctx context.Context, req *connect.Request[
 			return nil, apierr.Codef(connect.CodeInternal, "Error while updating Namespace in DB: %v", err)
 		}
 	}
+	c.markOTAAddon(ctx, curr.Namespace)
 
 	return connect.NewResponse(curr.Namespace), nil
 }

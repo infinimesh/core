@@ -45,8 +45,8 @@ importers:
         specifier: ^11.12.0
         version: 11.12.0
       infinimesh-proto:
-        specifier: git+https://github.com/infinimesh/proto.git#6a57eb0872deffcb49779d360cb036f68e3eb188
-        version: https://codeload.github.com/infinimesh/proto/tar.gz/6a57eb0872deffcb49779d360cb036f68e3eb188
+        specifier: git+https://github.com/infinimesh/proto.git#fe000893d2f92b9fc86203864738dcf8b5084c37
+        version: https://codeload.github.com/infinimesh/proto/tar.gz/fe000893d2f92b9fc86203864738dcf8b5084c37
       lodash:
         specifier: 4.18.1
         version: 4.18.1
@@ -904,8 +904,8 @@ packages:
     resolution: {integrity: sha512-dFcAjpTQFgoLMzC2VwU+C/CbS7uRL0lWmxDITmqm7C+7F0Odmj6s9l6alZc6AELXhrnggM2CeWSXHGOdX2YtwA==}
     engines: {node: '>= 6'}
 
-  infinimesh-proto@https://codeload.github.com/infinimesh/proto/tar.gz/6a57eb0872deffcb49779d360cb036f68e3eb188:
-    resolution: {tarball: https://codeload.github.com/infinimesh/proto/tar.gz/6a57eb0872deffcb49779d360cb036f68e3eb188}
+  infinimesh-proto@https://codeload.github.com/infinimesh/proto/tar.gz/fe000893d2f92b9fc86203864738dcf8b5084c37:
+    resolution: {tarball: https://codeload.github.com/infinimesh/proto/tar.gz/fe000893d2f92b9fc86203864738dcf8b5084c37}
     version: 3.1.4-0
 
   ini@1.3.8:
@@ -2120,7 +2120,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  infinimesh-proto@https://codeload.github.com/infinimesh/proto/tar.gz/6a57eb0872deffcb49779d360cb036f68e3eb188:
+  infinimesh-proto@https://codeload.github.com/infinimesh/proto/tar.gz/fe000893d2f92b9fc86203864738dcf8b5084c37:
     dependencies:
       '@bufbuild/protobuf': 1.6.0
 

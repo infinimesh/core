@@ -80,12 +80,18 @@
       <n-grid v-if="ota" responsive="screen">
         <n-grid-item :span="8">Version</n-grid-item>
         <n-grid-item :span="16">{{ ota.version }}</n-grid-item>
-        <n-grid-item :span="8">State</n-grid-item>
-        <n-grid-item :span="16">{{ ota.state }}</n-grid-item>
-        <n-grid-item :span="8">Progress</n-grid-item>
-        <n-grid-item :span="16">{{ ota.progress }}</n-grid-item>
+        <n-grid-item :span="8">URL</n-grid-item>
+        <n-grid-item :span="16">{{ ota.url }}</n-grid-item>
+        <n-grid-item :span="8">SHA256</n-grid-item>
+        <n-grid-item :span="16">{{ ota.sha256 }}</n-grid-item>
+        <n-grid-item :span="8">Size</n-grid-item>
+        <n-grid-item :span="16">{{ ota.size }}</n-grid-item>
+        <n-grid-item :span="8">Status</n-grid-item>
+        <n-grid-item :span="16">{{ ota.status }}</n-grid-item>
         <n-grid-item :span="8">Error</n-grid-item>
         <n-grid-item :span="16">{{ ota.error }}</n-grid-item>
+        <n-grid-item :span="8">Updated</n-grid-item>
+        <n-grid-item :span="16">{{ ota.updated_at }}</n-grid-item>
       </n-grid>
       <n-text v-else depth="3">No reported OTA status.</n-text>
       <n-space style="margin-top: 8px">
@@ -124,6 +130,7 @@ import {
 
 import { Shadow } from "infinimesh-proto/build/es/shadow/shadow_pb";
 import { Timestamp } from "@bufbuild/protobuf";
+import { useAppStore } from "@/store/app";
 
 const CopyOutline = defineAsyncComponent(() => import("@vicons/ionicons5/CopyOutline"))
 
@@ -139,7 +146,11 @@ const props = defineProps({
   debug: {
     type: Boolean,
     default: false,
-  }
+  },
+  device: {
+    type: String,
+    default: "",
+  },
 });
 const emit = defineEmits(["submit"]);
 
@@ -172,11 +183,24 @@ const ota = computed(() => {
   return reported.value.data.ota || null
 })
 const otaVersion = ref("")
-// The on/off switch is "Enable OTA" on the namespace page. This card only shows reported.data.ota and writes desired.data.ota.version.
-function assignOTA() {
-  const base = desired.value && desired.value.data ? { ...desired.value.data } : {}
-  base.ota = { ...(base.ota || {}), version: otaVersion.value }
-  emit("submit", base)
+const app = useAppStore()
+// The on/off switch is on the namespace page. It stays off until an OTA addon is registered.
+async function assignOTA() {
+  try {
+    const res = await app.http.post("/v1/devices/ota:assign", {
+      devices: [props.device],
+      version: otaVersion.value,
+    })
+    const failed = (res.data.results || []).filter((row) => row.error)
+    if (failed.length) {
+      message.error(failed[0].error)
+      return
+    }
+    message.success("OTA target assigned")
+    otaVersion.value = ""
+  } catch (e) {
+    message.error("OTA assign failed: " + e.message)
+  }
 }
 
 const desired = computed(() => {

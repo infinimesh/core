@@ -4,9 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- `data.ota` is `version`, `url`, `sha256`, `size`, `status`, `error`, and `updated_at`. A state patch rejects any other ota key.
+- A namespace OTA provider is `none`, `hawkbit`, `mender`, or `webhook`. Enable stays off until a plugin of kind `OTA` is registered. `POST /v1/devices/ota:assign` sets a target version for devices, a tag, or a namespace and returns a result per device. The shadow stream emits `OTA_TARGET_SET` and `OTA_STATUS_CHANGED`. Each successful assign writes audit action `ota_assign`.
+
 ### Fixed
 - The rules page uses `infinimesh.node.v1.RulesService`. Save calls Create.
-- The device card has no OTA on/off switch. That switch is "Enable OTA" on the namespace page. The card sets `desired.data.ota.version`.
+- The device card has no OTA on/off switch. The namespace page sets the provider. Enable is active only when an OTA addon is registered. The device list shows `reported.data.ota.status`. Assign calls `POST /v1/devices/ota:assign`.
 - Local setup: accept the self-signed certificate separately for `console`, `api`, and `media`.
 
 ## [v3.4.0-rc.5] - 2026-10-13

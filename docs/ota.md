@@ -1,21 +1,25 @@
 # Over-the-air updates
 
-`desired.data.ota` and `reported.data.ota` are ordinary shadow JSON. The platform does not interpret them. An OTA addon reads and writes these fields.
+`desired.data.ota` and `reported.data.ota` are shadow documents. A patch may set any of these fields:
 
-Desired:
+- `version` (string), the target to install
+- `url` (string)
+- `sha256`, 64 lowercase hex characters
+- `size`, a whole number of zero or greater
+- `status`: `idle`, `downloading`, `installing`, `success`, or `failed`
+- `error` (string)
+- `updated_at`, RFC3339
 
-- `version` is the target the device should install.
-- `url` is where the image is fetched.
-- `sha256` is the image digest.
+Any other key is rejected, including `state` and `progress`. A null `ota` clears the document. The check runs when state is patched.
 
-Reported adds:
+A namespace stores `ota.enabled`, `ota.provider`, and `ota.webhook_url`. `provider` is `none`, `hawkbit`, `mender`, or `webhook`. `webhook_url` is required for `webhook`. `enabled` can be set only when an OTA addon is registered: a plugin of kind `OTA` that is public, or whose `namespace` is this namespace. `GET /v1/namespaces/{uuid}` sets `ota.addon_registered` on the response. The console switch stays off until that is true. With the switch off, nothing may write `desired.ota`.
 
-- `state` is the device's own status string, such as `downloading` or `installed`.
-- `progress` is a number from 0 to 100.
-- `error` is the last failure string.
+When `provider` is `none`, a manage-level account may write `desired.ota`. When it is `hawkbit`, `mender`, or `webhook`, the request header `x-infinimesh-ota-provider` must equal that provider. Reported `ota` is not provider-gated.
 
-A namespace stores the addon settings on `Namespace.ota`: `enabled`, `backend_url`, and `backend`. `backend` is `hawkBit` or `mender`. The console "Enable OTA" switch on the namespace page writes that object. The device card has no on/off switch. It shows `reported.data.ota` and sets `desired.data.ota.version`.
+`POST /v1/devices/ota:assign` sets `desired.data.ota.version` and `updated_at` for a namespace, a tag, or a list of devices. The response `results` has one entry per device. Each success is an audit row with action `ota_assign`. `POST /v1/devices/states:patchMany` uses the same per-device result and the same gate when the desired document contains `ota`. Connect is `infinimesh.node.v1.ShadowService/AssignOTA`.
+
+A desired version change publishes `OTA_TARGET_SET` on the device state stream. A reported status change publishes `OTA_STATUS_CHANGED`. The persister does not store those events again. An addon subscribes to the stream.
+
+The device card has no on/off switch. The card and the device list show `reported.data.ota.status`. Assign calls `POST /v1/devices/ota:assign`.
 
 A rule reads `reported.ota` and `desired.ota`. The API and the stored shadow use `reported.data.ota` and `desired.data.ota`.
-
-`TAG_ADDED` and `TAG_REMOVED` on the account or namespace shadow stream carry the device's tags. A rollout group that follows a tag can update from that stream. `POST /v1/devices/states:patchMany` sets desired state for every device in a namespace, or for every device with a tag, that the caller can manage.

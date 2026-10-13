@@ -164,6 +164,7 @@ func main() {
 	ensure_root := false
 	var nsCtrl *graph.NamespacesController
 	var devMod graph.DevicesControllerModule
+	var shadowAPI *ShadowAPI
 	if _, ok := services["accounts"]; ok {
 		log.Info("Registering accounts service")
 		acc_ctrl := graph.NewAccountsController(log, db, rdb)
@@ -227,6 +228,7 @@ func main() {
 			devMod.SetScopePublisher(client)
 		}
 		api := NewShadowAPI(log, client)
+		shadowAPI = api
 		if devMod != nil && nsCtrl != nil {
 			api.SetRegistry(devMod.Handler(), nsCtrl)
 		}
@@ -275,6 +277,9 @@ func main() {
 		}
 		if devMod != nil {
 			devMod.SetAuditor(auditCtrl)
+		}
+		if shadowAPI != nil {
+			shadowAPI.SetAuditor(auditCtrl)
 		}
 		path, handler := nodeconnect.NewAuditServiceHandler(auditCtrl, interceptors)
 		router.PathPrefix(path).Handler(handler)

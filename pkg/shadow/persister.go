@@ -54,19 +54,25 @@ func (s *ShadowServiceServer) Persister() {
 	defer unsub(s.ps, messages)
 
 	for msg := range messages {
-		shadow := msg.(*pb.Shadow)
-		log.Debug("Message received", zap.Any("shadow", shadow))
-		if shadow.Reported != nil {
-			log.Debug("Reporting", zap.String("device", shadow.Device))
-			s.MergeAndStore(log, shadow.Device, pb.StateKey_REPORTED, shadow.Reported)
-		}
-		if shadow.Desired != nil {
-			log.Debug("Desiring", zap.String("device", shadow.Device))
-			s.MergeAndStore(log, shadow.Device, pb.StateKey_DESIRED, shadow.Desired)
-		}
-		if shadow.Connection != nil {
-			s.StoreConnectionState(log, shadow.Device, shadow.Connection)
-		}
+		s.storeMessage(log, msg.(*pb.Shadow))
+	}
+}
+
+func (s *ShadowServiceServer) storeMessage(log *zap.Logger, shadow *pb.Shadow) {
+	log.Debug("Message received", zap.Any("shadow", shadow))
+	if shadow.GetEvent() != pb.ShadowEvent_STATE {
+		return
+	}
+	if shadow.Reported != nil {
+		log.Debug("Reporting", zap.String("device", shadow.Device))
+		s.MergeAndStore(log, shadow.Device, pb.StateKey_REPORTED, shadow.Reported)
+	}
+	if shadow.Desired != nil {
+		log.Debug("Desiring", zap.String("device", shadow.Device))
+		s.MergeAndStore(log, shadow.Device, pb.StateKey_DESIRED, shadow.Desired)
+	}
+	if shadow.Connection != nil {
+		s.StoreConnectionState(log, shadow.Device, shadow.Connection)
 	}
 }
 
