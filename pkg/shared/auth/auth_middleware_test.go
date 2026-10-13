@@ -215,7 +215,12 @@ func TestPluginTokenAuth(t *testing.T) {
 	}
 	devices := &interceptor{log: zap.NewNop(), jwt: &countJWT{claims: deviceClaims}, signing_key: []byte("k")}
 	_, _, err = SelectMiddleware(devices, nodeconnect.ShadowServiceAssignOTAProcedure)(context.Background(), []byte("k"), "tok")
-	assert.EqualError(t, err, "unauthenticated: Invalid token format: no requestor ID")
+	assert.EqualError(t, err, "unauthenticated: bulk assign needs an account or addon token")
+
+	patchCtx, _, err = SelectMiddleware(devices, nodeconnect.ShadowServicePatchProcedure)(context.Background(), []byte("k"), "tok")
+	assert.NoError(t, err)
+	pool, _ := patchCtx.Value(infinimesh.InfinimeshDevicesCtxKey).(map[string]access.Level)
+	assert.Equal(t, access.Level_MGMT, pool["dev"])
 }
 
 func TestStreamTokenAuth(t *testing.T) {

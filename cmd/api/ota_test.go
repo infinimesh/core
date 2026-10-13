@@ -48,13 +48,15 @@ func (s *stubShadowClient) PatchMany(_ context.Context, in *shadow.PatchManyRequ
 }
 
 type recordAudit struct {
-	rows []string
-	ns   []string
+	rows   []string
+	ns     []string
+	actors []string
 }
 
-func (r *recordAudit) Record(_ context.Context, action, device, _, _, namespace string) {
+func (r *recordAudit) Record(_ context.Context, action, device, account, tokenID, namespace string) {
 	r.rows = append(r.rows, action+":"+device)
 	r.ns = append(r.ns, namespace)
+	r.actors = append(r.actors, account+" "+tokenID)
 }
 
 type fakeOTAPlugins struct {
@@ -147,6 +149,7 @@ func TestAssignOTAPluginToken(t *testing.T) {
 	assert.Equal(t, []string{"pump"}, client.got.GetDevices())
 	assert.Equal(t, []string{"ota_assign:pump"}, audit.rows)
 	assert.Equal(t, []string{"plant"}, audit.ns)
+	assert.Equal(t, []string{"plug jti-1"}, audit.actors)
 	require.Len(t, res.Msg.GetResults(), 2)
 	assert.Equal(t, "other", res.Msg.Results[0].GetDevice())
 	assert.Equal(t, "device is outside of token scope or not allowed", res.Msg.Results[0].GetError())
@@ -271,6 +274,7 @@ func TestPatchPluginTokenWritesOTA(t *testing.T) {
 	assert.Equal(t, "pump", client.patched.GetDevice())
 	assert.Equal(t, []string{"ota_assign:pump"}, audit.rows)
 	assert.Equal(t, []string{"plant"}, audit.ns)
+	assert.Equal(t, []string{"plug jti-1"}, audit.actors)
 	assert.Greater(t, namespaces.configCalls, 0)
 	assert.Equal(t, 0, devices.listCalls)
 }

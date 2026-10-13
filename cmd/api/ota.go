@@ -237,7 +237,10 @@ func (s *ShadowAPI) auditAssign(ctx context.Context, nsOf map[string]string, res
 	if s.auditor == nil {
 		return
 	}
-	account, _, _, jti := callerIDs(ctx)
+	account, plugin, _, jti := callerIDs(ctx)
+	if account == "" {
+		account = plugin
+	}
 	for _, res := range results {
 		if res.GetError() == "" && res.GetDevice() != "" {
 			s.auditor.Record(ctx, auditOTAAssign, res.GetDevice(), account, jti, nsOf[res.GetDevice()])

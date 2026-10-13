@@ -91,7 +91,9 @@ func SelectMiddleware(i *interceptor, procedure string) middleware {
 		middleware = i.ConnectDeviceAuthMiddleware
 	case procedure == nodeconnect.DevicesServiceClaimProcedure:
 		middleware = i.ConnectBlankMiddleware
-	case procedure == nodeconnect.ShadowServicePatchManyProcedure || procedure == nodeconnect.ShadowServiceAssignOTAProcedure:
+	case procedure == nodeconnect.ShadowServiceAssignOTAProcedure:
+		middleware = i.ConnectAssignOTAMiddleware
+	case procedure == nodeconnect.ShadowServicePatchManyProcedure:
 		middleware = i.ConnectAccountOrPluginMiddleware
 	case procedure == nodeconnect.ShadowServicePatchProcedure:
 		middleware = i.ConnectShadowPatchMiddleware
@@ -174,6 +176,24 @@ func (i *interceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) co
 
 		return next(ctx, shc)
 	}
+}
+
+func (i *interceptor) ConnectAssignOTAMiddleware(ctx context.Context, signingKey []byte, tokenString string) (context.Context, bool, error) {
+	token, err := connectValidateToken(i.jwt, signingKey, tokenString)
+	if err != nil {
+		return ctx, false, apierr.Code(connect.CodeUnauthenticated, "Invalid token format")
+	}
+	if token[infinimesh.INFINIMESH_DEVICES_CLAIM] != nil {
+		if _, ok := token[infinimesh.INFINIMESH_ACCOUNT_CLAIM].(string); !ok {
+			if id, _ := token[infinimesh.INFINIMESH_PLUGIN_CLAIM].(string); id == "" {
+				return ctx, false, apierr.Code(connect.CodeUnauthenticated, "bulk assign needs an account or addon token")
+			}
+		}
+	}
+	if id, _ := token[infinimesh.INFINIMESH_PLUGIN_CLAIM].(string); id != "" {
+		return i.pluginAuth(ctx, token)
+	}
+	return i.ConnectStandardAuthMiddleware(ctx, signingKey, tokenString)
 }
 
 func (i *interceptor) ConnectAccountOrPluginMiddleware(ctx context.Context, signingKey []byte, tokenString string) (context.Context, bool, error) {
