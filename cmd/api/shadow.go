@@ -48,6 +48,7 @@ type scopeDevices interface {
 type scopeNamespaces interface {
 	List(context.Context, *connect.Request[pb.ListRequest]) (*connect.Response[nspb.Namespaces], error)
 	Get(context.Context, *connect.Request[nspb.Namespace]) (*connect.Response[nspb.Namespace], error)
+	Config(context.Context, string) (*nspb.Namespace, error)
 }
 
 type ShadowAPI struct {

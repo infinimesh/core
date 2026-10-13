@@ -156,6 +156,20 @@ func (c *NamespacesController) Get(ctx context.Context, ns *connect.Request[nspb
 	return connect.NewResponse(result.Namespace), nil
 }
 
+func (c *NamespacesController) Config(ctx context.Context, id string) (*nspb.Namespace, error) {
+	if c == nil || c.col == nil || id == "" {
+		return nil, apierr.Code(connect.CodeNotFound, "Namespace not found")
+	}
+	doc := &nspb.Namespace{}
+	meta, err := c.col.ReadDocument(ctx, id, doc)
+	if err != nil {
+		return nil, apierr.Code(connect.CodeNotFound, "Namespace not found")
+	}
+	doc.Uuid = meta.ID.Key()
+	c.markOTAAddon(ctx, doc)
+	return doc, nil
+}
+
 func (c *NamespacesController) Update(ctx context.Context, req *connect.Request[nspb.Namespace]) (res *connect.Response[nspb.Namespace], err error) {
 	log := c.log.Named("Update")
 	ns := req.Msg

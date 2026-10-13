@@ -46,6 +46,36 @@ func TestCreateOTAPluginReturnsTokenOnce(t *testing.T) {
 	require.Equal(t, res.Msg.GetTokenId(), claims[inf.INFINIMESH_JTI_CLAIM])
 }
 
+type seenPluginAudit struct {
+	rows []string
+}
+
+func (s *seenPluginAudit) Record(_ context.Context, action, _, account, _, namespace string) {
+	s.rows = append(s.rows, action+" "+account+" "+namespace)
+}
+
+func TestCreateAndDeletePluginWriteAudit(t *testing.T) {
+	ns := "plant"
+	col := driver_mocks.NewMockCollection(t)
+	col.On("CreateDocument", mock.Anything, mock.Anything).Return(driver.DocumentMeta{ID: driver.NewDocumentID(schema.PLUGINS_COL, "plug-1")}, nil)
+	col.On("UpdateDocument", mock.Anything, "plug-1", mock.Anything).Return(driver.DocumentMeta{}, nil)
+	col.On("ReadDocument", mock.Anything, "plug-1", mock.Anything).Run(func(args mock.Arguments) {
+		plug := args.Get(2).(*pb.Plugin)
+		plug.Namespace = &ns
+	}).Return(driver.DocumentMeta{Key: "plug-1"}, nil)
+	col.On("RemoveDocument", mock.Anything, "plug-1").Return(driver.DocumentMeta{}, nil)
+	seen := &seenPluginAudit{}
+	ctrl := &PluginsController{log: zap.NewNop(), col: col, signingKey: []byte("secret"), audit: seen}
+	ctx := context.WithValue(context.Background(), inf.InfinimeshRootCtxKey, true)
+	ctx = context.WithValue(ctx, inf.InfinimeshAccountCtxKey, "root")
+
+	_, err := ctrl.Create(ctx, connect.NewRequest(&pb.Plugin{Title: "Hawk", Kind: pb.PluginKind_OTA, Provider: "hawkbit", Namespace: &ns}))
+	require.NoError(t, err)
+	_, err = ctrl.Delete(ctx, connect.NewRequest(&pb.Plugin{Uuid: "plug-1"}))
+	require.NoError(t, err)
+	require.Equal(t, []string{"plugin_create root plant", "plugin_delete root plant"}, seen.rows)
+}
+
 func TestGetClearsPluginToken(t *testing.T) {
 	col := driver_mocks.NewMockCollection(t)
 	col.On("ReadDocument", mock.Anything, "plug-1", mock.Anything).Run(func(args mock.Arguments) {

@@ -57,12 +57,12 @@ func (s *ShadowAPI) namespaceDoc(ctx context.Context, id string, cache map[strin
 	if id == "" {
 		return nil, apierr.Code(connect.CodeFailedPrecondition, "device has no namespace")
 	}
-	res, err := s.namespaces.Get(ctx, connect.NewRequest(&nspb.Namespace{Uuid: id}))
+	ns, err := s.namespaces.Config(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	cache[id] = res.Msg
-	return res.Msg, nil
+	cache[id] = ns
+	return ns, nil
 }
 
 func (s *ShadowAPI) allowDeviceOTA(ctx context.Context, dev *devpb.Device, cache map[string]*nspb.Namespace) error {

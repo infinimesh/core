@@ -79,13 +79,17 @@ func (f *fakeScopeDevices) DeviceNamespace(_ context.Context, id string) (string
 }
 
 type fakeScopeNamespaces struct {
-	got    string
-	getErr error
-	items  []*nspb.Namespace
-	byID   map[string]*nspb.Namespace
+	got         string
+	getErr      error
+	items       []*nspb.Namespace
+	byID        map[string]*nspb.Namespace
+	configCalls int
 }
 
-func (f *fakeScopeNamespaces) Get(_ context.Context, req *connect.Request[nspb.Namespace]) (*connect.Response[nspb.Namespace], error) {
+func (f *fakeScopeNamespaces) Get(ctx context.Context, req *connect.Request[nspb.Namespace]) (*connect.Response[nspb.Namespace], error) {
+	if _, ok := ctx.Value(inf.InfinimeshAccountCtxKey).(string); !ok {
+		panic("namespace get without account")
+	}
 	f.got = req.Msg.GetUuid()
 	if f.getErr != nil {
 		return nil, f.getErr
@@ -94,6 +98,17 @@ func (f *fakeScopeNamespaces) Get(_ context.Context, req *connect.Request[nspb.N
 		return connect.NewResponse(ns), nil
 	}
 	return connect.NewResponse(&nspb.Namespace{Uuid: req.Msg.GetUuid()}), nil
+}
+
+func (f *fakeScopeNamespaces) Config(_ context.Context, id string) (*nspb.Namespace, error) {
+	f.configCalls++
+	if f.getErr != nil {
+		return nil, f.getErr
+	}
+	if ns, ok := f.byID[id]; ok {
+		return ns, nil
+	}
+	return &nspb.Namespace{Uuid: id}, nil
 }
 
 func (f *fakeScopeNamespaces) List(context.Context, *connect.Request[pb.ListRequest]) (*connect.Response[nspb.Namespaces], error) {

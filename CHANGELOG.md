@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- An OTA plugin token and a device token load the namespace without an account claim. A token issued for `mender` is refused on a namespace whose provider is `hawkbit`.
+- Creating a plugin records `plugin_create`. Deleting a plugin records `plugin_delete`.
+- The root token used to create a plugin is a login with `inf` set to true. A login without it gets 403.
+
 ## [v3.4.0-rc.7] - 2026-10-13
 
 ### Fixed
