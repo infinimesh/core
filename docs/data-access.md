@@ -2,7 +2,7 @@
 
 These records describe who touched a device. They are product features for device makers and their partners.
 
-A shadow `Get` that arrives with an account id or a token `jti` appends one row to the `AuditLog` collection: who, which device, when, and which token. The log is append-only. Creating a device or minting a token does not append a row, so the log is empty until something reads that device's shadow with an account id or a token id. The REST gateway serves `GET /v1/audit`, which lists the log by device or by account. A request with neither returns an error.
+The `AuditLog` collection is append-only. Each row is who, which device, when, which token, and an action. A shadow `Get` that arrives with an account id or a token `jti` appends action `read`. Creating a device appends action `create` with the account and the device. Minting a device token appends action `token` with the account, each device on the token, and the token id. `GET /v1/audit?device=` and `GET /v1/audit?account=` both return those rows. A request with neither returns an error.
 
 `GET /v1/devices/{device}/export` returns one JSON document: the registry entry, the current shadow, and references to the shadow keys and audit rows for that device.
 

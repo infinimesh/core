@@ -36,7 +36,7 @@
       </n-thead>
       <tbody>
         <n-tr v-for="alarm in alarms" :key="alarm.rule + alarm.device">
-          <td>{{ alarm.rule }}</td>
+          <td>{{ alarm.title || alarm.rule }}</td>
           <td>{{ alarm.device }}</td>
           <td>{{ alarmState(alarm.state) }}</td>
           <td>

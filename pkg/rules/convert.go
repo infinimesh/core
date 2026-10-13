@@ -13,6 +13,7 @@ func FromProto(in *rpb.Rule) (*Rule, error) {
 		return nil, fmt.Errorf("rule is empty")
 	}
 	r := &Rule{
+		ID:      in.GetUuid(),
 		Name:    in.GetName(),
 		When:    in.GetWhen(),
 		Clear:   in.GetClear(),

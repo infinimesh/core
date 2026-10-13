@@ -152,11 +152,13 @@ type Event struct {
 // Step moves the alarm of rule r for one device. when is the result of the
 // when condition, clear of the clear condition (or !when without one). Both
 // come with an ok flag; a condition that cannot be decided changes nothing.
-// It returns the event to fire, if any.
-func (s *Store) Step(r *Rule, device, title string, when, whenOK, clear, clearOK bool, now time.Time) (*Event, error) {
+// It returns the event to fire, if any. The stored alarm key is the rule uuid
+// when the rule has one, and title is the rule name.
+func (s *Store) Step(r *Rule, device string, when, whenOK, clear, clearOK bool, now time.Time) (*Event, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	k := key(r.Name, device)
+	id := r.alarmKey()
+	k := key(id, device)
 	a := s.alarms[k]
 	active := a != nil && (a.State == Raised || a.State == Acked)
 	var ev *Event
@@ -166,10 +168,10 @@ func (s *Store) Step(r *Rule, device, title string, when, whenOK, clear, clearOK
 			return nil, nil // still cooling down from the last raise
 		}
 		if a == nil {
-			a = &Alarm{Rule: r.Name, Device: device}
+			a = &Alarm{Rule: id, Device: device}
 			s.alarms[k] = a
 		}
-		a.Title, a.State, a.RaisedAt, a.FiredAt, a.Count = title, Raised, now, now, a.Count+1
+		a.Title, a.State, a.RaisedAt, a.FiredAt, a.Count = r.Name, Raised, now, now, a.Count+1
 		a.AckedAt, a.ClearedAt = time.Time{}, time.Time{}
 		ev = &Event{Kind: "raised", Alarm: *a}
 	case active && clearOK && clear:

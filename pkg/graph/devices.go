@@ -103,6 +103,11 @@ type DevicesController struct {
 	scope    ScopePublisher
 	denylist TokenDenylist
 	claims   ClaimTokens
+	audit    DeviceAudit
+}
+
+type DeviceAudit interface {
+	Record(ctx context.Context, action, device, account, tokenID string)
 }
 
 type TokenDenylist interface {
@@ -119,6 +124,17 @@ type ScopePublisher interface {
 
 func (c *DevicesController) SetScopePublisher(p ScopePublisher) {
 	c.scope = p
+}
+
+func (c *DevicesController) SetAuditor(a DeviceAudit) {
+	c.audit = a
+}
+
+func (c *DevicesController) auditDevice(ctx context.Context, action, device, account, tokenID string) {
+	if c == nil || c.audit == nil {
+		return
+	}
+	c.audit.Record(ctx, action, device, account, tokenID)
 }
 
 func NewDevicesController(
@@ -228,6 +244,7 @@ func (c *DevicesController) Create(ctx context.Context, _req *connect.Request[de
 	}
 
 	c.publishScope(ctx, shadowpb.ShadowEvent_DEVICE_ADDED, device.Device, ns_id, "")
+	c.auditDevice(ctx, auditCreate, device.Uuid, requestor, "")
 
 	resp := connect.NewResponse(&devpb.CreateResponse{
 		Device: device.Device,
@@ -319,6 +336,7 @@ func (c *DevicesController) _PairingCreate(ctx context.Context, req *devpb.Creat
 	}
 
 	c.publishScope(ctx, shadowpb.ShadowEvent_DEVICE_ADDED, dev, ns_id, "")
+	c.auditDevice(ctx, auditCreate, device.Uuid, requestor, "")
 
 	return connect.NewResponse(&devpb.CreateResponse{
 		Device: dev,
@@ -643,6 +661,7 @@ func (c *DevicesController) GetByFingerprint(ctx context.Context, req *connect.R
 		return nil, apierr.Code(connect.CodeInternal, "Failed to issue token")
 	}
 	r.Token = token
+	c.auditDevice(ctx, auditToken, r.GetUuid(), requestor, jwtID(token))
 
 	return connect.NewResponse(&r), nil
 }
@@ -676,6 +695,7 @@ func (c *DevicesController) MakeDevicesToken(ctx context.Context, _req *connect.
 		if err != nil {
 			return nil, apierr.Code(connect.CodeInternal, "Failed to issue token")
 		}
+		c.auditDevice(ctx, auditToken, "", requestor, jwtID(token_string))
 		return connect.NewResponse(&pb.TokenResponse{Token: token_string}), nil
 	}
 
@@ -708,8 +728,22 @@ func (c *DevicesController) MakeDevicesToken(ctx context.Context, _req *connect.
 	if err != nil {
 		return nil, apierr.Code(connect.CodeInternal, "Failed to issue token")
 	}
+	jti := jwtID(token_string)
+	for id := range req.GetDevices() {
+		c.auditDevice(ctx, auditToken, id, requestor, jti)
+	}
 
 	return connect.NewResponse(&pb.TokenResponse{Token: token_string}), nil
+}
+
+func jwtID(raw string) string {
+	parsed, _, err := jwt.NewParser().ParseUnverified(raw, jwt.MapClaims{})
+	if err != nil {
+		return ""
+	}
+	claims, _ := parsed.Claims.(jwt.MapClaims)
+	id, _ := claims[inf.INFINIMESH_JTI_CLAIM].(string)
+	return id
 }
 
 const registryDeviceTokenTTL = 24 * time.Hour
