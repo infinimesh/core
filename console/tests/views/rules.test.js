@@ -4,6 +4,8 @@ import { createPinia } from "pinia"
 import { ref } from "vue"
 import Rules from "@/views/dashboard/Rules.vue"
 
+const selected = ref("ns-1")
+
 const calls = []
 
 const client = {
@@ -48,6 +50,7 @@ vi.mock("naive-ui", async () => {
 vi.mock("@/store/namespaces", () => ({
   useNSStore: () => ({
     namespaces_list: ref([{ uuid: "ns-1", title: "One" }]),
+    selected,
     fetchNamespaces() {},
   }),
 }))
@@ -57,7 +60,29 @@ vi.mock("@/store/rules", () => ({
 }))
 
 describe("Rules page", () => {
+  test("starts on the header namespace", async () => {
+    selected.value = "ns-1"
+    const wrapper = mount(Rules, {
+      global: { plugins: [createPinia()] },
+    })
+    expect(wrapper.vm.namespace).toBe("ns-1")
+    selected.value = ""
+    const empty = mount(Rules, {
+      global: { plugins: [createPinia()] },
+    })
+    expect(empty.vm.namespace).toBe("")
+    selected.value = "ns-1"
+    await flushPromises()
+    expect(empty.vm.namespace).toBe("ns-1")
+    selected.value = "all"
+    const all = mount(Rules, {
+      global: { plugins: [createPinia()] },
+    })
+    expect(all.vm.namespace).toBe("")
+  })
+
   test("lists, creates, and deletes through RulesService", async () => {
+    selected.value = "ns-1"
     calls.length = 0
     const wrapper = mount(Rules, {
       global: { plugins: [createPinia()] },
@@ -88,6 +113,9 @@ describe("Rules page", () => {
 
     const del = wrapper.findAll("button").find((button) => button.text() === "Delete")
     expect(del).toBeTruthy()
+    const pop = wrapper.findComponent({ name: "Popconfirm" })
+    expect(pop.exists()).toBe(true)
+    expect(pop.vm.$slots.default()[0].children).toContain("Delete this rule?")
     await wrapper.vm.$.appContext.app.runWithContext(() => wrapper.vm.remove(wrapper.vm.rules[0]))
     await flushPromises()
     expect(calls).toContainEqual({ method: "delete", body: { uuid: "rule-1" } })

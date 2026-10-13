@@ -157,13 +157,18 @@ func TestShadowStreamAuth(t *testing.T) {
 
 	for _, procedure := range []string{
 		nodeconnect.ShadowServiceGetProcedure,
-		nodeconnect.ShadowServicePatchProcedure,
 		nodeconnect.ShadowServiceRemoveProcedure,
 	} {
 		mw := SelectMiddleware(accounts, procedure)
 		_, _, err = mw(context.Background(), []byte("k"), "tok")
 		assert.Error(t, err, procedure)
 	}
+	patchCtx, _, err := SelectMiddleware(accounts, nodeconnect.ShadowServicePatchProcedure)(context.Background(), []byte("k"), "tok")
+	assert.NoError(t, err)
+	assert.Equal(t, "acc", patchCtx.Value(infinimesh.InfinimeshAccountCtxKey))
+	assignCtx, _, err := SelectMiddleware(accounts, nodeconnect.ShadowServiceAssignOTAProcedure)(context.Background(), []byte("k"), "tok")
+	assert.NoError(t, err)
+	assert.Equal(t, "acc", assignCtx.Value(infinimesh.InfinimeshAccountCtxKey))
 
 	header := http.Header{"Authorization": []string{"Bearer tok"}}
 	err = devices.WrapStreamingHandler(func(ctx context.Context, _ connect.StreamingHandlerConn) error {
@@ -182,6 +187,35 @@ func TestShadowStreamAuth(t *testing.T) {
 		return nil
 	})(context.Background(), fakeStreamConn{procedure: nodeconnect.ShadowServiceStreamShadowSyncProcedure, header: header})
 	assert.NoError(t, err)
+}
+
+func TestPluginTokenAuth(t *testing.T) {
+	claims := jwt.MapClaims{
+		infinimesh.INFINIMESH_PLUGIN_CLAIM:       "plug",
+		infinimesh.INFINIMESH_OTA_PROVIDER_CLAIM: "hawkbit",
+		infinimesh.INFINIMESH_JTI_CLAIM:          "jti",
+		infinimesh.INFINIMESH_NOSESSION_CLAIM:    true,
+	}
+	counter := &countJWT{claims: claims}
+	plugins := &interceptor{log: zap.NewNop(), jwt: counter, signing_key: []byte("k")}
+	ctx, activity, err := SelectMiddleware(plugins, nodeconnect.ShadowServiceAssignOTAProcedure)(context.Background(), []byte("k"), "tok")
+	assert.NoError(t, err)
+	assert.False(t, activity)
+	assert.Equal(t, "plug", ctx.Value(infinimesh.InfinimeshPluginCtxKey))
+	assert.Equal(t, "hawkbit", ctx.Value(infinimesh.InfinimeshOTAProviderCtxKey))
+	assert.Equal(t, "jti", ctx.Value(infinimesh.InfinimeshJTICtxKey))
+	assert.Nil(t, ctx.Value(infinimesh.InfinimeshAccountCtxKey))
+
+	patchCtx, _, err := SelectMiddleware(plugins, nodeconnect.ShadowServicePatchProcedure)(context.Background(), []byte("k"), "tok")
+	assert.NoError(t, err)
+	assert.Equal(t, "plug", patchCtx.Value(infinimesh.InfinimeshPluginCtxKey))
+
+	deviceClaims := jwt.MapClaims{
+		infinimesh.INFINIMESH_DEVICES_CLAIM: map[string]any{"dev": float64(access.Level_MGMT)},
+	}
+	devices := &interceptor{log: zap.NewNop(), jwt: &countJWT{claims: deviceClaims}, signing_key: []byte("k")}
+	_, _, err = SelectMiddleware(devices, nodeconnect.ShadowServiceAssignOTAProcedure)(context.Background(), []byte("k"), "tok")
+	assert.EqualError(t, err, "unauthenticated: Invalid token format: no requestor ID")
 }
 
 func TestStreamTokenAuth(t *testing.T) {

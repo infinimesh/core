@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -20,17 +21,61 @@ import (
 )
 
 type fakeScopeDevices struct {
-	namespace string
-	devices   []*devpb.Device
-	err       error
+	namespace   string
+	devices     []*devpb.Device
+	err         error
+	listCalls   int
+	addonCalls  int
+	panicOnList bool
 }
 
 func (f *fakeScopeDevices) List(_ context.Context, req *connect.Request[pb.QueryRequest]) (*connect.Response[devpb.Devices], error) {
+	f.listCalls++
+	if f.panicOnList {
+		panic("account list")
+	}
 	f.namespace = req.Msg.GetNamespace()
 	if f.err != nil {
 		return nil, f.err
 	}
 	return connect.NewResponse(&devpb.Devices{Devices: f.devices}), nil
+}
+
+func (f *fakeScopeDevices) ListForAddon(_ context.Context, namespace, tag string) ([]*devpb.Device, error) {
+	f.addonCalls++
+	f.namespace = namespace
+	if f.err != nil {
+		return nil, f.err
+	}
+	var out []*devpb.Device
+	for _, dev := range f.devices {
+		if namespace != "" && dev.GetAccess().GetNamespace() != namespace {
+			continue
+		}
+		if tag != "" && !containsTag(dev.GetTags(), tag) {
+			continue
+		}
+		out = append(out, dev)
+	}
+	return out, nil
+}
+
+func containsTag(tags []string, tag string) bool {
+	for _, item := range tags {
+		if item == tag {
+			return true
+		}
+	}
+	return false
+}
+
+func (f *fakeScopeDevices) DeviceNamespace(_ context.Context, id string) (string, error) {
+	for _, dev := range f.devices {
+		if dev.GetUuid() == id {
+			return dev.GetAccess().GetNamespace(), nil
+		}
+	}
+	return "", connect.NewError(connect.CodeNotFound, errors.New("device not found"))
 }
 
 type fakeScopeNamespaces struct {

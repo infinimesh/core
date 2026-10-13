@@ -200,6 +200,7 @@ func (c *NamespacesController) Update(ctx context.Context, req *connect.Request[
 		if err := ValidOTAConfig(ns.Ota, addons); err != nil {
 			return nil, apierr.Code(connect.CodeInvalidArgument, err.Error())
 		}
+		KeepOTABackend(ns.Ota, curr.Ota)
 		curr.Ota = ns.Ota
 		changed = true
 	}

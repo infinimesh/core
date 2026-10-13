@@ -116,6 +116,98 @@ func TestLegacyProtoAlarmCanClear(t *testing.T) {
 	}
 }
 
+func TestDefaultAlarmListKeepsAcked(t *testing.T) {
+	db := driver_mocks.NewMockDatabase(t)
+	rows := &alarmCursor{rows: []StoredAlarm{
+		{Rule: "a", Device: "d", State: alarmState(rules.Raised), Namespace: "ns"},
+		{Rule: "b", Device: "d", State: alarmState(rules.Acked), Namespace: "ns"},
+		{Rule: "c", Device: "d", State: alarmState(rules.Cleared), Namespace: "ns"},
+	}}
+	db.On("Query", mock.Anything, mock.Anything, mock.Anything).Return(rows, nil)
+	ctrl := &RulesController{
+		InfinimeshBaseController: InfinimeshBaseController{log: zap.NewNop(), db: db},
+		ica:                      fakeICA{ok: true, level: access.Level_READ},
+	}
+	ctx := context.WithValue(context.Background(), inf.InfinimeshAccountCtxKey, "acc")
+	res, err := ctrl.ListAlarms(ctx, connect.NewRequest(&rpb.ListAlarmsRequest{Namespace: "ns"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[rpb.AlarmState]int{}
+	for _, alarm := range res.Msg.GetAlarms() {
+		got[alarm.GetState()]++
+	}
+	if got[rpb.AlarmState_RAISED] != 1 || got[rpb.AlarmState_ACKED] != 1 || got[rpb.AlarmState_CLEARED] != 0 {
+		t.Fatalf("%+v", res.Msg.GetAlarms())
+	}
+	rows.i = 0
+	acked, err := ctrl.ListAlarms(ctx, connect.NewRequest(&rpb.ListAlarmsRequest{Namespace: "ns", State: rpb.AlarmState_ACKED}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(acked.Msg.GetAlarms()) != 1 || acked.Msg.Alarms[0].GetState() != rpb.AlarmState_ACKED {
+		t.Fatalf("%+v", acked.Msg.GetAlarms())
+	}
+}
+
+type alarmCursor struct {
+	rows []StoredAlarm
+	i    int
+}
+
+func (c *alarmCursor) Close() error  { return nil }
+func (c *alarmCursor) HasMore() bool { return c.i < len(c.rows) }
+func (c *alarmCursor) ReadDocument(_ context.Context, result interface{}) (driver.DocumentMeta, error) {
+	if c.i >= len(c.rows) {
+		return driver.DocumentMeta{}, driver.NoMoreDocumentsError{}
+	}
+	dst := result.(*StoredAlarm)
+	*dst = c.rows[c.i]
+	c.i++
+	return driver.DocumentMeta{}, nil
+}
+func (c *alarmCursor) RetryReadDocument(ctx context.Context, result interface{}) (driver.DocumentMeta, error) {
+	return c.ReadDocument(ctx, result)
+}
+func (c *alarmCursor) Count() int64                       { return int64(len(c.rows)) }
+func (c *alarmCursor) Statistics() driver.QueryStatistics { return nil }
+func (c *alarmCursor) Extra() driver.QueryExtra           { return nil }
+
+type memAlarmAudit struct{ rows []string }
+
+func (m *memAlarmAudit) Record(_ context.Context, action, device, account, tokenID, namespace string) {
+	m.rows = append(m.rows, action+" "+device+" "+account+" "+tokenID+" "+namespace)
+}
+
+func TestAckAndClearWriteAudit(t *testing.T) {
+	col := newJSONCollection(t, schema.ALARMS_COL)
+	seen := &memAlarmAudit{}
+	ctrl := &RulesController{
+		InfinimeshBaseController: InfinimeshBaseController{log: zap.NewNop()},
+		alarms:                   col,
+		ica:                      fakeICA{ok: true, level: access.Level_ADMIN},
+		audit:                    seen,
+	}
+	ctx := context.WithValue(context.Background(), inf.InfinimeshAccountCtxKey, "acc")
+	ctx = context.WithValue(ctx, inf.InfinimeshJTICtxKey, "jti-1")
+	key := AlarmKey("rule-uuid", "dev-1")
+	now := time.Unix(100, 0).UTC()
+	if _, err := col.ReplaceDocument(ctx, key, AlarmDocument(&rules.Alarm{
+		Rule: "rule-uuid", Device: "dev-1", Title: "Hot", State: rules.Raised, Count: 1, RaisedAt: now, FiredAt: now,
+	}, "ns")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ctrl.AckAlarm(ctx, connect.NewRequest(&rpb.AlarmRef{Rule: "rule-uuid", Device: "dev-1"})); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ctrl.ClearAlarm(ctx, connect.NewRequest(&rpb.AlarmRef{Rule: "rule-uuid", Device: "dev-1"})); err != nil {
+		t.Fatal(err)
+	}
+	if len(seen.rows) != 2 || seen.rows[0] != "alarm_ack dev-1 acc jti-1 ns" || seen.rows[1] != "alarm_clear dev-1 acc jti-1 ns" {
+		t.Fatalf("%v", seen.rows)
+	}
+}
+
 func TestDeleteRuleRemovesAlarms(t *testing.T) {
 	db := driver_mocks.NewMockDatabase(t)
 	col := driver_mocks.NewMockCollection(t)

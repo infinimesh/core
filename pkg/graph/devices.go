@@ -107,7 +107,7 @@ type DevicesController struct {
 }
 
 type DeviceAudit interface {
-	Record(ctx context.Context, action, device, account, tokenID string)
+	Record(ctx context.Context, action, device, account, tokenID, namespace string)
 }
 
 type TokenDenylist interface {
@@ -134,7 +134,7 @@ func (c *DevicesController) auditDevice(ctx context.Context, action, device, acc
 	if c == nil || c.audit == nil {
 		return
 	}
-	c.audit.Record(ctx, action, device, account, tokenID)
+	c.audit.Record(ctx, action, device, account, tokenID, "")
 }
 
 func NewDevicesController(
@@ -523,7 +523,10 @@ func (c *DevicesController) List(ctx context.Context, req *connect.Request[pb.Qu
 	log := c.log.Named("List")
 	q := req.Msg
 
-	requestor := ctx.Value(inf.InfinimeshAccountCtxKey).(string)
+	requestor, _ := ctx.Value(inf.InfinimeshAccountCtxKey).(string)
+	if requestor == "" {
+		return nil, apierr.Code(connect.CodeUnauthenticated, "Invalid token format: no requestor ID")
+	}
 	log.Debug("Requestor", zap.String("id", requestor))
 
 	if q.GetNamespace() != "" {
@@ -561,6 +564,75 @@ func (c *DevicesController) List(ctx context.Context, req *connect.Request[pb.Qu
 		Devices:       page,
 		NextPageToken: next,
 	}), nil
+}
+
+func (c *DevicesController) DeviceNamespace(ctx context.Context, id string) (string, error) {
+	if c == nil || c.db == nil || id == "" {
+		return "", apierr.Code(connect.CodeNotFound, "device not found")
+	}
+	cr, err := c.db.Query(ctx, `FOR e IN @@edge
+FILTER e._to == CONCAT("Devices/", @id)
+LIMIT 1
+RETURN SPLIT(e._from, "/")[1]`, map[string]interface{}{
+		"@edge": schema.NS2DEV, "id": id,
+	})
+	if err != nil {
+		return "", apierr.Code(connect.CodeInternal, "Couldn't execute query")
+	}
+	defer cr.Close()
+	var ns string
+	_, err = cr.ReadDocument(ctx, &ns)
+	if err != nil || ns == "" {
+		return "", apierr.Code(connect.CodeNotFound, "device not found")
+	}
+	return ns, nil
+}
+
+func (c *DevicesController) ListForAddon(ctx context.Context, namespace, tag string) ([]*devpb.Device, error) {
+	if c == nil || c.db == nil {
+		return nil, apierr.Code(connect.CodeUnavailable, "device registry is not available")
+	}
+	cr, err := c.db.Query(ctx, `FOR e IN @@edge
+FILTER @ns == "" OR e._from == CONCAT("Namespaces/", @ns)
+LET d = DOCUMENT(e._to)
+FILTER d != null
+RETURN {
+  uuid: d._key,
+  title: d.title,
+  tags: d.tags,
+  access: { level: @level, namespace: SPLIT(e._from, "/")[1] }
+}`, map[string]interface{}{
+		"@edge": schema.NS2DEV, "ns": namespace, "level": int32(access.Level_MGMT),
+	})
+	if err != nil {
+		return nil, apierr.Code(connect.CodeInternal, "Couldn't execute query")
+	}
+	defer cr.Close()
+	var out []*devpb.Device
+	for {
+		var dev devpb.Device
+		_, err := cr.ReadDocument(ctx, &dev)
+		if driver.IsNoMoreDocuments(err) {
+			break
+		}
+		if err != nil {
+			return nil, apierr.Code(connect.CodeInternal, "Couldn't execute query")
+		}
+		if tag != "" && !hasTag(dev.GetTags(), tag) {
+			continue
+		}
+		out = append(out, &dev)
+	}
+	return out, nil
+}
+
+func hasTag(tags []string, tag string) bool {
+	for _, item := range tags {
+		if item == tag {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *DevicesController) Delete(ctx context.Context, req *connect.Request[devpb.Device]) (*connect.Response[pb.DeleteResponse], error) {

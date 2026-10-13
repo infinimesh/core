@@ -42,6 +42,27 @@ func OTAActive(cfg *nspb.OTAConfig) bool {
 	return cfg != nil && cfg.GetEnabled() && cfg.GetAddonRegistered()
 }
 
+func ValidAddonProvider(provider string) bool {
+	switch provider {
+	case "hawkbit", "mender", "webhook":
+		return true
+	default:
+		return false
+	}
+}
+
+func KeepOTABackend(next, prev *nspb.OTAConfig) {
+	if next == nil || prev == nil {
+		return
+	}
+	if next.BackendUrl == "" {
+		next.BackendUrl = prev.BackendUrl
+	}
+	if next.Backend == "" {
+		next.Backend = prev.Backend
+	}
+}
+
 func (c *NamespacesController) countOTAAddons(ctx context.Context, namespace string) (int, error) {
 	if c == nil || c.db == nil || namespace == "" {
 		return 0, nil

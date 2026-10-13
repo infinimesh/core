@@ -91,8 +91,10 @@ func SelectMiddleware(i *interceptor, procedure string) middleware {
 		middleware = i.ConnectDeviceAuthMiddleware
 	case procedure == nodeconnect.DevicesServiceClaimProcedure:
 		middleware = i.ConnectBlankMiddleware
-	case procedure == nodeconnect.ShadowServicePatchManyProcedure:
-		middleware = i.ConnectStandardAuthMiddleware
+	case procedure == nodeconnect.ShadowServicePatchManyProcedure || procedure == nodeconnect.ShadowServiceAssignOTAProcedure:
+		middleware = i.ConnectAccountOrPluginMiddleware
+	case procedure == nodeconnect.ShadowServicePatchProcedure:
+		middleware = i.ConnectShadowPatchMiddleware
 	case strings.HasPrefix(procedure, "/"+nodeconnect.ShadowServiceName):
 		middleware = i.ConnectDeviceAuthMiddleware
 	default:
@@ -174,6 +176,61 @@ func (i *interceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) co
 	}
 }
 
+func (i *interceptor) ConnectAccountOrPluginMiddleware(ctx context.Context, signingKey []byte, tokenString string) (context.Context, bool, error) {
+	token, err := connectValidateToken(i.jwt, signingKey, tokenString)
+	if err != nil {
+		return ctx, false, apierr.Code(connect.CodeUnauthenticated, "Invalid token format")
+	}
+	if id, _ := token[infinimesh.INFINIMESH_PLUGIN_CLAIM].(string); id != "" {
+		return i.pluginAuth(ctx, token)
+	}
+	return i.ConnectStandardAuthMiddleware(ctx, signingKey, tokenString)
+}
+
+func (i *interceptor) ConnectShadowPatchMiddleware(ctx context.Context, signingKey []byte, tokenString string) (context.Context, bool, error) {
+	token, err := connectValidateToken(i.jwt, signingKey, tokenString)
+	if err != nil {
+		return ctx, false, apierr.Code(connect.CodeUnauthenticated, "Invalid token format")
+	}
+	if token[infinimesh.INFINIMESH_DEVICES_CLAIM] != nil {
+		return i.ConnectDeviceAuthMiddleware(ctx, signingKey, tokenString)
+	}
+	if id, _ := token[infinimesh.INFINIMESH_PLUGIN_CLAIM].(string); id != "" {
+		return i.pluginAuth(ctx, token)
+	}
+	return i.ConnectStandardAuthMiddleware(ctx, signingKey, tokenString)
+}
+
+func (i *interceptor) pluginAuth(ctx context.Context, token jwt.MapClaims) (context.Context, bool, error) {
+	if stream, _ := token[infinimesh.INFINIMESH_STREAM_CLAIM].(bool); stream {
+		return ctx, false, apierr.Code(connect.CodePermissionDenied, "streaming token is read-only")
+	}
+	id, _ := token[infinimesh.INFINIMESH_PLUGIN_CLAIM].(string)
+	provider, _ := token[infinimesh.INFINIMESH_OTA_PROVIDER_CLAIM].(string)
+	jti, _ := token[infinimesh.INFINIMESH_JTI_CLAIM].(string)
+	switch provider {
+	case "hawkbit", "mender", "webhook":
+	default:
+		return ctx, false, apierr.Code(connect.CodeUnauthenticated, "Invalid token format")
+	}
+	if id == "" || jti == "" {
+		return ctx, false, apierr.Code(connect.CodeUnauthenticated, "Invalid token format")
+	}
+	if i.rdb != nil {
+		denied, err := NewRedisDenylist(i.rdb).Denied(ctx, jti)
+		if err != nil {
+			return ctx, false, apierr.Code(connect.CodeInternal, "Failed to check token revocation")
+		}
+		if denied {
+			return ctx, false, apierr.New(connect.CodeUnauthenticated, apierr.ReasonTokenRevoked, "token is revoked")
+		}
+	}
+	ctx = context.WithValue(ctx, infinimesh.InfinimeshPluginCtxKey, id)
+	ctx = context.WithValue(ctx, infinimesh.InfinimeshOTAProviderCtxKey, provider)
+	ctx = context.WithValue(ctx, infinimesh.InfinimeshJTICtxKey, jti)
+	return ctx, false, nil
+}
+
 func (i *interceptor) ConnectStandardAuthMiddleware(_ctx context.Context, signingKey []byte, tokenString string) (ctx context.Context, log_activity bool, err error) {
 	ctx = _ctx
 
@@ -236,6 +293,7 @@ func (i *interceptor) ConnectStandardAuthMiddleware(_ctx context.Context, signin
 	ctx = metadata.AppendToOutgoingContext(ctx, infinimesh.INFINIMESH_ACCOUNT_CLAIM, uuid)
 	ctx = metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer "+tokenString)
 	if jti, _ := token[infinimesh.INFINIMESH_JTI_CLAIM].(string); jti != "" {
+		ctx = context.WithValue(ctx, infinimesh.InfinimeshJTICtxKey, jti)
 		ctx = metadata.AppendToOutgoingContext(ctx, infinimesh.INFINIMESH_JTI_CLAIM, jti)
 	}
 

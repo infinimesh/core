@@ -17,10 +17,12 @@ package graph
 
 import (
 	"context"
-	"github.com/infinimesh/core/pkg/apierr"
 
 	"connectrpc.com/connect"
 	"github.com/arangodb/go-driver"
+	"github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
+	"github.com/infinimesh/core/pkg/apierr"
 	inf "github.com/infinimesh/core/pkg/shared"
 	"go.uber.org/zap"
 
@@ -67,7 +69,65 @@ type PluginsController struct {
 
 	ica_repo InfinimeshCommonActionsRepo
 
-	db driver.Database
+	db         driver.Database
+	signingKey []byte
+}
+
+func (c *PluginsController) SetSigningKey(key []byte) {
+	if c != nil {
+		c.signingKey = key
+	}
+}
+
+type OTAPlugin struct {
+	ID        string
+	Provider  string
+	Namespace string
+	TokenID   string
+	Public    bool
+}
+
+func (c *PluginsController) OTAPlugin(ctx context.Context, id string) (OTAPlugin, bool) {
+	if c == nil || c.col == nil || id == "" {
+		return OTAPlugin{}, false
+	}
+	var plug pb.Plugin
+	meta, err := c.col.ReadDocument(ctx, id, &plug)
+	if err != nil || plug.GetKind() != pb.PluginKind_OTA {
+		return OTAPlugin{}, false
+	}
+	ns := ""
+	if plug.Namespace != nil {
+		ns = *plug.Namespace
+	}
+	return OTAPlugin{
+		ID: meta.ID.Key(), Provider: plug.GetProvider(), Namespace: ns,
+		TokenID: plug.GetTokenId(), Public: plug.GetPublic(),
+	}, true
+}
+
+func (c *PluginsController) issueOTAToken(id, provider string) (string, string, error) {
+	if len(c.signingKey) == 0 {
+		return "", "", apierr.Code(connect.CodeInternal, "signing key is not configured")
+	}
+	jti := uuid.NewString()
+	claims := jwt.MapClaims{
+		inf.INFINIMESH_PLUGIN_CLAIM:       id,
+		inf.INFINIMESH_OTA_PROVIDER_CLAIM: provider,
+		inf.INFINIMESH_JTI_CLAIM:          jti,
+		inf.INFINIMESH_NOSESSION_CLAIM:    true,
+	}
+	signed, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(c.signingKey)
+	if err != nil {
+		return "", "", apierr.Code(connect.CodeInternal, "could not issue the addon token")
+	}
+	return signed, jti, nil
+}
+
+func clearPluginToken(p *pb.Plugin) {
+	if p != nil {
+		p.Token = ""
+	}
 }
 
 func NewPluginsController(log *zap.Logger, db driver.Database) *PluginsController {
@@ -121,6 +181,10 @@ func (c *PluginsController) Create(ctx context.Context, req *connect.Request[pb.
 	if msg != "" {
 		return nil, apierr.Code(connect.CodeInvalidArgument, msg)
 	}
+	if plug.GetKind() == pb.PluginKind_OTA && !ValidAddonProvider(plug.GetProvider()) {
+		return nil, apierr.Code(connect.CodeInvalidArgument, "ota provider must be hawkbit, mender, or webhook")
+	}
+	clearPluginToken(plug)
 
 	plugin := Plugin{Plugin: plug}
 	meta, err := c.col.CreateDocument(ctx, plugin)
@@ -129,6 +193,17 @@ func (c *PluginsController) Create(ctx context.Context, req *connect.Request[pb.
 	}
 	plugin.Uuid = meta.ID.Key()
 	plugin.DocumentMeta = meta
+	if plug.GetKind() == pb.PluginKind_OTA {
+		signed, jti, err := c.issueOTAToken(plugin.Uuid, plug.GetProvider())
+		if err != nil {
+			return nil, err
+		}
+		plugin.TokenId = jti
+		if _, err := c.col.UpdateDocument(ctx, plugin.Uuid, map[string]interface{}{"token_id": jti}); err != nil {
+			return nil, apierr.Code(connect.CodeInternal, "could not store the addon token")
+		}
+		plugin.Token = signed
+	}
 
 	log.Debug("Created", zap.String("plugin", plugin.Uuid))
 	resp := connect.NewResponse(plugin.Plugin)
@@ -153,6 +228,7 @@ func (c *PluginsController) Get(ctx context.Context, req *connect.Request[pb.Plu
 		return nil, apierr.Code(connect.CodeNotFound, "Plugin not found")
 	}
 	plug.Uuid = meta.ID.Key()
+	clearPluginToken(plug)
 
 	if plug.Public || ValidateRoot(ctx) {
 		return connect.NewResponse(plug), nil
@@ -209,6 +285,7 @@ func (c *PluginsController) List(ctx context.Context, req *connect.Request[pb.Li
 			return nil, err
 		}
 		plug.Uuid = meta.ID.Key()
+		clearPluginToken(&plug)
 
 		log.Debug("Got document", zap.Any("plugin", &plug))
 		res = append(res, &plug)
@@ -234,10 +311,28 @@ func (c *PluginsController) Update(ctx context.Context, req *connect.Request[pb.
 	if msg != "" {
 		return nil, apierr.Code(connect.CodeInvalidArgument, msg)
 	}
+	if plug.GetKind() == pb.PluginKind_OTA && !ValidAddonProvider(plug.GetProvider()) {
+		return nil, apierr.Code(connect.CodeInvalidArgument, "ota provider must be hawkbit, mender, or webhook")
+	}
+	clearPluginToken(plug)
 
 	if plug.Uuid == "" {
 		return nil, apierr.Code(connect.CodeInvalidArgument, "No Plugin UUID has been provided")
 	}
+	var cur pb.Plugin
+	if _, err := c.col.ReadDocument(ctx, plug.Uuid, &cur); err == nil {
+		plug.TokenId = cur.GetTokenId()
+	}
+	if plug.GetKind() == pb.PluginKind_OTA && (plug.GetTokenId() == "" || plug.GetProvider() != cur.GetProvider()) {
+		signed, jti, err := c.issueOTAToken(plug.Uuid, plug.GetProvider())
+		if err != nil {
+			return nil, err
+		}
+		plug.TokenId = jti
+		plug.Token = signed
+	}
+	stored := plug.GetToken()
+	clearPluginToken(plug)
 
 	plugin := Plugin{Plugin: plug}
 	_, err := c.col.ReplaceDocument(ctx, plug.Uuid, plugin)
@@ -246,6 +341,7 @@ func (c *PluginsController) Update(ctx context.Context, req *connect.Request[pb.
 	}
 
 	log.Debug("Updated", zap.Any("plugin", plugin))
+	plugin.Token = stored
 	return connect.NewResponse(plugin.Plugin), nil
 }
 

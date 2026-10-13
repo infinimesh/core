@@ -24,8 +24,8 @@ func TestCreateAndTokenAuditListedByDeviceAndAccount(t *testing.T) {
 		ica:                      fakeICA{ok: true, level: access.Level_READ},
 	}
 	ctx := context.WithValue(context.Background(), inf.InfinimeshAccountCtxKey, "acc1")
-	ctrl.Record(ctx, auditCreate, "dev1", "acc1", "")
-	ctrl.Record(ctx, auditToken, "dev1", "acc1", "jti-1")
+	ctrl.Record(ctx, auditCreate, "dev1", "acc1", "", "plant")
+	ctrl.Record(ctx, auditToken, "dev1", "acc1", "jti-1", "")
 	if len(docs.rows) != 2 {
 		t.Fatalf("%+v", docs.rows)
 	}
@@ -84,10 +84,11 @@ func (m *memAudit) CreateDocument(_ context.Context, document interface{}) (driv
 }
 
 type auditCursor struct {
-	rows    []storedAudit
-	device  string
-	account string
-	i       int
+	rows      []storedAudit
+	device    string
+	account   string
+	namespace string
+	i         int
 }
 
 func (c *auditCursor) Close() error  { return nil }
@@ -102,6 +103,9 @@ func (c *auditCursor) ReadDocument(_ context.Context, result interface{}) (drive
 		if c.account != "" && row.Account != c.account {
 			continue
 		}
+		if c.namespace != "" && row.Namespace != c.namespace {
+			continue
+		}
 		raw, err := json.Marshal(row)
 		if err != nil {
 			return driver.DocumentMeta{}, err
@@ -113,6 +117,42 @@ func (c *auditCursor) ReadDocument(_ context.Context, result interface{}) (drive
 	}
 	return driver.DocumentMeta{}, driver.NoMoreDocumentsError{}
 }
+func TestListAuditByNamespace(t *testing.T) {
+	docs := &memAudit{}
+	ctrl := &AuditController{
+		InfinimeshBaseController: InfinimeshBaseController{log: zap.NewNop()},
+		col:                      docs,
+		ica:                      fakeICA{ok: true, level: access.Level_READ},
+	}
+	ctx := context.WithValue(context.Background(), inf.InfinimeshAccountCtxKey, "acc1")
+	ctrl.Record(ctx, "ota_assign", "dev1", "acc1", "jti", "plant")
+	ctrl.Record(ctx, "alarm_ack", "dev1", "acc1", "jti", "other")
+
+	db := driver_mocks.NewMockDatabase(t)
+	ctrl.db = db
+	db.On("Query", mock.Anything, mock.MatchedBy(func(s string) bool {
+		return strings.Contains(s, "a.namespace")
+	}), mock.MatchedBy(func(b map[string]interface{}) bool {
+		return b["namespace"] == "plant" && b["device"] == "" && b["account"] == ""
+	})).Return(&auditCursor{rows: append([]storedAudit(nil), docs.rows...), namespace: "plant"}, nil)
+
+	page, err := ctrl.List(ctx, connect.NewRequest(&apb.ListAuditRequest{Namespace: "plant"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(page.Msg.GetRecords()) != 1 || page.Msg.Records[0].GetNamespace() != "plant" || page.Msg.Records[0].GetAction() != "ota_assign" {
+		t.Fatalf("%+v", page.Msg.GetRecords())
+	}
+
+	denied := &AuditController{
+		InfinimeshBaseController: InfinimeshBaseController{log: zap.NewNop()},
+		ica:                      fakeICA{ok: false},
+	}
+	if _, err := denied.List(ctx, connect.NewRequest(&apb.ListAuditRequest{Namespace: "plant"})); err == nil {
+		t.Fatal("expected permission denied")
+	}
+}
+
 func (c *auditCursor) RetryReadDocument(ctx context.Context, result interface{}) (driver.DocumentMeta, error) {
 	return c.ReadDocument(ctx, result)
 }

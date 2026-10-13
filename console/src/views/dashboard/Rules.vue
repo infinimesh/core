@@ -24,7 +24,12 @@
           <td>{{ rule.when }}</td>
           <td>
             <n-button size="small" @click="edit(rule)">Edit</n-button>
-            <n-button size="small" @click="remove(rule)">Delete</n-button>
+            <n-popconfirm @positive-click="remove(rule)">
+              <template #trigger>
+                <n-button size="small">Delete</n-button>
+              </template>
+              Delete this rule?
+            </n-popconfirm>
           </td>
         </n-tr>
       </tbody>
@@ -50,18 +55,28 @@
 </template>
 
 <script setup>
-import { computed, ref } from "vue"
-import { NSpin, NH1, NH2, NSpace, NSelect, NButton, NForm, NFormItem, NInput, NTable, NThead, NTr, useMessage } from "naive-ui"
+import { computed, ref, watch } from "vue"
+import { NSpin, NH1, NH2, NSpace, NSelect, NButton, NForm, NFormItem, NInput, NTable, NThead, NTr, NPopconfirm, useMessage } from "naive-ui"
 import { storeToRefs } from "pinia"
 import { useNSStore } from "@/store/namespaces"
 import { useRulesStore } from "@/store/rules"
 
 const ns = useNSStore()
 const rulesApi = useRulesStore()
-const { namespaces_list } = storeToRefs(ns)
+const { namespaces_list, selected } = storeToRefs(ns)
 const message = useMessage()
 const loading = ref(false)
-const namespace = ref("")
+
+function headerNamespace(value) {
+  if (!value || value === "all") return ""
+  return value
+}
+
+const namespace = ref(headerNamespace(selected.value))
+watch(selected, (value) => {
+  if (namespace.value) return
+  namespace.value = headerNamespace(value)
+})
 const rules = ref([])
 const alarms = ref([])
 const form = ref({ uuid: "", name: "", when: "", clear: "", cooldown: "", webhook: "" })

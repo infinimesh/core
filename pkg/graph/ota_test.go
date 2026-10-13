@@ -20,3 +20,11 @@ func TestValidOTAConfig(t *testing.T) {
 	assert.False(t, OTAActive(&nspb.OTAConfig{Enabled: true}))
 	assert.True(t, OTAActive(&nspb.OTAConfig{Enabled: true, AddonRegistered: true}))
 }
+
+func TestKeepOTABackend(t *testing.T) {
+	next := &nspb.OTAConfig{Enabled: false, Provider: "none"}
+	KeepOTABackend(next, &nspb.OTAConfig{BackendUrl: "https://old.example", Backend: "hawkbit"})
+	assert.Equal(t, "https://old.example", next.GetBackendUrl())
+	assert.Equal(t, "hawkbit", next.GetBackend())
+	assert.False(t, next.GetEnabled())
+}

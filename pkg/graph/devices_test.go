@@ -486,7 +486,7 @@ type graphAudit struct {
 	rows []graphAuditRow
 }
 
-func (a *graphAudit) Record(_ context.Context, action, device, account, tokenID string) {
+func (a *graphAudit) Record(_ context.Context, action, device, account, tokenID, _ string) {
 	a.rows = append(a.rows, graphAuditRow{action, device, account, tokenID})
 }
 

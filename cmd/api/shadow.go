@@ -41,6 +41,8 @@ import (
 // ShadowAPI data strcuture
 type scopeDevices interface {
 	List(context.Context, *connect.Request[pb.QueryRequest]) (*connect.Response[devpb.Devices], error)
+	ListForAddon(ctx context.Context, namespace, tag string) ([]*devpb.Device, error)
+	DeviceNamespace(ctx context.Context, id string) (string, error)
 }
 
 type scopeNamespaces interface {
@@ -55,6 +57,7 @@ type ShadowAPI struct {
 	client     shadow.ShadowServiceClient
 	devices    scopeDevices
 	namespaces scopeNamespaces
+	plugins    otaPlugins
 	auditor    otaAuditor
 }
 
@@ -94,26 +97,47 @@ func (s *ShadowAPI) Get(ctx context.Context, _ *connect.Request[shadow.GetReques
 // Patch - is a method to update the current state of the device
 func (s *ShadowAPI) Patch(ctx context.Context, request *connect.Request[shadow.Shadow]) (response *connect.Response[shadow.Shadow], err error) {
 	log := s.log.Named("PatchDesiredState")
-	shadow := request.Msg
+	body := request.Msg
 
-	devices_scope, ok := ctx.Value(inf.InfinimeshDevicesCtxKey).(map[string]access.Level)
-	if !ok {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("requested device is outside of token scope or not allowed to post"))
-	}
-	log.Debug("Scope", zap.Any("devices", devices_scope))
-
-	if err = authorizeShadowWrite(ctx, devices_scope, shadow.GetDevice(), shadow.GetReported() != nil, shadow.GetDesired() != nil); err != nil {
-		return nil, err
-	}
-	if stateHasOTA(shadow.GetDesired()) {
-		if err = s.authorizeDesiredOTA(ctx, providerHeader(ctx, request.Header()), shadow.GetDevice()); err != nil {
+	var otaNamespace string
+	if devices_scope, ok := ctx.Value(inf.InfinimeshDevicesCtxKey).(map[string]access.Level); ok {
+		log.Debug("Scope", zap.Any("devices", devices_scope))
+		if err = authorizeShadowWrite(ctx, devices_scope, body.GetDevice(), body.GetReported() != nil, body.GetDesired() != nil); err != nil {
 			return nil, err
+		}
+		if stateHasOTA(body.GetDesired()) {
+			otaNamespace, err = s.authorizeDeviceTokenOTA(ctx, body.GetDevice())
+			if err != nil {
+				return nil, err
+			}
+		}
+	} else if _, plugin, _, _ := callerIDs(ctx); plugin != "" {
+		if body.GetReported() != nil || !stateHasOTA(body.GetDesired()) {
+			return nil, apierr.Code(connect.CodePermissionDenied, "addon token can write desired ota only")
+		}
+		otaNamespace, err = s.authorizeDeviceTokenOTA(ctx, body.GetDevice())
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		dev, ns, lookupErr := s.managedDevice(ctx, body.GetDevice())
+		if lookupErr != nil {
+			return nil, lookupErr
+		}
+		if stateHasOTA(body.GetDesired()) {
+			if err = s.allowDeviceOTA(ctx, dev, map[string]*nspb.Namespace{}); err != nil {
+				return nil, err
+			}
+			otaNamespace = ns
 		}
 	}
 
-	res, err := s.client.Patch(ctx, shadow)
+	res, err := s.client.Patch(ctx, body)
 	if err != nil {
 		return nil, err
+	}
+	if stateHasOTA(body.GetDesired()) {
+		s.auditAssign(ctx, map[string]string{body.GetDevice(): otaNamespace}, []*shadow.DevicePatchResult{{Device: body.GetDevice()}})
 	}
 
 	return connect.NewResponse(res), nil
@@ -268,11 +292,14 @@ func (s *ShadowAPI) PatchMany(ctx context.Context, request *connect.Request[shad
 		return nil, apierr.Code(connect.CodeInvalidArgument, "desired state is required")
 	}
 	if stateHasOTA(msg.GetDesired()) {
-		patched, err := s.patchDesiredOTA(ctx, providerHeader(ctx, request.Header()), msg.GetNamespace(), msg.GetTag(), msg.GetDevices(), msg.GetDesired(), false)
+		patched, err := s.patchDesiredOTA(ctx, msg.GetNamespace(), msg.GetTag(), msg.GetDevices(), msg.GetDesired())
 		if err != nil {
 			return nil, err
 		}
 		return connect.NewResponse(patched), nil
+	}
+	if _, plugin, _, _ := callerIDs(ctx); plugin != "" {
+		return nil, apierr.Code(connect.CodePermissionDenied, "addon token can write desired ota only")
 	}
 	devs, err := s.manageableDevices(ctx, msg.GetNamespace(), msg.GetTag())
 	if err != nil {

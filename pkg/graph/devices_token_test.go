@@ -83,7 +83,7 @@ type auditRow struct {
 	action, device, account, tokenID string
 }
 
-func (a *auditCapture) Record(_ context.Context, action, device, account, tokenID string) {
+func (a *auditCapture) Record(_ context.Context, action, device, account, tokenID, _ string) {
 	a.rows = append(a.rows, auditRow{action, device, account, tokenID})
 }
 

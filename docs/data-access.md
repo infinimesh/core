@@ -2,7 +2,7 @@
 
 These records describe who touched a device. They are product features for device makers and their partners.
 
-The `AuditLog` collection is append-only. Each row is who, which device, when, which token, and an action. A shadow `Get` that arrives with an account id or a token `jti` appends action `read`. Creating a device appends action `create` with the account and the device. Minting a device token appends action `token` with the account, each device on the token, and the token id. Each device whose OTA assign succeeds appends action `ota_assign`. `GET /v1/audit?device=` and `GET /v1/audit?account=` both return those rows. A request with neither returns an error.
+The `AuditLog` collection is append-only. Each row is who, which device, when, which token, which namespace, and an action. A shadow `Get` that arrives with an account id or a token `jti` appends action `read`. Creating a device appends action `create` with the account and the device. Minting a device token appends action `token` with the account, each device on the token, and the token id. Each device whose desired `ota` write succeeds appends action `ota_assign`. Acknowledging an alarm appends `alarm_ack`. Clearing an alarm appends `alarm_clear`. `GET /v1/audit` takes `device`, `account`, or `namespace`. A request with none of them returns an error. A namespace filter requires read access to that namespace.
 
 `GET /v1/devices/{device}/export` returns one JSON document: the registry entry, the current shadow, and references to the shadow keys and audit rows for that device.
 

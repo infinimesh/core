@@ -165,6 +165,8 @@ func main() {
 	var nsCtrl *graph.NamespacesController
 	var devMod graph.DevicesControllerModule
 	var shadowAPI *ShadowAPI
+	var plugCtrl *graph.PluginsController
+	var rulesCtrl *graph.RulesController
 	if _, ok := services["accounts"]; ok {
 		log.Info("Registering accounts service")
 		acc_ctrl := graph.NewAccountsController(log, db, rdb)
@@ -230,7 +232,9 @@ func main() {
 		api := NewShadowAPI(log, client)
 		shadowAPI = api
 		if devMod != nil && nsCtrl != nil {
-			api.SetRegistry(devMod.Handler(), nsCtrl)
+			if ctrl, ok := devMod.Handler().(*graph.DevicesController); ok {
+				api.SetRegistry(ctrl, nsCtrl)
+			}
 		}
 
 		path, handler := nodeconnect.NewShadowServiceHandler(api, interceptors)
@@ -246,9 +250,13 @@ func main() {
 
 	if _, ok := services["plugins"]; ok {
 		log.Info("Registering plugins service")
-		plug_ctrl := graph.NewPluginsController(log, db)
+		plugCtrl = graph.NewPluginsController(log, db)
+		plugCtrl.SetSigningKey(SIGNING_KEY)
+		if shadowAPI != nil {
+			shadowAPI.SetPlugins(plugCtrl)
+		}
 
-		path, handler := pluginsconnect.NewPluginsServiceHandler(plug_ctrl, interceptors)
+		path, handler := pluginsconnect.NewPluginsServiceHandler(plugCtrl, interceptors)
 		router.PathPrefix(path).Handler(handler)
 	}
 
@@ -262,7 +270,8 @@ func main() {
 	ica := graph.NewInfinimeshCommonActionsRepo(db)
 	if _, ok := services["rules"]; ok {
 		log.Info("Registering rules service")
-		path, handler := nodeconnect.NewRulesServiceHandler(graph.NewRulesController(log, db, ica), interceptors)
+		rulesCtrl = graph.NewRulesController(log, db, ica)
+		path, handler := nodeconnect.NewRulesServiceHandler(rulesCtrl, interceptors)
 		router.PathPrefix(path).Handler(handler)
 	}
 	if _, ok := services["audit"]; ok {
@@ -280,6 +289,9 @@ func main() {
 		}
 		if shadowAPI != nil {
 			shadowAPI.SetAuditor(auditCtrl)
+		}
+		if rulesCtrl != nil {
+			rulesCtrl.SetAuditor(auditCtrl)
 		}
 		path, handler := nodeconnect.NewAuditServiceHandler(auditCtrl, interceptors)
 		router.PathPrefix(path).Handler(handler)
