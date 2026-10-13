@@ -12,6 +12,11 @@ What you get:
 - Device shadow with reported and desired state
 - Messages from device to cloud and from cloud to device
 - Multi-tenant namespaces with graph-based access control
+- Rules on device state that raise alarms you ack and clear ([docs/rules.md](docs/rules.md))
+- An OTA contract: target version per device and reported status, switched on once an OTA addon registers ([docs/ota.md](docs/ota.md))
+- CoAP ingest on UDP 5683 for private networks ([docs/coap.md](docs/coap.md))
+- Fleet provisioning with bulk create and factory claims ([docs/fleet.md](docs/fleet.md))
+- An audit log, namespace quotas, Prometheus metrics, and MQTT bridge sessions in Redis
 - A web console
 - Docker Compose and Kubernetes setups
 
@@ -32,7 +37,7 @@ It redirects to HTTPS with a local self-signed certificate. Accept that certific
 
 Log in as `infinimesh` / `infinimesh`. Change the password right away.
 
-Images come from GHCR. Set `INFINIMESH_VERSION` in `.env` to pin a release. `v3.4.0-rc.1` pulls that exact tag. A release candidate does not move `latest`.
+Images come from GHCR. Set `INFINIMESH_VERSION` in `.env` to pin a release. `v3.4.0` pulls that exact tag. A release candidate does not move `latest`.
 
 `BASE_DOMAIN` in `.env` is the root host for all services. The default, `127.0.0.1.nip.io`, resolves to your own machine, so it works locally with no `/etc/hosts` edits. For real use, set `BASE_DOMAIN` to your own domain (see [docs/public-tls.md](docs/public-tls.md)).
 
@@ -125,6 +130,8 @@ mosquitto_pub -h api.${BASE_DOMAIN} -p 1883 \
 - [docs/installation.md](docs/installation.md): prerequisites and Docker Compose setup
 - [docs/public-tls.md](docs/public-tls.md): Traefik or Caddy with Let's Encrypt on a public domain
 - [docs/device-auth.md](docs/device-auth.md): device tokens, certificates and MQTT
+- [docs/rules.md](docs/rules.md), [docs/ota.md](docs/ota.md), [docs/coap.md](docs/coap.md), [docs/fleet.md](docs/fleet.md): the 3.4 features
+- [CLI guide](https://github.com/infinimesh/docs/blob/main/guides/cli-getting-started.md): login, quotas, rules, OTA addon registration and audit with `inf`
 - [api.swagger.json](api.swagger.json): API schema, copied from the pinned [proto](https://github.com/infinimesh/proto) module. `sh scripts/swagger_check.sh` fails if the copy drifts. `sh scripts/buf_lint_pin.sh` lints that module.
 
 ## Checks
@@ -133,7 +140,7 @@ mosquitto_pub -h api.${BASE_DOMAIN} -p 1883 \
 
 ## Releases
 
-Current version: `v3.2.0` (latest stable). Release candidate: `v3.4.0-rc.10` (the default in `.env.example` and the Helm chart until v3.4.0 ships). See [CHANGELOG.md](CHANGELOG.md) and [Releases](https://github.com/infinimesh/core/releases).
+Current version: `v3.4.0`. inf-cli, platform-operator and the Helm chart in k8s are released with the same version from the core tag. See [CHANGELOG.md](CHANGELOG.md) and [Releases](https://github.com/infinimesh/core/releases).
 
 A tag `vX.Y.Z` or `vX.Y.Z-rN` publishes `ghcr.io/infinimesh/core/<service>` and `:latest`. A revision tag also publishes `:vX.Y.Z`. A tag `vX.Y.Z-rc.N` publishes only that tag, and the GitHub release is a pre-release whose notes start with "for testing, not for production". The release text is the matching `## [tag]` section in `CHANGELOG.md`. The same tags on [platform-operator](https://github.com/infinimesh/platform-operator) publish `ghcr.io/infinimesh/platform-operator`. The Helm chart stays on its stable `image.tag` unless you set an RC tag yourself. RC images older than 30 days are deleted.
 
