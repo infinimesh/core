@@ -224,8 +224,15 @@ func (c *AccountsController) Get(ctx context.Context, req *connect.Request[accpb
 func (c *AccountsController) List(ctx context.Context, req *connect.Request[pb.ListRequest]) (*connect.Response[accpb.Accounts], error) {
 	log := c.log.Named("List")
 
-	requestor := ctx.Value(inf.InfinimeshAccountCtxKey).(string)
+	requestor, _ := ctx.Value(inf.InfinimeshAccountCtxKey).(string)
+	if requestor == "" {
+		return nil, apierr.Code(connect.CodeUnauthenticated, "Invalid token format: no requestor ID")
+	}
 	log.Debug("Requestor", zap.String("id", requestor))
+
+	if ValidateRoot(ctx) {
+		return c.listAllAccounts(ctx, req)
+	}
 
 	cr, err := c.ica_repo.ListQuery(ctx, log, NewBlankAccountDocument(requestor), schema.ACCOUNTS_COL)
 	if err != nil {
@@ -250,6 +257,42 @@ func (c *AccountsController) List(ctx context.Context, req *connect.Request[pb.L
 		r = append(r, &acc)
 	}
 
+	page, next := cutPage(r, req.Msg.GetPageSize(), req.Msg.GetPageToken())
+	return connect.NewResponse(&accpb.Accounts{
+		Accounts:      page,
+		NextPageToken: next,
+	}), nil
+}
+
+func (c *AccountsController) listAllAccounts(ctx context.Context, req *connect.Request[pb.ListRequest]) (*connect.Response[accpb.Accounts], error) {
+	log := c.log.Named("ListRoot")
+	if c == nil || c.db == nil {
+		return nil, apierr.Code(connect.CodeInternal, "Couldn't execute query")
+	}
+	cr, err := c.db.Query(ctx, "FOR a IN @@col RETURN MERGE(a, {uuid: a._key})", map[string]interface{}{
+		"@col": schema.ACCOUNTS_COL,
+	})
+	if err != nil {
+		log.Warn("Error executing query", zap.Error(err))
+		return nil, apierr.Code(connect.CodeInternal, "Couldn't execute query")
+	}
+	defer cr.Close()
+
+	var r []*accpb.Account
+	for {
+		var acc accpb.Account
+		meta, err := cr.ReadDocument(ctx, &acc)
+		if driver.IsNoMoreDocuments(err) {
+			break
+		} else if err != nil {
+			log.Warn("Error unmarshalling Document", zap.Error(err))
+			return nil, apierr.Code(connect.CodeInternal, "Couldn't execute query")
+		}
+		if acc.Uuid == "" {
+			acc.Uuid = meta.ID.Key()
+		}
+		r = append(r, &acc)
+	}
 	page, next := cutPage(r, req.Msg.GetPageSize(), req.Msg.GetPageToken())
 	return connect.NewResponse(&accpb.Accounts{
 		Accounts:      page,

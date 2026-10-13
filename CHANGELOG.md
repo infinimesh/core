@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- An unknown device is `Device not found`. A device the account cannot see is `Not enough Access Rights`.
+- `GET /v1/accounts` for a root token lists every account.
+
 ## [v3.4.0-rc.9] - 2026-10-13
 
 ### Fixed

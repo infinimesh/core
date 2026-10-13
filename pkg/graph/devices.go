@@ -469,7 +469,7 @@ func (c *DevicesController) Get(ctx context.Context, req *connect.Request[devpb.
 	device := *NewBlankDeviceDocument(dev.GetUuid())
 	err := c.ica_repo.AccessLevelAndGet(ctx, log, NewBlankAccountDocument(requestor), &device)
 	if err != nil {
-		return nil, apierr.Code(connect.CodeNotFound, "Account not found or not enough Access Rights")
+		return nil, c.deviceReadErr(ctx, dev.GetUuid())
 	}
 	if device.Access.Level < access.Level_READ {
 		return nil, apierr.Code(connect.CodePermissionDenied, "Not enough Access Rights")
@@ -626,6 +626,15 @@ RETURN {
 	return out, nil
 }
 
+func (c *DevicesController) deviceReadErr(ctx context.Context, id string) error {
+	if c != nil && c.col != nil && id != "" {
+		if _, err := c.col.ReadDocument(ctx, id, &devpb.Device{}); err == nil {
+			return apierr.Code(connect.CodeNotFound, "Not enough Access Rights")
+		}
+	}
+	return apierr.Code(connect.CodeNotFound, "Device not found")
+}
+
 func hasTag(tags []string, tag string) bool {
 	for _, item := range tags {
 		if item == tag {
@@ -650,7 +659,7 @@ func (c *DevicesController) delete(ctx context.Context, _req *connect.Request[de
 	dev := *NewBlankDeviceDocument(req.GetUuid())
 	err := c.ica_repo.AccessLevelAndGet(ctx, log, &acc, &dev)
 	if err != nil {
-		return nil, apierr.Code(connect.CodeNotFound, "Account not found or not enough Access Rights")
+		return nil, c.deviceReadErr(ctx, req.GetUuid())
 	}
 	if dev.Access.Level < access.Level_ADMIN {
 		return nil, apierr.Code(connect.CodePermissionDenied, "Not enough Access Rights")
@@ -774,7 +783,7 @@ func (c *DevicesController) MakeDevicesToken(ctx context.Context, _req *connect.
 	for uuid := range req.GetDevices() {
 		ok, level := c.ica_repo.AccessLevel(ctx, &acc, NewBlankDeviceDocument(uuid))
 		if !ok {
-			return nil, apierr.Codef(connect.CodeNotFound, "Account not found or not enough Access Rights to device: %s", uuid)
+			return nil, apierr.Codef(connect.CodeNotFound, "Device not found: %s", uuid)
 		}
 		if level < access.Level_READ {
 			return nil, apierr.Codef(connect.CodePermissionDenied, "Not enough Access Rights to device: %s", uuid)
