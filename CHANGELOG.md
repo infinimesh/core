@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [v3.4.0-rc.6] - 2026-10-13
+
 ### Added
 - `data.ota` is `version`, `url`, `sha256`, `size`, `status`, `error`, and `updated_at`. A state patch rejects any other ota key.
 - A namespace OTA provider is `none`, `hawkbit`, `mender`, or `webhook`. Enable stays off until a plugin of kind `OTA` is registered. `POST /v1/devices/ota:assign` sets a target version for devices, a tag, or a namespace and returns a result per device. The shadow stream emits `OTA_TARGET_SET` and `OTA_STATUS_CHANGED`. Each successful assign writes audit action `ota_assign`.
