@@ -150,6 +150,8 @@ func (c *AccountsController) Token(ctx context.Context, _req *connect.Request[pb
 		}
 
 		req.ExpiresAt = time.Now().Unix() + int64(time.Minute.Seconds())*5
+	} else if req.GetAuth() == nil {
+		return nil, apierr.Code(connect.CodeInvalidArgument, "auth is required")
 	} else {
 		account, ok = c.Authorize(ctx, req.Auth.Type, req.Auth.Data...)
 		if !ok {

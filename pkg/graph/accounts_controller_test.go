@@ -9,9 +9,20 @@ import (
 	"go.uber.org/zap"
 
 	inf "github.com/infinimesh/core/pkg/shared"
+	pb "github.com/infinimesh/proto/node"
 	"github.com/infinimesh/proto/node/access"
 	accpb "github.com/infinimesh/proto/node/accounts"
 )
+
+func TestAccountsController_Token_RequiresAuth(t *testing.T) {
+	ctrl := &AccountsController{
+		InfinimeshBaseController: InfinimeshBaseController{
+			log: zap.NewNop(),
+		},
+	}
+	_, err := ctrl.Token(context.Background(), connect.NewRequest(&pb.TokenRequest{}))
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+}
 
 func TestAccountsController_Get_AllowsRead(t *testing.T) {
 	ctrl := &AccountsController{
