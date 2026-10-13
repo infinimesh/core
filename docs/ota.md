@@ -14,7 +14,7 @@ Reported adds:
 - `progress` is a number from 0 to 100.
 - `error` is the last failure string.
 
-A namespace stores the addon settings on `Namespace.ota`: `enabled`, `backend_url`, and `backend`. `backend` is `hawkBit` or `mender`. The console "Enable OTA" switch writes that object. The device page shows `reported.ota` and sets `desired.ota.version`.
+A namespace stores the addon settings on `Namespace.ota`: `enabled`, `backend_url`, and `backend`. `backend` is `hawkBit` or `mender`. The console "Enable OTA" switch on the namespace page writes that object. The device card has no on/off switch. It shows `reported.data.ota` and sets `desired.data.ota.version`.
 
 A rule reads `reported.ota` and `desired.ota`. The API and the stored shadow use `reported.data.ota` and `desired.data.ota`.
 

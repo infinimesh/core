@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- The rules page uses `infinimesh.node.v1.RulesService`. Save calls Create.
+- The device card has no OTA on/off switch. That switch is "Enable OTA" on the namespace page. The card sets `desired.data.ota.version`.
+- Local setup: accept the self-signed certificate separately for `console`, `api`, and `media`.
+
 ## [v3.4.0-rc.5] - 2026-10-13
 
 ### Fixed

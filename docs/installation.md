@@ -26,8 +26,11 @@ docker compose up -d
 Services and URLs:
 
 - Console UI: https://console.${BASE_DOMAIN}
-- API (gRPC/Connect/REST via Traefik): http://api.${BASE_DOMAIN}
+- API (gRPC/Connect/REST via Traefik): https://api.${BASE_DOMAIN}
+- Media files: https://media.${BASE_DOMAIN}
 - Traefik dashboard: http://traefik.${BASE_DOMAIN}
+
+Accept the self-signed certificate once for each of `console`, `api`, and `media`. The browser does not reuse an exception from one host on another. With `BASE_DOMAIN=localhost` those are `console.localhost`, `api.localhost`, and `media.localhost`. Until `api` is accepted, login fails with no message. Until `media` is accepted, the media page shows `Offline :(`.
 
 ArangoDB and RabbitMQ are reachable by the other containers. Their admin UIs are not published. Redis and AMQP have no host ports in the base file.
 
