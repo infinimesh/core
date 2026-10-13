@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [v3.4.0-rc.10] - 2026-10-13
 
 ### Fixed
 - An unknown device is `Device not found`. A device the account cannot see is `Not enough Access Rights`.
