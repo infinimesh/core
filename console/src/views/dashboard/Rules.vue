@@ -115,6 +115,10 @@ async function load() {
   loading.value = false
 }
 
+watch(namespace, () => {
+  load()
+}, { immediate: true })
+
 async function save() {
   const body = {
     uuid: form.value.uuid || undefined,

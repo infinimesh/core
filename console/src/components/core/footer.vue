@@ -25,10 +25,11 @@ import { h, ref } from "vue"
 import { NSpace, NTooltip } from "naive-ui";
 
 import { useAppStore } from "@/store/app";
+import { versionTag } from "@/version";
 
 const store = useAppStore();
 
-const tag = "INFINIMESH_VERSION_TAG";
+const tag = versionTag
 const platform = PLATFORM_NAME
 
 const clicked = ref(0)

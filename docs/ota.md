@@ -26,6 +26,6 @@ Saving a namespace OTA config keeps `backend_url` and `backend` when the request
 
 A desired version change publishes `OTA_TARGET_SET` on the device state stream. A reported status change publishes `OTA_STATUS_CHANGED`. The persister does not store those events again. An addon subscribes to the stream.
 
-The device card has no on/off switch. The card and the device list show `reported.data.ota.status`. Assign calls `POST /v1/devices/ota:assign`.
+The device card has no on/off switch. A namespace row shows whether OTA is on. The card footer shows that, the desired version, and `reported.data.ota.status`. The OTA section on the card shows the target, the reported status, version, URL, error, and `updated_at`. Assign calls `POST /v1/devices/ota:assign`.
 
 A rule reads `reported.ota` and `desired.ota`. The API and the stored shadow use `reported.data.ota` and `desired.data.ota`.

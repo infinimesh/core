@@ -47,6 +47,7 @@
               <strong>
                 {{ ns.title }}
               </strong>
+              <n-text depth="3" style="margin-left: 8px">{{ namespaceOTALabel(otaOf(ns)) }}</n-text>
             </td>
             <td>
               <access-badge :access="ns.access.level" namespace />
@@ -103,6 +104,7 @@
             <strong>
               {{ ns.title }}
             </strong>
+            <n-text depth="3" style="margin-left: 8px">{{ namespaceOTALabel(otaOf(ns)) }}</n-text>
           </td>
           <td>
             <access-badge :access="ns.access.level" namespace />
@@ -139,7 +141,7 @@ import { Role } from "infinimesh-proto/build/es/node/access/access_pb"
 import { useNSStore } from "@/store/namespaces";
 import { useAppStore } from "@/store/app";
 import { access_lvl_conv, access_role_conv } from "@/utils/access";
-import { otaProviders, otaSwitchOn } from "@/ota";
+import { namespaceOTALabel, otaProviders, otaSwitchOn } from "@/ota";
 
 const RefreshOutline = defineAsyncComponent(() => import("@vicons/ionicons5/RefreshOutline"))
 const ChevronForwardOutline = defineAsyncComponent(() => import("@vicons/ionicons5/ChevronForwardOutline"))

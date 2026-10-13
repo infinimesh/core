@@ -1,13 +1,11 @@
 import { defineStore } from "pinia";
 import { createPromiseClient } from "@connectrpc/connect";
 import { NamespacesService } from "infinimesh-proto/build/es/node/node_connect";
-import {
-  EmptyMessage,
-  JoinRequest,
-} from "infinimesh-proto/build/es/node/node_pb";
+import { JoinRequest } from "infinimesh-proto/build/es/node/node_pb";
 import { Namespace } from "infinimesh-proto/build/es/node/namespaces/namespaces_pb";
 import { useAppStore } from "@/store/app";
 import { createConnectTransport } from "@connectrpc/connect-web";
+import { indexNamespaces } from "@/namespaces";
 
 const appStore = useAppStore();
 
@@ -31,27 +29,19 @@ export const useNSStore = defineStore("namespaces", {
   actions: {
     async fetchNamespaces(no_cache = false) {
       this.loading = true;
-
-      const data = await this.namespacesApi.list(new EmptyMessage());
-
-      if (no_cache) {
-        this.namespaces = data.namespaces.reduce((result, namespace) => {
-          result[namespace.uuid] = namespace;
-
-          return result;
-        }, {});
-      } else {
-        this.namespaces = {
-          ...this.namespaces,
-          ...data.namespaces.reduce((result, namespace) => {
-            result[namespace.uuid] = namespace;
-
-            return result;
-          }, {}),
-        };
+      try {
+        const items = [];
+        let pageToken = "";
+        do {
+          const data = await this.namespacesApi.list({ pageSize: 100, pageToken });
+          items.push(...(data.namespaces || []));
+          pageToken = data.nextPageToken || "";
+        } while (pageToken);
+        const next = indexNamespaces(items);
+        this.namespaces = no_cache ? next : { ...this.namespaces, ...next };
+      } finally {
+        this.loading = false;
       }
-
-      this.loading = false;
     },
     loadJoins(uuid) {
       return this.namespacesApi.joins(new Namespace(this.namespaces[uuid]));
@@ -61,8 +51,12 @@ export const useNSStore = defineStore("namespaces", {
         new JoinRequest({ namespace, account, access })
       );
     },
-    create(namespace) {
-      return this.namespacesApi.create(new Namespace(namespace));
+    async create(namespace) {
+      const created = await this.namespacesApi.create(new Namespace(namespace));
+      if (created && created.uuid) {
+        this.namespaces = { ...this.namespaces, [created.uuid]: created };
+      }
+      return created;
     },
 
     /**
