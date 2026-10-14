@@ -3092,6 +3092,45 @@
         ]
       }
     },
+    "/plugins/{uuid}/token:rotate": {
+      "post": {
+        "summary": "RotateToken issues a new addon bearer for an OTA plugin. The previous jti is denied.\nThe plugin stays registered. The new token is returned once and is not stored.",
+        "operationId": "PluginsService_RotateToken2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Plugin"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/PluginsServiceRotateTokenBody"
+            }
+          }
+        ],
+        "tags": [
+          "PluginsService"
+        ]
+      }
+    },
     "/rules": {
       "get": {
         "operationId": "RulesService_List2",
@@ -6633,6 +6672,45 @@
         ]
       }
     },
+    "/v1/plugins/{uuid}/token:rotate": {
+      "post": {
+        "summary": "RotateToken issues a new addon bearer for an OTA plugin. The previous jti is denied.\nThe plugin stays registered. The new token is returned once and is not stored.",
+        "operationId": "PluginsService_RotateToken",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1Plugin"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/PluginsServiceRotateTokenBody"
+            }
+          }
+        ],
+        "tags": [
+          "PluginsService"
+        ]
+      }
+    },
     "/v1/rules": {
       "get": {
         "operationId": "RulesService_List",
@@ -7108,6 +7186,49 @@
         },
         "access": {
           "$ref": "#/definitions/v1Level"
+        }
+      }
+    },
+    "PluginsServiceRotateTokenBody": {
+      "type": "object",
+      "properties": {
+        "logo": {
+          "type": "string",
+          "title": "Plugin logo url in format supported by \u003cimg\u003e tag"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "public": {
+          "type": "boolean"
+        },
+        "namespace": {
+          "type": "string",
+          "title": "Required to get not-public Plugin"
+        },
+        "access": {
+          "$ref": "#/definitions/v1Access"
+        },
+        "kind": {
+          "$ref": "#/definitions/v1PluginKind"
+        },
+        "embeddedConf": {
+          "$ref": "#/definitions/v1EmbededPluginConf"
+        },
+        "provider": {
+          "type": "string",
+          "description": "provider is hawkbit, mender, or webhook. Required when kind is OTA."
+        },
+        "tokenId": {
+          "type": "string",
+          "description": "token_id is the jti of the addon token. It is not the secret."
+        },
+        "token": {
+          "type": "string",
+          "description": "token is the addon bearer token. Create returns it once. It is not stored."
         }
       }
     },
