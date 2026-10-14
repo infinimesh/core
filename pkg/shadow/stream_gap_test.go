@@ -76,6 +76,98 @@ func TestResumeAtTheWindowEdgeReplays(t *testing.T) {
 	waitShadow(t, st.ch, func(sh *pb.Shadow) bool { return sh.GetSequence() == 3 })
 }
 
+func TestDeviceListDoesNotAdvancePastReplay(t *testing.T) {
+	ps := pubsub.New(8)
+	svc := shadow.NewShadowServiceServer(zap.NewNop(), nil, ps)
+	ctx := context.Background()
+	const id = "pump"
+	for i := 0; i < 10; i++ {
+		_, err := svc.PublishDeviceScope(ctx, &pb.Shadow{
+			Device:    id,
+			Namespace: "plant",
+			Event:     pb.ShadowEvent_OTA_STATUS_CHANGED,
+		})
+		require.NoError(t, err)
+	}
+
+	st := &recStream{ctx: ctx, ch: make(chan *pb.Shadow, 32), stop: make(chan struct{})}
+	go func() {
+		_ = svc.StreamShadow(&pb.StreamShadowRequest{
+			Namespace: "plant",
+			Catalog: []*pb.DeviceMeta{{
+				Device: id, Namespace: "plant", Title: "Pump",
+			}},
+			ResumeAfter: 5,
+			OnlyDelta:   true,
+		}, st)
+	}()
+
+	var seqs []uint64
+	deadline := time.After(2 * time.Second)
+	for {
+		select {
+		case sh := <-st.ch:
+			seqs = append(seqs, sh.GetSequence())
+			if sh.GetSequence() == 6 {
+				for _, seq := range seqs {
+					if seq > 6 {
+						t.Fatalf("sequence %d arrived before replayed 6: %v", seq, seqs)
+					}
+				}
+				return
+			}
+		case <-deadline:
+			t.Fatalf("replay did not arrive: %v", seqs)
+		}
+	}
+}
+
+func TestQuietNamespaceKeepsItsReplayWindow(t *testing.T) {
+	ps := pubsub.New(8)
+	svc := shadow.NewShadowServiceServer(zap.NewNop(), nil, ps)
+	ctx := context.Background()
+	for i := 0; i < 300; i++ {
+		_, err := svc.PublishDeviceScope(ctx, &pb.Shadow{
+			Device:    "busy",
+			Namespace: "busy",
+			Event:     pb.ShadowEvent_OTA_STATUS_CHANGED,
+		})
+		require.NoError(t, err)
+	}
+	_, err := svc.PublishDeviceScope(ctx, &pb.Shadow{
+		Device:    "quiet",
+		Namespace: "quiet",
+		Event:     pb.ShadowEvent_OTA_STATUS_CHANGED,
+	})
+	require.NoError(t, err)
+
+	st := &recStream{ctx: ctx, ch: make(chan *pb.Shadow, 8), stop: make(chan struct{})}
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- svc.StreamShadow(&pb.StreamShadowRequest{
+			Namespace: "quiet",
+			Catalog: []*pb.DeviceMeta{{
+				Device: "quiet", Namespace: "quiet", Title: "Quiet",
+			}},
+			ResumeAfter: 1,
+			OnlyDelta:   true,
+		}, st)
+	}()
+	deadline := time.After(2 * time.Second)
+	for {
+		select {
+		case err := <-errCh:
+			t.Fatalf("quiet namespace: %v", err)
+		case sh := <-st.ch:
+			if sh.GetDevice() == "quiet" && sh.GetEvent() == pb.ShadowEvent_OTA_STATUS_CHANGED {
+				return
+			}
+		case <-deadline:
+			t.Fatal("quiet namespace did not replay its update")
+		}
+	}
+}
+
 func TestResumeKeepsTheUpdateThatLandsBeforeSubscribe(t *testing.T) {
 	ps := pubsub.New(8)
 	rdb := redis_mocks.NewMockCmdable(t)

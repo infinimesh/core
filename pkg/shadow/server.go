@@ -16,6 +16,7 @@ limitations under the License.
 package shadow
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"slices"
@@ -52,7 +53,7 @@ type ShadowServiceServer struct {
 	mu      sync.Mutex
 	orderMu sync.Mutex
 	catalog map[string]deviceMeta
-	events  []*pb.Shadow
+	events  map[string][]*pb.Shadow
 }
 
 func NewShadowServiceServer(log *zap.Logger, rdb redis.Cmdable, ps pubsub.PubSub) *ShadowServiceServer {
@@ -62,6 +63,7 @@ func NewShadowServiceServer(log *zap.Logger, rdb redis.Cmdable, ps pubsub.PubSub
 		ps:      ps,
 		ids:     &atomicSeq{},
 		catalog: map[string]deviceMeta{},
+		events:  map[string][]*pb.Shadow{},
 	}
 	return s
 }
@@ -370,7 +372,7 @@ func (s *ShadowServiceServer) StreamShadow(req *pb.StreamShadowRequest, srv pb.S
 			if ev.Namespace == "" {
 				ev.Namespace = scope.namespace
 			}
-			if err := deliver(ev, false); err != nil {
+			if err := s.sendMembership(ctx, srv, ev, meta); err != nil {
 				log.Warn("Unable to send message", zap.Error(err))
 				return nil
 			}
@@ -378,7 +380,7 @@ func (s *ShadowServiceServer) StreamShadow(req *pb.StreamShadowRequest, srv pb.S
 	}
 
 	if req.GetResumeAfter() > 0 {
-		replay, err := s.since(req.GetResumeAfter())
+		replay, err := s.since(req.GetResumeAfter(), scope, meta, devices)
 		if err != nil {
 			log.Error("resume window exceeded", zap.Uint64("resume_after", req.GetResumeAfter()))
 			return err
@@ -494,6 +496,15 @@ func (s *ShadowServiceServer) StreamShadow(req *pb.StreamShadowRequest, srv pb.S
 	}
 }
 
+func (s *ShadowServiceServer) sendMembership(ctx context.Context, srv pb.ShadowService_StreamShadowServer, sh *pb.Shadow, meta map[string]deviceMeta) error {
+	out := proto.Clone(sh).(*pb.Shadow)
+	s.fill(out, meta)
+	if out.EventId == 0 && s.ids != nil {
+		out.EventId = s.ids.Next(ctx)
+	}
+	return srv.Send(out)
+}
+
 func (s *ShadowServiceServer) send(ctx context.Context, srv pb.ShadowService_StreamShadowServer, req *pb.StreamShadowRequest, sh *pb.Shadow, meta map[string]deviceMeta) error {
 	out := proto.Clone(sh).(*pb.Shadow)
 	if out.GetEvent() == pb.ShadowEvent_STATE && req != nil && !req.GetOnlyDelta() {
@@ -518,27 +529,68 @@ func (s *ShadowServiceServer) rememberEvent(sh *pb.Shadow) {
 	if sh == nil || sh.GetSequence() == 0 {
 		return
 	}
+	ns := sh.GetNamespace()
 	s.mu.Lock()
-	s.events = append(s.events, proto.Clone(sh).(*pb.Shadow))
-	if len(s.events) > eventLogCap {
-		s.events = s.events[len(s.events)-eventLogCap:]
+	if s.events == nil {
+		s.events = map[string][]*pb.Shadow{}
 	}
+	log := append(s.events[ns], proto.Clone(sh).(*pb.Shadow))
+	if len(log) > eventLogCap {
+		log = log[len(log)-eventLogCap:]
+	}
+	s.events[ns] = log
 	s.mu.Unlock()
 }
 
-func (s *ShadowServiceServer) since(seq uint64) ([]*pb.Shadow, error) {
+func (s *ShadowServiceServer) since(seq uint64, scope streamScope, meta map[string]deviceMeta, devices map[string]struct{}) ([]*pb.Shadow, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if len(s.events) == eventLogCap && seq+1 < s.events[0].GetSequence() {
-		return nil, rpcErr(connect.CodeAborted, "resume window exceeded")
-	}
-	out := make([]*pb.Shadow, 0, len(s.events))
-	for _, ev := range s.events {
-		if ev.GetSequence() > seq {
-			out = append(out, proto.Clone(ev).(*pb.Shadow))
+	var out []*pb.Shadow
+	for _, ns := range s.replayNamespaces(scope, meta, devices) {
+		log := s.events[ns]
+		if len(log) == eventLogCap && seq+1 < log[0].GetSequence() {
+			return nil, rpcErr(connect.CodeAborted, "resume window exceeded")
+		}
+		for _, ev := range log {
+			if ev.GetSequence() > seq {
+				out = append(out, proto.Clone(ev).(*pb.Shadow))
+			}
 		}
 	}
+	slices.SortFunc(out, func(a, b *pb.Shadow) int {
+		return cmp.Compare(a.GetSequence(), b.GetSequence())
+	})
 	return out, nil
+}
+
+func (s *ShadowServiceServer) replayNamespaces(scope streamScope, meta map[string]deviceMeta, devices map[string]struct{}) []string {
+	if len(scope.namespaces) > 0 {
+		out := make([]string, 0, len(scope.namespaces))
+		for ns := range scope.namespaces {
+			out = append(out, ns)
+		}
+		slices.Sort(out)
+		return out
+	}
+	seen := map[string]struct{}{}
+	for id := range devices {
+		ns := ""
+		if item, ok := meta[id]; ok {
+			ns = item.namespace
+		} else if item, ok := s.catalog[id]; ok {
+			ns = item.namespace
+		}
+		seen[ns] = struct{}{}
+	}
+	if len(seen) == 0 {
+		seen[""] = struct{}{}
+	}
+	out := make([]string, 0, len(seen))
+	for ns := range seen {
+		out = append(out, ns)
+	}
+	slices.Sort(out)
+	return out
 }
 
 func eventInStream(devices map[string]struct{}, scope streamScope, ev *pb.Shadow) bool {
