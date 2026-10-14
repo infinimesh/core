@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v3.4.1] - 2026-10-14
+
+### Added
+- Account OTA request, addon reported state, and plugin token rotate.
+
+### Fixed
+- A shadow stream keeps every update across replay, a full queue, and a reconnect.
+- Each namespace has its own 256-event replay window. A resume from before that window returns `resume window exceeded`.
+- The device list at subscribe does not take a new sequence number.
+
 ## [v3.4.1-rc.7] - 2026-10-14
 
 This release is for testing, not for production.

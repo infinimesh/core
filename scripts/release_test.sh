@@ -93,6 +93,14 @@ grep -q 'prerelease:' "$root/.github/workflows/release.yml" || {
   echo "release candidates must be GitHub pre-releases" >&2
   exit 1
 }
+grep -q 'scripts/check-stable.sh' "$root/.github/workflows/release.yml" || {
+  echo "release workflow must check stable prerequisites" >&2
+  exit 1
+}
+grep -q 'scripts/check-stable.sh' "$root/.github/workflows/go.yml" || {
+  echo "go.yml must check stable prerequisites" >&2
+  exit 1
+}
 if "$notes" v9.9.9 "$tmp" >/dev/null 2>&1; then
   echo "missing tag should fail" >&2
   exit 1
@@ -154,6 +162,55 @@ grep -q 'bufbuild/buf/releases/download/v1.55.1/' "$root/.github/workflows/go.ym
   echo "go.yml must install buf 1.55.1" >&2
   exit 1
 }
+
+stable=$root/scripts/check-stable.sh
+fix=$(mktemp -d)
+trap 'rm -f "$tmp"; rm -rf "$fix"' EXIT
+cat > "$fix/CHANGELOG.md" << 'EOF'
+## [v9.9.9] - 2026-10-14
+
+### Fixed
+- kept
+
+## [v9.9.9-rc.1] - 2026-10-14
+
+This release is for testing, not for production.
+
+### Fixed
+- draft
+EOF
+printf 'module example\n\ngo 1.27.2\n\nrequire github.com/infinimesh/proto v1.2.0\n' > "$fix/go.mod"
+STABLE_SKIP_REMOTE=1 sh "$stable" "$fix" v9.9.9
+printf 'module example\n\ngo 1.27.2\n\nrequire github.com/infinimesh/proto v1.2.3-0.20261014081529-3817bce516c2\n' > "$fix/go.mod"
+if STABLE_SKIP_REMOTE=1 sh "$stable" "$fix" v9.9.9 >/dev/null 2>&1; then
+  echo "a pseudo-version must fail a stable release" >&2
+  exit 1
+fi
+printf 'module example\n\ngo 1.27.2\n\nrequire github.com/infinimesh/proto v1.2.0-rc.1\n' > "$fix/go.mod"
+if STABLE_SKIP_REMOTE=1 sh "$stable" "$fix" v9.9.9 >/dev/null 2>&1; then
+  echo "a prerelease module must fail a stable release" >&2
+  exit 1
+fi
+printf 'module example\n\ngo 1.27.2\n\nrequire github.com/infinimesh/proto v1.2.0\n\nreplace github.com/infinimesh/proto => ../proto\n' > "$fix/go.mod"
+if STABLE_SKIP_REMOTE=1 sh "$stable" "$fix" v9.9.9 >/dev/null 2>&1; then
+  echo "a replace directive must fail a stable release" >&2
+  exit 1
+fi
+printf 'module example\n\ngo 1.27.2\n\nrequire github.com/infinimesh/proto v1.2.3-0.20261014081529-3817bce516c2\n' > "$fix/go.mod"
+STABLE_SKIP_REMOTE=1 sh "$stable" "$fix" v9.9.9-rc.1
+cat > "$fix/CHANGELOG.md" << 'EOF'
+## [v9.9.9] - 2026-10-14
+
+This release is for testing, not for production.
+
+### Fixed
+- kept
+EOF
+printf 'module example\n\ngo 1.27.2\n\nrequire github.com/infinimesh/proto v1.2.0\n' > "$fix/go.mod"
+if STABLE_SKIP_REMOTE=1 sh "$stable" "$fix" v9.9.9 >/dev/null 2>&1; then
+  echo "stable notes must not say the release is for testing" >&2
+  exit 1
+fi
 
 go_ver=$(awk '/^go / { print $2; exit }' "$root/go.mod")
 major=${go_ver%.*}
