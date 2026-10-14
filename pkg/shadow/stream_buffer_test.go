@@ -54,6 +54,43 @@ sawFive:
 	}
 }
 
+func TestFullQueueClosesTheStream(t *testing.T) {
+	ps := pubsub.New(8)
+	svc := shadow.NewShadowServiceServer(zap.NewNop(), nil, ps)
+	const id = "pump"
+	st := &recStream{ctx: context.Background(), ch: make(chan *pb.Shadow), stop: make(chan struct{})}
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- svc.StreamShadow(&pb.StreamShadowRequest{Devices: []string{id}, OnlyDelta: true}, st)
+	}()
+	time.Sleep(50 * time.Millisecond)
+	for i := 1; i <= 1026; i++ {
+		mq.Deliver(ps, "mqtt.incoming/"+id, &pb.Shadow{
+			Device: id, Sequence: uint64(i), EventId: uint64(i),
+		})
+		// The bus buffer is 256. A tight burst is dropped there, before the
+		// replay queue can reach its cap. Pause so the drainer can move each
+		// batch into the queue while Send is blocked.
+		if i == 1 || i%32 == 0 {
+			time.Sleep(25 * time.Millisecond)
+		}
+	}
+	select {
+	case <-st.ch:
+	case err := <-errCh:
+		require.ErrorContains(t, err, "shadow stream fell behind")
+		return
+	case <-time.After(2 * time.Second):
+		t.Fatal("stream did not send or fail")
+	}
+	select {
+	case err := <-errCh:
+		require.ErrorContains(t, err, "shadow stream fell behind")
+	case <-time.After(2 * time.Second):
+		t.Fatal("a full queue left the stream open")
+	}
+}
+
 func TestReplayKeepsLiveTraffic(t *testing.T) {
 	ps := pubsub.New(8)
 	rdb := redis_mocks.NewMockCmdable(t)

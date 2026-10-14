@@ -6,7 +6,7 @@ A device token streams the devices in that token. An account token streams the d
 
 An account stream emits `DEVICE_ADDED` for the devices present at subscribe, and later when a device is created, moved in, renamed, retagged, or shared directly with that account. It emits `DEVICE_REMOVED` when a device is deleted or moved out. A later `DEVICE_ADDED` for a device already on the stream refreshes its title, namespace, and tags.
 
-Each message has `eventId` and `sequence`. `resume_after` replays later events from that stream. Reported and desired state carry `version`, which increments when that side is patched. State messages include `title`, `namespace`, and `tags` when the registry has them.
+Each message has `eventId` and `sequence`. `resume_after` replays later events from the last 256 events this process has stamped. A gap older than that window is not replayed. Open the stream with `sync` true to read the stored shadow. A stream that falls behind is closed with `shadow stream fell behind`. Reported and desired state carry `version`, which increments when that side is patched. State messages include `title`, `namespace`, and `tags` when the registry has them.
 
 The same methods are also served under `/v1/devices/{device}/state`. The previous `/devices/states` paths remain.
 

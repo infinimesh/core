@@ -131,6 +131,12 @@ consume:
 }
 
 func Deliver(bus pubsub.PubSub, topic string, shadow *pb.Shadow) {
+	if shadowsvc.Dispatch != nil {
+		shadowsvc.Dispatch(shadow, func() {
+			bus.TryPub(shadow, topic, topic+"/"+shadow.Device)
+		})
+		return
+	}
 	if shadow.EventId == 0 && shadowsvc.Inbound != nil {
 		shadowsvc.Inbound(shadow)
 	}
