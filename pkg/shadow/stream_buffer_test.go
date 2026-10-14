@@ -2,6 +2,7 @@ package shadow_test
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -54,41 +55,90 @@ sawFive:
 	}
 }
 
+// holdStream blocks in the first Send so the replay queue can fill.
+type holdStream struct {
+	recStream
+	entered chan struct{}
+	release chan struct{}
+	once    sync.Once
+}
+
+func (h *holdStream) Send(sh *pb.Shadow) error {
+	h.once.Do(func() { close(h.entered) })
+	<-h.release
+	return h.recStream.Send(sh)
+}
+
 func TestFullQueueClosesTheStream(t *testing.T) {
 	ps := pubsub.New(8)
 	svc := shadow.NewShadowServiceServer(zap.NewNop(), nil, ps)
 	const id = "pump"
-	st := &recStream{ctx: context.Background(), ch: make(chan *pb.Shadow), stop: make(chan struct{})}
+	const topic = "mqtt.incoming/" + id
+	st := &holdStream{
+		recStream: recStream{
+			ctx:  context.Background(),
+			ch:   make(chan *pb.Shadow, 1),
+			stop: make(chan struct{}),
+		},
+		entered: make(chan struct{}),
+		release: make(chan struct{}),
+	}
 	errCh := make(chan error, 1)
 	go func() {
 		errCh <- svc.StreamShadow(&pb.StreamShadowRequest{Devices: []string{id}, OnlyDelta: true}, st)
 	}()
-	time.Sleep(50 * time.Millisecond)
-	for i := 1; i <= 1026; i++ {
-		mq.Deliver(ps, "mqtt.incoming/"+id, &pb.Shadow{
-			Device: id, Sequence: uint64(i), EventId: uint64(i),
-		})
-		// The bus buffer is 256. A tight burst is dropped there, before the
-		// replay queue can reach its cap. Pause so the drainer can move each
-		// batch into the queue while Send is blocked.
-		if i == 1 || i%32 == 0 {
-			time.Sleep(25 * time.Millisecond)
+
+	stopPrime := make(chan struct{})
+	defer close(stopPrime)
+	go func() {
+		var i uint64
+		for {
+			select {
+			case <-stopPrime:
+				return
+			case <-st.entered:
+				return
+			default:
+			}
+			i++
+			ps.TryPub(&pb.Shadow{Device: id, Sequence: i, EventId: i}, topic)
+			select {
+			case <-stopPrime:
+				return
+			case <-st.entered:
+				return
+			case <-time.After(time.Millisecond):
+			}
+		}
+	}()
+	select {
+	case <-st.entered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("stream did not accept a live update")
+	}
+
+	// Pub blocks in the bus once the drainer has stopped, which is when the
+	// replay queue is full. A timed burst is dropped by the bus before then.
+	for n := uint64(1); n <= 4096; n++ {
+		ack := make(chan struct{})
+		go func() {
+			ps.Pub(&pb.Shadow{Device: id, Sequence: 100_000 + n, EventId: 100_000 + n}, topic)
+			close(ack)
+		}()
+		select {
+		case <-ack:
+		case <-time.After(time.Second):
+			close(st.release)
+			select {
+			case err := <-errCh:
+				require.ErrorContains(t, err, "shadow stream fell behind")
+			case <-time.After(2 * time.Second):
+				t.Fatal("a full queue left the stream open")
+			}
+			return
 		}
 	}
-	select {
-	case <-st.ch:
-	case err := <-errCh:
-		require.ErrorContains(t, err, "shadow stream fell behind")
-		return
-	case <-time.After(2 * time.Second):
-		t.Fatal("stream did not send or fail")
-	}
-	select {
-	case err := <-errCh:
-		require.ErrorContains(t, err, "shadow stream fell behind")
-	case <-time.After(2 * time.Second):
-		t.Fatal("a full queue left the stream open")
-	}
+	t.Fatal("published 4096 updates without filling the queue")
 }
 
 func TestReplayKeepsLiveTraffic(t *testing.T) {
