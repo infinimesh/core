@@ -74,6 +74,7 @@ type PluginsController struct {
 	signingKey []byte
 	audit      pluginAuditor
 	denylist   TokenDenylist
+	onRotate   func(string)
 }
 
 type pluginAuditor interface {
@@ -85,6 +86,18 @@ const (
 	auditPluginDelete = "plugin_delete"
 	auditPluginRotate = "plugin_rotate"
 )
+
+func (c *PluginsController) SetOnRotate(fn func(string)) {
+	if c != nil {
+		c.onRotate = fn
+	}
+}
+
+func (c *PluginsController) noteToken(id string) {
+	if c != nil && c.onRotate != nil && id != "" {
+		c.onRotate(id)
+	}
+}
 
 func (c *PluginsController) SetAuditor(a pluginAuditor) {
 	if c != nil {
@@ -368,6 +381,7 @@ func (c *PluginsController) Update(ctx context.Context, req *connect.Request[pb.
 	if _, err := c.col.ReadDocument(ctx, plug.Uuid, &cur); err == nil {
 		plug.TokenId = cur.GetTokenId()
 	}
+	reissued := false
 	if plug.GetKind() == pb.PluginKind_OTA && (plug.GetTokenId() == "" || plug.GetProvider() != cur.GetProvider()) {
 		signed, jti, err := c.issueOTAToken(plug.Uuid, plug.GetProvider())
 		if err != nil {
@@ -375,6 +389,7 @@ func (c *PluginsController) Update(ctx context.Context, req *connect.Request[pb.
 		}
 		plug.TokenId = jti
 		plug.Token = signed
+		reissued = true
 	}
 	stored := plug.GetToken()
 	clearPluginToken(plug)
@@ -387,6 +402,9 @@ func (c *PluginsController) Update(ctx context.Context, req *connect.Request[pb.
 
 	log.Debug("Updated", zap.Any("plugin", plugin))
 	plugin.Token = stored
+	if reissued {
+		c.noteToken(plug.Uuid)
+	}
 	return connect.NewResponse(plugin.Plugin), nil
 }
 
@@ -403,6 +421,7 @@ func (c *PluginsController) Delete(ctx context.Context, req *connect.Request[pb.
 		return nil, StatusFromString(connect.CodeInternal, "Error while deleting Plugin: %v", err)
 	}
 	c.auditPlugin(ctx, auditPluginDelete, pluginNamespace(&cur))
+	c.noteToken(plug.GetUuid())
 
 	return connect.NewResponse(plug), nil
 }
@@ -440,6 +459,7 @@ func (c *PluginsController) RotateToken(ctx context.Context, req *connect.Reques
 	}
 	cur.TokenId = jti
 	cur.Token = signed
+	c.noteToken(cur.Uuid)
 	c.auditPlugin(ctx, auditPluginRotate, pluginNamespace(&cur))
 	return connect.NewResponse(&cur), nil
 }

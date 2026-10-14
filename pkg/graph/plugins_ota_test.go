@@ -67,7 +67,9 @@ func TestCreateAndDeletePluginWriteAudit(t *testing.T) {
 	}).Return(driver.DocumentMeta{Key: "plug-1"}, nil)
 	col.On("RemoveDocument", mock.Anything, "plug-1").Return(driver.DocumentMeta{}, nil)
 	seen := &seenPluginAudit{}
+	var rotated []string
 	ctrl := &PluginsController{log: zap.NewNop(), col: col, signingKey: []byte("secret"), audit: seen}
+	ctrl.SetOnRotate(func(id string) { rotated = append(rotated, id) })
 	ctx := context.WithValue(context.Background(), inf.InfinimeshRootCtxKey, true)
 	ctx = context.WithValue(ctx, inf.InfinimeshAccountCtxKey, "root")
 
@@ -76,6 +78,7 @@ func TestCreateAndDeletePluginWriteAudit(t *testing.T) {
 	_, err = ctrl.Delete(ctx, connect.NewRequest(&pb.Plugin{Uuid: "plug-1"}))
 	require.NoError(t, err)
 	require.Equal(t, []string{"plugin_create root plant", "plugin_delete root plant"}, seen.rows)
+	require.Equal(t, []string{"plug-1"}, rotated)
 }
 
 type recordedDeny struct {
@@ -108,7 +111,9 @@ func TestRotateTokenDeniesThePreviousJTI(t *testing.T) {
 	})).Return(driver.DocumentMeta{}, nil)
 	deny := &recordedDeny{}
 	seen := &seenPluginAudit{}
+	var rotated []string
 	ctrl := &PluginsController{log: zap.NewNop(), col: col, signingKey: []byte("secret"), denylist: deny, audit: seen}
+	ctrl.SetOnRotate(func(id string) { rotated = append(rotated, id) })
 	ctx := context.WithValue(context.Background(), inf.InfinimeshRootCtxKey, true)
 	ctx = context.WithValue(ctx, inf.InfinimeshAccountCtxKey, "root")
 
@@ -131,6 +136,7 @@ func TestRotateTokenDeniesThePreviousJTI(t *testing.T) {
 	require.Equal(t, "old-jti", deny.id)
 	require.GreaterOrEqual(t, deny.ttl, 365*24*time.Hour)
 	require.Equal(t, []string{"plugin_rotate root plant"}, seen.rows)
+	require.Equal(t, []string{"plug-1"}, rotated)
 }
 
 func TestRotateTokenStillReturnsTheBearerWhenDenyFails(t *testing.T) {

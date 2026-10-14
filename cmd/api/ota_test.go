@@ -68,11 +68,13 @@ func (r *recordAudit) Record(_ context.Context, action, device, account, tokenID
 }
 
 type fakeOTAPlugins struct {
-	plug graph.OTAPlugin
-	ok   bool
+	plug  graph.OTAPlugin
+	ok    bool
+	calls int
 }
 
 func (f *fakeOTAPlugins) OTAPlugin(context.Context, string) (graph.OTAPlugin, bool) {
+	f.calls++
 	return f.plug, f.ok
 }
 

@@ -289,27 +289,35 @@ func (s *ShadowServiceServer) StreamShadow(req *pb.StreamShadowRequest, srv pb.S
 	}
 
 	ctx := srv.Context()
-	messages := make(chan interface{}, 10)
+	messages := make(chan interface{}, 256)
+	live := newShadowQueue()
+	go func() {
+		defer live.close()
+		for msg := range messages {
+			incoming, ok := msg.(*pb.Shadow)
+			if ok && incoming != nil {
+				live.push(incoming)
+			}
+		}
+	}()
 	topics := subscriptionTopics(devices, scope.live())
 	s.ps.AddSub(messages, topics...)
 	defer unsub(s.ps, messages)
 
-	seen := map[uint64]struct{}{}
+	var high uint64
 	deliver := func(ev *pb.Shadow) error {
 		if ev == nil {
 			return nil
 		}
 		seq := ev.GetSequence()
-		if seq > 0 {
-			if _, ok := seen[seq]; ok {
-				return nil
-			}
+		if seq > 0 && seq <= high {
+			return nil
 		}
 		if err := s.send(ctx, srv, req, ev, meta); err != nil {
 			return err
 		}
-		if seq > 0 {
-			seen[seq] = struct{}{}
+		if seq > high {
+			high = seq
 		}
 		return nil
 	}
@@ -371,10 +379,20 @@ func (s *ShadowServiceServer) StreamShadow(req *pb.StreamShadowRequest, srv pb.S
 
 	log.Debug("Listening for messages")
 
-	for msg := range messages {
-		incoming, ok := msg.(*pb.Shadow)
-		if !ok || incoming == nil {
-			continue
+	for {
+		incoming, ok := live.pop()
+		if !ok {
+			select {
+			case <-ctx.Done():
+				return nil
+			case <-live.done:
+				incoming, ok = live.pop()
+				if !ok {
+					return nil
+				}
+			case <-live.wake:
+				continue
+			}
 		}
 		if incoming.GetEvent() == pb.ShadowEvent_TAG_ADDED || incoming.GetEvent() == pb.ShadowEvent_TAG_REMOVED {
 			if !scope.wants(incoming) && !eventInStream(devices, scope, incoming) {
@@ -431,8 +449,6 @@ func (s *ShadowServiceServer) StreamShadow(req *pb.StreamShadowRequest, srv pb.S
 			return nil
 		}
 	}
-
-	return nil
 }
 
 func (s *ShadowServiceServer) send(ctx context.Context, srv pb.ShadowService_StreamShadowServer, req *pb.StreamShadowRequest, sh *pb.Shadow, meta map[string]deviceMeta) error {
@@ -599,6 +615,44 @@ func applyInclude(sh *pb.Shadow, include []pb.StateKey) {
 		sh.Connection = nil
 	}
 }
+
+type shadowQueue struct {
+	mu   sync.Mutex
+	buf  []*pb.Shadow
+	wake chan struct{}
+	done chan struct{}
+}
+
+func newShadowQueue() *shadowQueue {
+	return &shadowQueue{wake: make(chan struct{}, 1), done: make(chan struct{})}
+}
+
+func (q *shadowQueue) push(sh *pb.Shadow) {
+	q.mu.Lock()
+	q.buf = append(q.buf, sh)
+	q.mu.Unlock()
+	select {
+	case q.wake <- struct{}{}:
+	default:
+	}
+}
+
+func (q *shadowQueue) pop() (*pb.Shadow, bool) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	if len(q.buf) == 0 {
+		return nil, false
+	}
+	sh := q.buf[0]
+	q.buf[0] = nil
+	q.buf = q.buf[1:]
+	if len(q.buf) == 0 {
+		q.buf = nil
+	}
+	return sh, true
+}
+
+func (q *shadowQueue) close() { close(q.done) }
 
 func unsub[T chan any](ps pubsub.PubSub, ch chan any) {
 	go ps.Unsub(ch)
