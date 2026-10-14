@@ -138,7 +138,7 @@ func (s *ShadowAPI) Patch(ctx context.Context, request *connect.Request[shadow.S
 		return nil, err
 	}
 	if stateHasOTA(body.GetDesired()) {
-		s.auditAssign(ctx, map[string]string{body.GetDevice(): otaNamespace}, []*shadow.DevicePatchResult{{Device: body.GetDevice()}})
+		s.auditOTA(ctx, auditOTAAssign, map[string]string{body.GetDevice(): otaNamespace}, []*shadow.DevicePatchResult{{Device: body.GetDevice()}})
 	}
 
 	return connect.NewResponse(res), nil

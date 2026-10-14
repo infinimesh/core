@@ -6,4 +6,4 @@
 
 `RotateCertificate` keeps the previous fingerprint in `rollover_fingerprint` until the next rotation, so both certificates match `GetByFingerprint`. `RevokeCertificate` with an empty fingerprint sets `revoked`. A fingerprint appends `revoked_fingerprints` and drops it from the current and rollover fields. `GetByFingerprint` returns permission denied for a revoked certificate.
 
-`POST /v1/devices/states:patchMany` writes one desired document to devices in a namespace or with a tag. The response lists a result for each device. `POST /v1/devices/ota:assign` sets an OTA target version the same way.
+`POST /v1/devices/states:patchMany` writes one desired document to devices in a namespace or with a tag. The response lists a result for each device. `POST /v1/devices/ota:assign` sets an OTA target version the same way. `POST /v1/devices/ota:request` stores `requested_version` for a manage-level account and leaves `version` unchanged.

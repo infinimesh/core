@@ -93,6 +93,8 @@ func SelectMiddleware(i *interceptor, procedure string) middleware {
 		middleware = i.ConnectBlankMiddleware
 	case procedure == nodeconnect.ShadowServiceAssignOTAProcedure:
 		middleware = i.ConnectAssignOTAMiddleware
+	case procedure == nodeconnect.ShadowServiceRequestOTAProcedure:
+		middleware = i.ConnectRequestOTAMiddleware
 	case procedure == nodeconnect.ShadowServicePatchManyProcedure:
 		middleware = i.ConnectAccountOrPluginMiddleware
 	case procedure == nodeconnect.ShadowServicePatchProcedure:
@@ -192,6 +194,22 @@ func (i *interceptor) ConnectAssignOTAMiddleware(ctx context.Context, signingKey
 	}
 	if id, _ := token[infinimesh.INFINIMESH_PLUGIN_CLAIM].(string); id != "" {
 		return i.pluginAuth(ctx, token)
+	}
+	return i.ConnectStandardAuthMiddleware(ctx, signingKey, tokenString)
+}
+
+func (i *interceptor) ConnectRequestOTAMiddleware(ctx context.Context, signingKey []byte, tokenString string) (context.Context, bool, error) {
+	token, err := connectValidateToken(i.jwt, signingKey, tokenString)
+	if err != nil {
+		return ctx, false, apierr.Code(connect.CodeUnauthenticated, "Invalid token format")
+	}
+	if id, _ := token[infinimesh.INFINIMESH_PLUGIN_CLAIM].(string); id != "" {
+		return ctx, false, apierr.Code(connect.CodePermissionDenied, "ota request needs an account token")
+	}
+	if token[infinimesh.INFINIMESH_DEVICES_CLAIM] != nil {
+		if _, ok := token[infinimesh.INFINIMESH_ACCOUNT_CLAIM].(string); !ok {
+			return ctx, false, apierr.Code(connect.CodeUnauthenticated, "ota request needs an account token")
+		}
 	}
 	return i.ConnectStandardAuthMiddleware(ctx, signingKey, tokenString)
 }

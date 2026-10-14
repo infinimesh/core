@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { assignBody, deviceOTALine, namespaceOTALabel, otaStatusLabel, otaSwitchOn } from "@/ota"
+import { assignBody, deviceOTALine, namespaceOTALabel, otaAssignPath, otaStatusLabel, otaSwitchOn } from "@/ota"
 
 describe("ota contract", () => {
   it("shows reported status", () => {
@@ -24,6 +24,14 @@ describe("ota contract", () => {
     expect(otaSwitchOn({ enabled: true })).toBe(false)
     expect(otaSwitchOn({ enabled: true, addonRegistered: true })).toBe(true)
     expect(otaSwitchOn({ addonRegistered: true })).toBe(false)
+  })
+
+  it("asks the addon when a provider owns the namespace", () => {
+    expect(otaAssignPath("none")).toBe("/v1/devices/ota:assign")
+    expect(otaAssignPath("")).toBe("/v1/devices/ota:assign")
+    expect(otaAssignPath("hawkbit")).toBe("/v1/devices/ota:request")
+    expect(otaAssignPath("mender")).toBe("/v1/devices/ota:request")
+    expect(otaAssignPath("webhook")).toBe("/v1/devices/ota:request")
   })
 
   it("builds an assign for a namespace, a tag, or a device list", () => {

@@ -42,6 +42,14 @@ export function otaSwitchOn(ota) {
   return !!(ota && ota.enabled && ota.addonRegistered)
 }
 
+export function otaAssignPath(provider) {
+  const name = (provider || "none").trim()
+  if (name === "hawkbit" || name === "mender" || name === "webhook") {
+    return "/v1/devices/ota:request"
+  }
+  return "/v1/devices/ota:assign"
+}
+
 export function assignBody({ namespace, tag, devices, version }) {
   const body = { version }
   if (namespace && namespace !== "all") body.namespace = namespace

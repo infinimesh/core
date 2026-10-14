@@ -61,6 +61,23 @@ func TestPatchSameOTAVersionPublishesOnce(t *testing.T) {
 	f.mocks.ps.AssertNumberOfCalls(t, "TryPub", 1)
 }
 
+func TestPatchRequestedVersionPublishesOTARequested(t *testing.T) {
+	f := newShadowServiceServerFixture(t)
+	prev := otaState(map[string]any{"version": "1.0.0"})
+	raw, err := json.Marshal(prev)
+	require.NoError(t, err)
+	req := &pb.Shadow{Device: "dev-a", Desired: otaState(map[string]any{"requested_version": "1.4.0"})}
+	f.mocks.rdb.EXPECT().Get(mock.Anything, "dev-a:desired").Return(redis.NewStringResult(string(raw), nil))
+	f.mocks.ps.EXPECT().TryPub(req, "mqtt.outgoing", "mqtt.outgoing/dev-a").Return()
+	f.mocks.ps.EXPECT().TryPub(mock.MatchedBy(func(sh *pb.Shadow) bool {
+		return sh.GetEvent() == pb.ShadowEvent_OTA_REQUESTED && sh.GetDevice() == "dev-a"
+	}), "mqtt.outgoing", "mqtt.outgoing/dev-a").Return()
+
+	_, err = f.service.Patch(f.data.ctx, req)
+	assert.NoError(t, err)
+	f.mocks.ps.AssertNumberOfCalls(t, "TryPub", 2)
+}
+
 func TestPatchReportsOTAStatusChange(t *testing.T) {
 	f := newShadowServiceServerFixture(t)
 	prev := otaState(map[string]any{"status": "idle"})
