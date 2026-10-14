@@ -566,6 +566,20 @@ func (c *DevicesController) List(ctx context.Context, req *connect.Request[pb.Qu
 	}), nil
 }
 
+func (c *DevicesController) Present(ctx context.Context, id string) (bool, error) {
+	if c == nil || c.col == nil || id == "" {
+		return false, nil
+	}
+	_, err := c.col.ReadDocument(ctx, id, &devpb.Device{})
+	if err == nil {
+		return true, nil
+	}
+	if driver.IsNotFound(err) {
+		return false, nil
+	}
+	return false, err
+}
+
 func (c *DevicesController) DeviceNamespace(ctx context.Context, id string) (string, error) {
 	if c == nil || c.db == nil || id == "" {
 		return "", apierr.Code(connect.CodeNotFound, "device not found")

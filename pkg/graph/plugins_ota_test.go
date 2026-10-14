@@ -107,8 +107,10 @@ func TestRotateTokenDeniesThePreviousJTI(t *testing.T) {
 		return !stored && id != "" && id != "old-jti"
 	})).Return(driver.DocumentMeta{}, nil)
 	deny := &recordedDeny{}
-	ctrl := &PluginsController{log: zap.NewNop(), col: col, signingKey: []byte("secret"), denylist: deny}
+	seen := &seenPluginAudit{}
+	ctrl := &PluginsController{log: zap.NewNop(), col: col, signingKey: []byte("secret"), denylist: deny, audit: seen}
 	ctx := context.WithValue(context.Background(), inf.InfinimeshRootCtxKey, true)
+	ctx = context.WithValue(ctx, inf.InfinimeshAccountCtxKey, "root")
 
 	res, err := ctrl.RotateToken(ctx, connect.NewRequest(&pb.Plugin{Uuid: "plug-1"}))
 	require.NoError(t, err)
@@ -128,6 +130,7 @@ func TestRotateTokenDeniesThePreviousJTI(t *testing.T) {
 	require.Equal(t, res.Msg.GetTokenId(), claims[inf.INFINIMESH_JTI_CLAIM])
 	require.Equal(t, "old-jti", deny.id)
 	require.GreaterOrEqual(t, deny.ttl, 365*24*time.Hour)
+	require.Equal(t, []string{"plugin_rotate root plant"}, seen.rows)
 }
 
 func TestRotateTokenStillReturnsTheBearerWhenDenyFails(t *testing.T) {

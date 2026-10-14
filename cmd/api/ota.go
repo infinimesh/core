@@ -74,10 +74,32 @@ func addonMayPatch(body *shadow.Shadow) bool {
 	if desired != nil && !stateHasOTA(desired) {
 		return false
 	}
+	if desired != nil && desiredRequestsVersion(desired) {
+		return false
+	}
 	if reported != nil && !reportedOTAOnly(reported) {
 		return false
 	}
 	return true
+}
+
+func addonPatchError(body *shadow.Shadow) error {
+	if body != nil && body.GetConnection() == nil && body.GetReported() != nil && !reportedOTAOnly(body.GetReported()) {
+		return apierr.Code(connect.CodePermissionDenied, "reported patch may contain only ota")
+	}
+	if !addonMayPatch(body) {
+		return apierr.Code(connect.CodePermissionDenied, "addon token can write desired ota only")
+	}
+	return nil
+}
+
+func desiredRequestsVersion(st *shadow.State) bool {
+	ota := st.GetData().GetFields()["ota"].GetStructValue()
+	if ota == nil {
+		return false
+	}
+	_, ok := ota.GetFields()["requested_version"]
+	return ok
 }
 
 func (s *ShadowAPI) namespaceDoc(ctx context.Context, id string, cache map[string]*nspb.Namespace) (*nspb.Namespace, error) {

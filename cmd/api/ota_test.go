@@ -9,9 +9,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
 
+	"github.com/infinimesh/core/pkg/apierr"
 	"github.com/infinimesh/core/pkg/graph"
 	inf "github.com/infinimesh/core/pkg/shared"
 	"github.com/infinimesh/proto/node/access"
@@ -29,6 +33,9 @@ type stubShadowClient struct {
 }
 
 func (s *stubShadowClient) Patch(_ context.Context, in *shadow.Shadow, _ ...grpc.CallOption) (*shadow.Shadow, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
 	s.patched = in
 	return in, nil
 }
@@ -407,8 +414,81 @@ func TestAddonTokenPatchesReportedOTAOnly(t *testing.T) {
 	}))
 	require.Error(t, err)
 	assert.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
-	assert.ErrorContains(t, err, "addon token can write desired ota only")
+	assert.ErrorContains(t, err, "reported patch may contain only ota")
 	assert.Nil(t, client.patched)
+}
+
+func TestAddonTokenCannotPatchRequestedVersion(t *testing.T) {
+	client := &stubShadowClient{}
+	api := hawkbitAddonAPI(client)
+	ctx := addonCtx()
+	_, err := api.Patch(ctx, connect.NewRequest(&shadow.Shadow{
+		Device:  "pump",
+		Desired: otaStateFields(map[string]any{"ota": map[string]any{"requested_version": "1.4.0"}}),
+	}))
+	require.Error(t, err)
+	assert.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	assert.Nil(t, client.patched)
+
+	_, err = api.Patch(ctx, connect.NewRequest(&shadow.Shadow{
+		Device:  "pump",
+		Desired: otaDesired("9", time.Now().UTC()),
+	}))
+	require.NoError(t, err)
+	assert.Equal(t, "pump", client.patched.GetDevice())
+}
+
+func TestDeletedDeviceTokenCannotPost(t *testing.T) {
+	client := &stubShadowClient{}
+	api := &ShadowAPI{log: zap.NewNop(), client: client, devices: &fakeScopeDevices{}}
+	ctx := context.WithValue(context.Background(), inf.InfinimeshDevicesCtxKey, map[string]access.Level{
+		"pump": access.Level_NONE,
+	})
+	ctx = context.WithValue(ctx, inf.InfinimeshPostCtxKey, true)
+	_, err := api.Patch(ctx, connect.NewRequest(&shadow.Shadow{
+		Device:   "pump",
+		Reported: otaStateFields(map[string]any{"temp": 1}),
+	}))
+	require.Error(t, err)
+	assert.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+	assert.ErrorContains(t, err, "token is revoked")
+	assert.Nil(t, client.patched)
+}
+
+func TestPatchReturnsInvalidArgumentFromShadow(t *testing.T) {
+	st, err := status.New(codes.InvalidArgument, "ota field progress is not supported").WithDetails(&errdetails.ErrorInfo{
+		Reason: apierr.ReasonInvalidArgument,
+		Domain: apierr.Domain,
+	})
+	require.NoError(t, err)
+	client := &stubShadowClient{err: st.Err()}
+	api := hawkbitAddonAPI(client)
+	_, err = api.Patch(addonCtx(), connect.NewRequest(&shadow.Shadow{
+		Device:   "pump",
+		Reported: otaStateStatus("idle"),
+	}))
+	require.Error(t, err)
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	assert.ErrorContains(t, err, "ota field progress is not supported")
+}
+
+func hawkbitAddonAPI(client *stubShadowClient) *ShadowAPI {
+	return &ShadowAPI{
+		log: zap.NewNop(), client: client,
+		devices: &fakeScopeDevices{panicOnList: true, devices: []*devpb.Device{
+			{Uuid: "pump", Access: &access.Access{Level: access.Level_MGMT, Namespace: nsPtr("plant")}},
+		}},
+		namespaces: &fakeScopeNamespaces{byID: map[string]*nspb.Namespace{
+			"plant": {Uuid: "plant", Ota: &nspb.OTAConfig{Enabled: true, AddonRegistered: true, Provider: "hawkbit"}},
+		}},
+		plugins: &fakeOTAPlugins{ok: true, plug: graph.OTAPlugin{ID: "plug", Provider: "hawkbit", TokenID: "jti-1", Namespace: "plant"}},
+	}
+}
+
+func addonCtx() context.Context {
+	ctx := context.WithValue(context.Background(), inf.InfinimeshPluginCtxKey, "plug")
+	ctx = context.WithValue(ctx, inf.InfinimeshOTAProviderCtxKey, "hawkbit")
+	return context.WithValue(ctx, inf.InfinimeshJTICtxKey, "jti-1")
 }
 
 func otaStateStatus(status string) *shadow.State {

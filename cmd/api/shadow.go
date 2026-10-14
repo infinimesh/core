@@ -45,6 +45,7 @@ type scopeDevices interface {
 	List(context.Context, *connect.Request[pb.QueryRequest]) (*connect.Response[devpb.Devices], error)
 	ListForAddon(ctx context.Context, namespace, tag string) ([]*devpb.Device, error)
 	DeviceNamespace(ctx context.Context, id string) (string, error)
+	Present(ctx context.Context, id string) (bool, error)
 }
 
 type scopeNamespaces interface {
@@ -105,6 +106,15 @@ func (s *ShadowAPI) Patch(ctx context.Context, request *connect.Request[shadow.S
 	var otaNamespace string
 	if devices_scope, ok := ctx.Value(inf.InfinimeshDevicesCtxKey).(map[string]access.Level); ok {
 		log.Debug("Scope", zap.Any("devices", devices_scope))
+		if s.devices != nil {
+			present, presentErr := s.devices.Present(ctx, body.GetDevice())
+			if presentErr != nil {
+				return nil, presentErr
+			}
+			if !present {
+				return nil, apierr.New(connect.CodeUnauthenticated, apierr.ReasonTokenRevoked, "token is revoked")
+			}
+		}
 		if err = authorizeShadowWrite(ctx, devices_scope, body.GetDevice(), body.GetReported() != nil, body.GetDesired() != nil); err != nil {
 			return nil, err
 		}
@@ -115,8 +125,8 @@ func (s *ShadowAPI) Patch(ctx context.Context, request *connect.Request[shadow.S
 			}
 		}
 	} else if _, plugin, _, _ := callerIDs(ctx); plugin != "" {
-		if !addonMayPatch(body) {
-			return nil, apierr.Code(connect.CodePermissionDenied, "addon token can write desired ota only")
+		if err = addonPatchError(body); err != nil {
+			return nil, err
 		}
 		otaNamespace, err = s.authorizeDeviceTokenOTA(ctx, body.GetDevice())
 		if err != nil {
@@ -137,7 +147,7 @@ func (s *ShadowAPI) Patch(ctx context.Context, request *connect.Request[shadow.S
 
 	res, err := s.client.Patch(ctx, body)
 	if err != nil {
-		return nil, err
+		return nil, asConnect(err)
 	}
 	if stateHasOTA(body.GetDesired()) {
 		s.auditOTA(ctx, auditOTAAssign, map[string]string{body.GetDevice(): otaNamespace}, []*shadow.DevicePatchResult{{Device: body.GetDevice()}})
@@ -427,19 +437,40 @@ func (s *ShadowAPI) StreamShadow(ctx context.Context, request *connect.Request[s
 		return connect.NewError(connect.CodeAborted, errors.New("failed to start the Stream"))
 	}
 
+	return s.copyShadowStream(ctx, c.Recv, srv.Send)
+}
+
+func (s *ShadowAPI) copyShadowStream(ctx context.Context, recv func() (*shadow.Shadow, error), send func(*shadow.Shadow) error) error {
+	log := s.log.Named("StreamReportedStateChanges")
 	for {
-		msg, err := c.Recv()
+		msg, err := recv()
 		if err != nil {
 			log.Info("Error receiving message, closing stream", zap.Error(err))
 			return err
 		}
-
-		err = srv.Send(msg)
-		if err != nil {
+		if err = s.addonTokenCurrent(ctx); err != nil {
+			return err
+		}
+		if err = send(msg); err != nil {
 			log.Info("Error sending message, closing stream", zap.Error(err))
 			return err
 		}
 	}
+}
+
+func (s *ShadowAPI) addonTokenCurrent(ctx context.Context) error {
+	_, plugin, _, jti := callerIDs(ctx)
+	if plugin == "" {
+		return nil
+	}
+	if s.plugins == nil {
+		return apierr.New(connect.CodeUnauthenticated, apierr.ReasonTokenRevoked, "token is revoked")
+	}
+	loaded, ok := s.plugins.OTAPlugin(ctx, plugin)
+	if !ok || loaded.TokenID != jti {
+		return apierr.New(connect.CodeUnauthenticated, apierr.ReasonTokenRevoked, "token is revoked")
+	}
+	return nil
 }
 
 func (s *ShadowAPI) StreamShadowSync(ctx context.Context, request *connect.Request[shadow.StreamShadowRequest], srv *connect.ServerStream[shadow.Shadow]) (err error) {
