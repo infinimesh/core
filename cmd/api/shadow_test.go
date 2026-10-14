@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
@@ -269,6 +271,7 @@ func TestOpenAddonStreamStopsWhenTheTokenRotates(t *testing.T) {
 		n++
 		if n == 2 {
 			plugs.plug.TokenID = "jti-2"
+			api.PluginTokenChanged("plug")
 		}
 		return &shadow.Shadow{Device: "pump", Sequence: uint64(n)}, nil
 	}, func(sh *shadow.Shadow) error {
@@ -289,6 +292,53 @@ func TestOpenAddonStreamStopsWhenTheTokenRotates(t *testing.T) {
 	})
 	assert.EqualError(t, err, "stop")
 	assert.Equal(t, []uint64{1, 9}, sent)
+}
+
+func TestIdleAddonStreamStopsWhenTheTokenRotates(t *testing.T) {
+	plugs := &fakeOTAPlugins{ok: true, plug: graph.OTAPlugin{ID: "plug", TokenID: "jti-1"}}
+	api := &ShadowAPI{log: zap.NewNop(), plugins: plugs}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ctx = context.WithValue(ctx, inf.InfinimeshPluginCtxKey, "plug")
+	ctx = context.WithValue(ctx, inf.InfinimeshJTICtxKey, "jti-1")
+	started := make(chan struct{})
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- api.copyShadowStream(ctx, func() (*shadow.Shadow, error) {
+			close(started)
+			<-ctx.Done()
+			return nil, ctx.Err()
+		}, func(*shadow.Shadow) error { return nil })
+	}()
+	select {
+	case <-started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("stream did not start")
+	}
+	api.PluginTokenChanged("plug")
+	select {
+	case err := <-errCh:
+		assert.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+		assert.ErrorContains(t, err, "token is revoked")
+	case <-time.After(2 * time.Second):
+		t.Fatal("idle stream stayed open after rotation")
+	}
+}
+
+func TestAddonStreamCachesThePluginUntilRotation(t *testing.T) {
+	plugs := &fakeOTAPlugins{ok: true, plug: graph.OTAPlugin{ID: "plug", TokenID: "jti-1"}}
+	api := &ShadowAPI{plugins: plugs}
+	ctx := context.WithValue(context.Background(), inf.InfinimeshPluginCtxKey, "plug")
+	ctx = context.WithValue(ctx, inf.InfinimeshJTICtxKey, "jti-1")
+	require.NoError(t, api.addonTokenCurrent(ctx))
+	require.NoError(t, api.addonTokenCurrent(ctx))
+	require.Equal(t, 1, plugs.calls)
+	api.PluginTokenChanged("plug")
+	plugs.plug.TokenID = "jti-2"
+	err := api.addonTokenCurrent(ctx)
+	assert.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+	assert.ErrorContains(t, err, "token is revoked")
+	require.Equal(t, 2, plugs.calls)
 }
 
 func strPtr(s string) *string { return &s }

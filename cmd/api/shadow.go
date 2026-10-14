@@ -22,6 +22,7 @@ import (
 	"errors"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/infinimesh/proto/node/access"
 
@@ -63,6 +64,10 @@ type ShadowAPI struct {
 	namespaces scopeNamespaces
 	plugins    otaPlugins
 	auditor    otaAuditor
+
+	pluginMu    sync.Mutex
+	pluginToken map[string]string
+	pluginWatch map[string]chan struct{}
 }
 
 func (s *ShadowAPI) SetRegistry(devices scopeDevices, namespaces scopeNamespaces) {
@@ -442,20 +447,76 @@ func (s *ShadowAPI) StreamShadow(ctx context.Context, request *connect.Request[s
 
 func (s *ShadowAPI) copyShadowStream(ctx context.Context, recv func() (*shadow.Shadow, error), send func(*shadow.Shadow) error) error {
 	log := s.log.Named("StreamReportedStateChanges")
-	for {
-		msg, err := recv()
-		if err != nil {
-			log.Info("Error receiving message, closing stream", zap.Error(err))
-			return err
-		}
-		if err = s.addonTokenCurrent(ctx); err != nil {
-			return err
-		}
-		if err = send(msg); err != nil {
-			log.Info("Error sending message, closing stream", zap.Error(err))
+	_, plugin, _, _ := callerIDs(ctx)
+	var revoked chan struct{}
+	if plugin != "" {
+		revoked = s.watchPlugin(plugin)
+		if err := s.addonTokenCurrent(ctx); err != nil {
 			return err
 		}
 	}
+	wait := recvShadow(recv)
+	for {
+		select {
+		case <-revoked:
+			return apierr.New(connect.CodeUnauthenticated, apierr.ReasonTokenRevoked, "token is revoked")
+		case in := <-wait:
+			if in.err != nil {
+				log.Info("Error receiving message, closing stream", zap.Error(in.err))
+				return in.err
+			}
+			if err := s.addonTokenCurrent(ctx); err != nil {
+				return err
+			}
+			if err := send(in.msg); err != nil {
+				log.Info("Error sending message, closing stream", zap.Error(err))
+				return err
+			}
+			wait = recvShadow(recv)
+		}
+	}
+}
+
+type recvShadowResult struct {
+	msg *shadow.Shadow
+	err error
+}
+
+func recvShadow(recv func() (*shadow.Shadow, error)) <-chan recvShadowResult {
+	ch := make(chan recvShadowResult, 1)
+	go func() {
+		msg, err := recv()
+		ch <- recvShadowResult{msg, err}
+	}()
+	return ch
+}
+
+func (s *ShadowAPI) PluginTokenChanged(id string) {
+	if s == nil || id == "" {
+		return
+	}
+	s.pluginMu.Lock()
+	delete(s.pluginToken, id)
+	ch := s.pluginWatch[id]
+	delete(s.pluginWatch, id)
+	s.pluginMu.Unlock()
+	if ch != nil {
+		close(ch)
+	}
+}
+
+func (s *ShadowAPI) watchPlugin(id string) chan struct{} {
+	s.pluginMu.Lock()
+	defer s.pluginMu.Unlock()
+	if s.pluginWatch == nil {
+		s.pluginWatch = map[string]chan struct{}{}
+	}
+	ch, ok := s.pluginWatch[id]
+	if !ok {
+		ch = make(chan struct{})
+		s.pluginWatch[id] = ch
+	}
+	return ch
 }
 
 func (s *ShadowAPI) addonTokenCurrent(ctx context.Context) error {
@@ -466,11 +527,38 @@ func (s *ShadowAPI) addonTokenCurrent(ctx context.Context) error {
 	if s.plugins == nil {
 		return apierr.New(connect.CodeUnauthenticated, apierr.ReasonTokenRevoked, "token is revoked")
 	}
-	loaded, ok := s.plugins.OTAPlugin(ctx, plugin)
-	if !ok || loaded.TokenID != jti {
+	epoch := s.watchPlugin(plugin)
+	if id, ok := s.cachedPluginToken(plugin); ok {
+		if id != jti {
+			return apierr.New(connect.CodeUnauthenticated, apierr.ReasonTokenRevoked, "token is revoked")
+		}
+		return nil
+	}
+	loaded, found := s.plugins.OTAPlugin(ctx, plugin)
+	if !found || loaded.TokenID != jti {
 		return apierr.New(connect.CodeUnauthenticated, apierr.ReasonTokenRevoked, "token is revoked")
 	}
+	s.rememberPluginToken(plugin, loaded.TokenID, epoch)
 	return nil
+}
+
+func (s *ShadowAPI) cachedPluginToken(id string) (string, bool) {
+	s.pluginMu.Lock()
+	defer s.pluginMu.Unlock()
+	tokenID, ok := s.pluginToken[id]
+	return tokenID, ok
+}
+
+func (s *ShadowAPI) rememberPluginToken(id, tokenID string, epoch chan struct{}) {
+	s.pluginMu.Lock()
+	defer s.pluginMu.Unlock()
+	if s.pluginWatch[id] != epoch {
+		return
+	}
+	if s.pluginToken == nil {
+		s.pluginToken = map[string]string{}
+	}
+	s.pluginToken[id] = tokenID
 }
 
 func (s *ShadowAPI) StreamShadowSync(ctx context.Context, request *connect.Request[shadow.StreamShadowRequest], srv *connect.ServerStream[shadow.Shadow]) (err error) {

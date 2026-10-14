@@ -255,6 +255,7 @@ func main() {
 		plugCtrl.SetDenylist(auth.NewRedisDenylist(rdb))
 		if shadowAPI != nil {
 			shadowAPI.SetPlugins(plugCtrl)
+			plugCtrl.SetOnRotate(shadowAPI.PluginTokenChanged)
 		}
 
 		path, handler := pluginsconnect.NewPluginsServiceHandler(plugCtrl, interceptors)
