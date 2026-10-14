@@ -11,7 +11,7 @@
 - `error` (string)
 - `updated_at`, RFC3339
 
-Any other key is rejected, including `state` and `progress`. A null `ota` clears the document. The check runs when state is patched.
+That status set is final. `scheduled`, `rebooting`, `canceled`, and `rolled_back` are not statuses. Any other key is rejected, including `state`, `progress`, `target`, `current`, `deployment_id`, and `backend_id`. An addon maps a backend state onto the five statuses and keeps backend ids in its own state file. A null `ota` clears the document. The check runs when state is patched.
 
 A namespace stores `ota.enabled`, `ota.provider`, and `ota.webhook_url`. `provider` is `none`, `hawkbit`, `mender`, or `webhook`. `webhook_url` is required for `webhook`. `enabled` can be set only when an OTA addon is registered: a plugin of kind `OTA` that is public, or whose `namespace` is this namespace. `GET /v1/namespaces/{uuid}` sets `ota.addon_registered` on the response. The console switch stays off until that is true. With the switch off, nothing may write `desired.ota`.
 
