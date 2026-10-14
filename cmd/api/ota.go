@@ -17,7 +17,10 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
-const auditOTAAssign = "ota_assign"
+const (
+	auditOTAAssign  = "ota_assign"
+	auditOTARequest = "ota_request"
+)
 
 type otaAuditor interface {
 	Record(ctx context.Context, action, device, account, tokenID, namespace string)
@@ -208,11 +211,70 @@ func (s *ShadowAPI) devicesForOTA(ctx context.Context, ns, tag string) ([]*devpb
 	return s.devices.ListForAddon(ctx, listNS, tag)
 }
 
+func (s *ShadowAPI) allowAccountOTARequest(ctx context.Context, dev *devpb.Device, cache map[string]*nspb.Namespace) error {
+	_, plugin, _, _ := callerIDs(ctx)
+	if plugin != "" {
+		return apierr.Code(connect.CodePermissionDenied, "ota request needs an account token")
+	}
+	ns, err := s.namespaceDoc(ctx, dev.GetAccess().GetNamespace(), cache)
+	if err != nil {
+		return err
+	}
+	if !graph.OTAActive(ns.GetOta()) {
+		return apierr.Code(connect.CodeFailedPrecondition, "ota is not enabled")
+	}
+	return nil
+}
+
+func (s *ShadowAPI) selectAccountOTA(ctx context.Context, ns, tag string, explicit []string) ([]*devpb.Device, []*shadow.DevicePatchResult, error) {
+	account, plugin, _, _ := callerIDs(ctx)
+	if account == "" || plugin != "" {
+		if account == "" && plugin == "" {
+			return nil, nil, apierr.Code(connect.CodeUnauthenticated, "Invalid token format: no requestor ID")
+		}
+		return nil, nil, apierr.Code(connect.CodePermissionDenied, "ota request needs an account token")
+	}
+	devs, err := s.manageableDevices(ctx, ns, tag)
+	if err != nil {
+		return nil, nil, err
+	}
+	byID := make(map[string]*devpb.Device, len(devs))
+	for _, dev := range devs {
+		byID[dev.GetUuid()] = dev
+	}
+	cache := map[string]*nspb.Namespace{}
+	if len(explicit) == 0 {
+		explicit = make([]string, 0, len(devs))
+		for _, dev := range devs {
+			explicit = append(explicit, dev.GetUuid())
+		}
+	}
+	var allowed []*devpb.Device
+	var denied []*shadow.DevicePatchResult
+	for _, id := range explicit {
+		dev, ok := byID[id]
+		if !ok {
+			denied = append(denied, &shadow.DevicePatchResult{Device: id, Error: "device is outside of token scope or not allowed"})
+			continue
+		}
+		if err := s.allowAccountOTARequest(ctx, dev, cache); err != nil {
+			denied = append(denied, &shadow.DevicePatchResult{Device: id, Error: connectMessage(err)})
+			continue
+		}
+		allowed = append(allowed, dev)
+	}
+	return allowed, denied, nil
+}
+
 func (s *ShadowAPI) patchDesiredOTA(ctx context.Context, ns, tag string, explicit []string, desired *shadow.State) (*shadow.PatchManyResponse, error) {
 	allowed, denied, err := s.selectOTA(ctx, ns, tag, explicit)
 	if err != nil {
 		return nil, err
 	}
+	return s.storeDesiredOTA(ctx, allowed, denied, desired, auditOTAAssign)
+}
+
+func (s *ShadowAPI) storeDesiredOTA(ctx context.Context, allowed []*devpb.Device, denied []*shadow.DevicePatchResult, desired *shadow.State, action string) (*shadow.PatchManyResponse, error) {
 	resp := &shadow.PatchManyResponse{Results: denied}
 	if len(allowed) == 0 {
 		return resp, nil
@@ -229,11 +291,11 @@ func (s *ShadowAPI) patchDesiredOTA(ctx context.Context, ns, tag string, explici
 	}
 	resp.Updated = patched.GetUpdated()
 	resp.Results = append(resp.Results, patched.GetResults()...)
-	s.auditAssign(ctx, nsOf, patched.GetResults())
+	s.auditOTA(ctx, action, nsOf, patched.GetResults())
 	return resp, nil
 }
 
-func (s *ShadowAPI) auditAssign(ctx context.Context, nsOf map[string]string, results []*shadow.DevicePatchResult) {
+func (s *ShadowAPI) auditOTA(ctx context.Context, action string, nsOf map[string]string, results []*shadow.DevicePatchResult) {
 	if s.auditor == nil {
 		return
 	}
@@ -243,22 +305,31 @@ func (s *ShadowAPI) auditAssign(ctx context.Context, nsOf map[string]string, res
 	}
 	for _, res := range results {
 		if res.GetError() == "" && res.GetDevice() != "" {
-			s.auditor.Record(ctx, auditOTAAssign, res.GetDevice(), account, jti, nsOf[res.GetDevice()])
+			s.auditor.Record(ctx, action, res.GetDevice(), account, jti, nsOf[res.GetDevice()])
 		}
 	}
 }
 
-func otaDesired(version string, now time.Time) *shadow.State {
-	data, err := structpb.NewStruct(map[string]any{
-		"ota": map[string]any{
-			"version":    version,
-			"updated_at": now.UTC().Format(time.RFC3339),
-		},
-	})
+func otaDocument(fields map[string]any) *shadow.State {
+	data, err := structpb.NewStruct(map[string]any{"ota": fields})
 	if err != nil {
 		return &shadow.State{}
 	}
 	return &shadow.State{Data: data}
+}
+
+func otaDesired(version string, now time.Time) *shadow.State {
+	return otaDocument(map[string]any{
+		"version":    version,
+		"updated_at": now.UTC().Format(time.RFC3339),
+	})
+}
+
+func otaRequest(version string, now time.Time) *shadow.State {
+	return otaDocument(map[string]any{
+		"requested_version": version,
+		"updated_at":        now.UTC().Format(time.RFC3339),
+	})
 }
 
 func (s *ShadowAPI) AssignOTA(ctx context.Context, request *connect.Request[shadow.AssignOTARequest]) (*connect.Response[shadow.AssignOTAResponse], error) {
@@ -270,6 +341,25 @@ func (s *ShadowAPI) AssignOTA(ctx context.Context, request *connect.Request[shad
 		return nil, apierr.Code(connect.CodeInvalidArgument, "namespace, tag, or devices is required")
 	}
 	patched, err := s.patchDesiredOTA(ctx, msg.GetNamespace(), msg.GetTag(), msg.GetDevices(), otaDesired(msg.GetVersion(), time.Now().UTC()))
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&shadow.AssignOTAResponse{Updated: patched.GetUpdated(), Results: patched.GetResults()}), nil
+}
+
+func (s *ShadowAPI) RequestOTA(ctx context.Context, request *connect.Request[shadow.AssignOTARequest]) (*connect.Response[shadow.AssignOTAResponse], error) {
+	msg := request.Msg
+	if strings.TrimSpace(msg.GetVersion()) == "" {
+		return nil, apierr.Code(connect.CodeInvalidArgument, "version is required")
+	}
+	if msg.GetNamespace() == "" && msg.GetTag() == "" && len(msg.GetDevices()) == 0 {
+		return nil, apierr.Code(connect.CodeInvalidArgument, "namespace, tag, or devices is required")
+	}
+	allowed, denied, err := s.selectAccountOTA(ctx, msg.GetNamespace(), msg.GetTag(), msg.GetDevices())
+	if err != nil {
+		return nil, err
+	}
+	patched, err := s.storeDesiredOTA(ctx, allowed, denied, otaRequest(msg.GetVersion(), time.Now().UTC()), auditOTARequest)
 	if err != nil {
 		return nil, err
 	}

@@ -127,7 +127,7 @@ import {
 import { Shadow } from "infinimesh-proto/build/es/shadow/shadow_pb";
 import { Timestamp } from "@bufbuild/protobuf";
 import { useAppStore } from "@/store/app";
-import { otaRecord } from "@/ota";
+import { otaAssignPath, otaRecord } from "@/ota";
 
 const CopyOutline = defineAsyncComponent(() => import("@vicons/ionicons5/CopyOutline"))
 
@@ -147,6 +147,10 @@ const props = defineProps({
   device: {
     type: String,
     default: "",
+  },
+  provider: {
+    type: String,
+    default: "none",
   },
 });
 const emit = defineEmits(["submit"]);
@@ -182,7 +186,8 @@ const app = useAppStore()
 // The on/off switch is on the namespace page. It stays off until an OTA addon is registered.
 async function assignOTA() {
   try {
-    const res = await app.http.post("/v1/devices/ota:assign", {
+    const request = otaAssignPath(props.provider) !== "/v1/devices/ota:assign"
+    const res = await app.http.post(otaAssignPath(props.provider), {
       devices: [props.device],
       version: otaVersion.value,
     })
@@ -191,7 +196,7 @@ async function assignOTA() {
       message.error(failed[0].error)
       return
     }
-    message.success("OTA target assigned")
+    message.success(request ? "OTA requested" : "OTA target assigned")
     otaVersion.value = ""
   } catch (e) {
     message.error("OTA assign failed: " + e.message)

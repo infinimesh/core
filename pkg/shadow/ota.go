@@ -47,7 +47,7 @@ func isNull(v *structpb.Value) bool {
 
 func validateOTAField(key string, field *structpb.Value) error {
 	switch key {
-	case "version", "url", "error":
+	case "version", "requested_version", "url", "error":
 		if _, ok := field.Kind.(*structpb.Value_StringValue); !ok {
 			return rpcErr(connect.CodeInvalidArgument, "ota "+key+" must be a string")
 		}
@@ -107,6 +107,9 @@ func otaEvents(prevReported, prevDesired *pb.State, patch *pb.Shadow) []pb.Shado
 	var ev []pb.ShadowEvent
 	if otaChanged(prevDesired, patch.GetDesired(), "version") {
 		ev = append(ev, pb.ShadowEvent_OTA_TARGET_SET)
+	}
+	if otaChanged(prevDesired, patch.GetDesired(), "requested_version") {
+		ev = append(ev, pb.ShadowEvent_OTA_REQUESTED)
 	}
 	if otaChanged(prevReported, patch.GetReported(), "status") {
 		ev = append(ev, pb.ShadowEvent_OTA_STATUS_CHANGED)

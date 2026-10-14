@@ -340,3 +340,55 @@ func TestPatchManyOTAAudits(t *testing.T) {
 	assert.Equal(t, []string{"ota_assign:pump"}, audit.rows)
 	assert.Equal(t, []string{"plant"}, audit.ns)
 }
+
+func TestRequestOTAOnHawkbitLeavesVersion(t *testing.T) {
+	client := &stubShadowClient{}
+	audit := &recordAudit{}
+	devices := &fakeScopeDevices{devices: []*devpb.Device{
+		{Uuid: "pump", Access: &access.Access{Level: access.Level_MGMT, Namespace: nsPtr("plant")}},
+	}}
+	namespaces := &fakeScopeNamespaces{byID: map[string]*nspb.Namespace{
+		"plant": {Uuid: "plant", Ota: &nspb.OTAConfig{Enabled: true, AddonRegistered: true, Provider: "hawkbit"}},
+	}}
+	api := &ShadowAPI{client: client, devices: devices, namespaces: namespaces, auditor: audit}
+	ctx := context.WithValue(context.Background(), inf.InfinimeshAccountCtxKey, "acc")
+	ctx = context.WithValue(ctx, inf.InfinimeshJTICtxKey, "jti-acc")
+
+	res, err := api.RequestOTA(ctx, connect.NewRequest(&shadow.AssignOTARequest{Namespace: "plant", Version: "1.4.0"}))
+	require.NoError(t, err)
+	assert.Equal(t, int32(1), res.Msg.GetUpdated())
+	ota := client.got.GetDesired().GetData().GetFields()["ota"].GetStructValue().GetFields()
+	assert.Equal(t, "1.4.0", ota["requested_version"].GetStringValue())
+	_, wroteVersion := ota["version"]
+	assert.False(t, wroteVersion)
+	assert.Equal(t, []string{"ota_request:pump"}, audit.rows)
+	assert.Equal(t, []string{"acc jti-acc"}, audit.actors)
+
+	client.got = nil
+	assigned, err := api.AssignOTA(ctx, connect.NewRequest(&shadow.AssignOTARequest{Namespace: "plant", Version: "1.4.0"}))
+	require.NoError(t, err)
+	assert.Nil(t, client.got)
+	require.Len(t, assigned.Msg.GetResults(), 1)
+	assert.Equal(t, "ota provider requires the addon token", assigned.Msg.Results[0].GetError())
+}
+
+func TestRequestOTARejectsAddonToken(t *testing.T) {
+	devices := &fakeScopeDevices{panicOnList: true, devices: []*devpb.Device{
+		{Uuid: "pump", Access: &access.Access{Level: access.Level_MGMT, Namespace: nsPtr("plant")}},
+	}}
+	api := &ShadowAPI{
+		client: &stubShadowClient{}, devices: devices,
+		namespaces: &fakeScopeNamespaces{byID: map[string]*nspb.Namespace{
+			"plant": {Uuid: "plant", Ota: &nspb.OTAConfig{Enabled: true, AddonRegistered: true, Provider: "hawkbit"}},
+		}},
+		plugins: &fakeOTAPlugins{ok: true, plug: graph.OTAPlugin{ID: "plug", Provider: "hawkbit", TokenID: "jti-1", Namespace: "plant"}},
+	}
+	ctx := context.WithValue(context.Background(), inf.InfinimeshPluginCtxKey, "plug")
+	ctx = context.WithValue(ctx, inf.InfinimeshOTAProviderCtxKey, "hawkbit")
+	ctx = context.WithValue(ctx, inf.InfinimeshJTICtxKey, "jti-1")
+	_, err := api.RequestOTA(ctx, connect.NewRequest(&shadow.AssignOTARequest{Devices: []string{"pump"}, Version: "1.4.0"}))
+	require.Error(t, err)
+	assert.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	assert.ErrorContains(t, err, "ota request needs an account token")
+	assert.Equal(t, 0, devices.listCalls)
+}

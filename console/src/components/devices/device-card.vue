@@ -70,14 +70,14 @@
             </n-tab-pane>
 
             <n-tab-pane name="default" tab="JSON">
-              <device-state-collapse :state="state" :device="device.uuid" :patch="patch" :debug="debug" @submit="handlePatchDesired"
+              <device-state-collapse :state="state" :device="device.uuid" :provider="namespaceProvider" :patch="patch" :debug="debug" @submit="handlePatchDesired"
                 @submit-debug="handlePatchReported" />
             </n-tab-pane>
           </n-tabs>
 
         </template>
         <template v-else>
-          <device-state-collapse :state="state" :device="device.uuid" :patch="patch" :debug="debug" @submit="handlePatchDesired"
+          <device-state-collapse :state="state" :device="device.uuid" :provider="namespaceProvider" :patch="patch" :debug="debug" @submit="handlePatchDesired"
             @submit-debug="handlePatchReported" />
         </template>
 
@@ -200,11 +200,13 @@ const subscribed = computed(() => {
 
 const state = computed(() => store.device_state(device.value.uuid))
 const nss = useNSStore()
-const otaLine = computed(() => {
+const namespaceOta = computed(() => {
   const id = device.value.access && device.value.access.namespace
   const ns = id && nss.namespaces[id]
-  return deviceOTALine(ns && ns.ota, state.value)
+  return ns && ns.ota
 })
+const namespaceProvider = computed(() => (namespaceOta.value && namespaceOta.value.provider) || "none")
+const otaLine = computed(() => deviceOTALine(namespaceOta.value, state.value))
 
 const bulb_color = computed(() => {
   if (device.value.enabled === null) return "gray";

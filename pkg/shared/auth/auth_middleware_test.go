@@ -229,6 +229,18 @@ func TestPluginTokenAuth(t *testing.T) {
 	_, _, err = SelectMiddleware(devices, nodeconnect.ShadowServiceAssignOTAProcedure)(context.Background(), []byte("k"), "tok")
 	assert.EqualError(t, err, "unauthenticated: bulk assign needs an account or addon token")
 
+	_, _, err = SelectMiddleware(plugins, nodeconnect.ShadowServiceRequestOTAProcedure)(context.Background(), []byte("k"), "tok")
+	assert.EqualError(t, err, "permission_denied: ota request needs an account token")
+	_, _, err = SelectMiddleware(devices, nodeconnect.ShadowServiceRequestOTAProcedure)(context.Background(), []byte("k"), "tok")
+	assert.EqualError(t, err, "unauthenticated: ota request needs an account token")
+	accounts := &interceptor{log: zap.NewNop(), jwt: &countJWT{claims: jwt.MapClaims{
+		infinimesh.INFINIMESH_ACCOUNT_CLAIM:   "acc",
+		infinimesh.INFINIMESH_NOSESSION_CLAIM: true,
+	}}, signing_key: []byte("k"), sessions: &dummySessions{}}
+	requestCtx, _, err := SelectMiddleware(accounts, nodeconnect.ShadowServiceRequestOTAProcedure)(context.Background(), []byte("k"), "tok")
+	assert.NoError(t, err)
+	assert.Equal(t, "acc", requestCtx.Value(infinimesh.InfinimeshAccountCtxKey))
+
 	patchCtx, _, err = SelectMiddleware(devices, nodeconnect.ShadowServicePatchProcedure)(context.Background(), []byte("k"), "tok")
 	assert.NoError(t, err)
 	pool, _ := patchCtx.Value(infinimesh.InfinimeshDevicesCtxKey).(map[string]access.Level)

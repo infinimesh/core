@@ -47,7 +47,7 @@
 <script setup>
 import { defineAsyncComponent, watch, ref } from "vue"
 import { NSpin, NH1, NText, NIcon, NButton, NGrid, NGridItem, NSpace, NNumberAnimation, NSelect, NFlex, NInput, useMessage } from "naive-ui";
-import { assignBody } from "@/ota";
+import { assignBody, otaAssignPath } from "@/ota";
 
 import { useAppStore } from "@/store/app";
 import { useDevicesStore } from "@/store/devices";
@@ -192,7 +192,9 @@ async function assignOTA() {
     return
   }
   try {
-    const res = await app.http.post("/v1/devices/ota:assign", body)
+    const ns = namespaces.value[selected.value]
+    const provider = ns && ns.ota && ns.ota.provider
+    const res = await app.http.post(otaAssignPath(provider), body)
     const failed = (res.data.results || []).filter((row) => row.error)
     const updated = res.data.updated || 0
     if (failed.length) {
