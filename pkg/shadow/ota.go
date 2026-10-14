@@ -169,8 +169,7 @@ func (s *ShadowServiceServer) publishOTA(ctx context.Context, req *pb.Shadow, to
 		clone.Event = ev
 		clone.EventId = 0
 		clone.Sequence = 0
-		s.stamp(ctx, clone)
-		s.ps.TryPub(clone, topics...)
+		s.publishStamped(ctx, clone, topics...)
 	}
 }
 

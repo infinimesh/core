@@ -50,6 +50,7 @@ type ShadowServiceServer struct {
 	reads ReadRecorder
 
 	mu      sync.Mutex
+	orderMu sync.Mutex
 	catalog map[string]deviceMeta
 	events  []*pb.Shadow
 }
@@ -192,8 +193,7 @@ func (s *ShadowServiceServer) Patch(ctx context.Context, req *pb.Shadow) (*pb.Sh
 		topics = append(topics, "mqtt.outgoing", "mqtt.outgoing/"+req.Device)
 	}
 
-	s.stamp(ctx, req)
-	s.ps.TryPub(req, topics...)
+	s.publishStamped(ctx, req, topics...)
 	s.publishOTA(ctx, req, topics, otaEvents(prevReported, prevDesired, req))
 	if req.Reported != nil || req.Desired != nil {
 		observe.ShadowWrites.Inc()
@@ -256,8 +256,7 @@ func (s *ShadowServiceServer) PublishDeviceScope(ctx context.Context, ev *pb.Sha
 		return nil, rpcErr(connect.CodeInvalidArgument, "scope event required")
 	}
 	s.remember(ev)
-	s.stamp(ctx, ev)
-	s.ps.TryPub(ev, lifecycleTopic)
+	s.publishStamped(ctx, ev, lifecycleTopic)
 	return &emptypb.Empty{}, nil
 }
 
@@ -266,6 +265,32 @@ func (s *ShadowServiceServer) Accept(sh *pb.Shadow) {
 		return
 	}
 	s.stamp(context.Background(), sh)
+}
+
+func (s *ShadowServiceServer) Dispatch(sh *pb.Shadow, pub func()) {
+	if sh == nil {
+		return
+	}
+	s.orderMu.Lock()
+	defer s.orderMu.Unlock()
+	if sh.EventId == 0 {
+		s.stamp(context.Background(), sh)
+	}
+	if pub != nil {
+		pub()
+	}
+}
+
+func (s *ShadowServiceServer) publishStamped(ctx context.Context, sh *pb.Shadow, topics ...string) {
+	if sh == nil {
+		return
+	}
+	s.orderMu.Lock()
+	defer s.orderMu.Unlock()
+	s.stamp(ctx, sh)
+	if len(topics) > 0 && s.ps != nil {
+		s.ps.TryPub(sh, topics...)
+	}
 }
 
 func (s *ShadowServiceServer) StreamShadow(req *pb.StreamShadowRequest, srv pb.ShadowService_StreamShadowServer) error {
@@ -295,8 +320,11 @@ func (s *ShadowServiceServer) StreamShadow(req *pb.StreamShadowRequest, srv pb.S
 		defer live.close()
 		for msg := range messages {
 			incoming, ok := msg.(*pb.Shadow)
-			if ok && incoming != nil {
-				live.push(incoming)
+			if !ok || incoming == nil {
+				continue
+			}
+			if !live.push(incoming) {
+				return
 			}
 		}
 	}()
@@ -382,12 +410,20 @@ func (s *ShadowServiceServer) StreamShadow(req *pb.StreamShadowRequest, srv pb.S
 	log.Debug("Listening for messages")
 
 	for {
+		if err := live.overflowErr(); err != nil {
+			log.Error("shadow stream queue is full", zap.Int("cap", shadowQueueCap))
+			return err
+		}
 		incoming, ok := live.pop()
 		if !ok {
 			select {
 			case <-ctx.Done():
 				return nil
 			case <-live.done:
+				if err := live.overflowErr(); err != nil {
+					log.Error("shadow stream queue is full", zap.Int("cap", shadowQueueCap))
+					return err
+				}
 				incoming, ok = live.pop()
 				if !ok {
 					return nil
@@ -619,29 +655,48 @@ func applyInclude(sh *pb.Shadow, include []pb.StateKey) {
 }
 
 type shadowQueue struct {
-	mu   sync.Mutex
-	buf  []*pb.Shadow
-	wake chan struct{}
-	done chan struct{}
+	mu       sync.Mutex
+	buf      []*pb.Shadow
+	wake     chan struct{}
+	done     chan struct{}
+	overflow chan struct{}
+	trip     sync.Once
 }
 
 const shadowQueueCap = 1024
 
 func newShadowQueue() *shadowQueue {
-	return &shadowQueue{wake: make(chan struct{}, 1), done: make(chan struct{})}
+	return &shadowQueue{
+		wake:     make(chan struct{}, 1),
+		done:     make(chan struct{}),
+		overflow: make(chan struct{}),
+	}
 }
 
-func (q *shadowQueue) push(sh *pb.Shadow) {
+func (q *shadowQueue) push(sh *pb.Shadow) bool {
 	q.mu.Lock()
-	if len(q.buf) >= shadowQueueCap {
-		q.mu.Unlock()
-		return
+	full := len(q.buf) >= shadowQueueCap
+	if !full {
+		q.buf = append(q.buf, sh)
 	}
-	q.buf = append(q.buf, sh)
 	q.mu.Unlock()
+	if full {
+		q.trip.Do(func() { close(q.overflow) })
+		return false
+	}
 	select {
 	case q.wake <- struct{}{}:
 	default:
+	}
+	return true
+}
+
+func (q *shadowQueue) overflowErr() error {
+	select {
+	case <-q.overflow:
+		return rpcErr(connect.CodeAborted, "shadow stream fell behind")
+	default:
+		return nil
 	}
 }
 

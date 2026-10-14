@@ -14,6 +14,9 @@ func TestShadowQueueStopsAtCap(t *testing.T) {
 	if len(q.buf) != shadowQueueCap {
 		t.Fatalf("queue length %d, cap %d", len(q.buf), shadowQueueCap)
 	}
+	if q.overflowErr() == nil {
+		t.Fatal("a full queue did not fail the stream")
+	}
 	first, ok := q.pop()
 	if !ok || first.GetSequence() != 1 {
 		t.Fatalf("oldest update %v ok=%v", first.GetSequence(), ok)

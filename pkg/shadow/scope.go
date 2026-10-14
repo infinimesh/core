@@ -16,6 +16,10 @@ const lifecycleTopic = "devices.lifecycle"
 // The shadow command sets it to the running server.
 var Inbound func(*pb.Shadow)
 
+// Dispatch stamps a shadow and publishes it without letting a later sequence go out first.
+// The shadow command sets it to the running server.
+var Dispatch func(*pb.Shadow, func())
+
 const eventIDKey = "shadow:event_id"
 
 type sequencer interface {
