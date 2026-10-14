@@ -388,3 +388,12 @@ func TestAsConnectKeepsErrorInfo(t *testing.T) {
 	}
 	assert.True(t, found)
 }
+
+func TestCopyShadowStreamKeepsAborted(t *testing.T) {
+	api := &ShadowAPI{log: zap.NewNop()}
+	err := api.copyShadowStream(context.Background(), func() (*shadow.Shadow, error) {
+		return nil, status.Error(codes.Aborted, "shadow stream fell behind")
+	}, func(*shadow.Shadow) error { return nil })
+	assert.Equal(t, connect.CodeAborted, connect.CodeOf(err))
+	assert.ErrorContains(t, err, "shadow stream fell behind")
+}
