@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v3.4.1-rc.3] - 2026-10-14
+
+This release is for testing, not for production.
+
+### Fixed
+- An addon stream with no traffic stops when its token is rotated. Changing the provider or deleting the plugin stops that stream the same way.
+- A shadow stream keeps only the highest sequence it has sent.
+- An addon stream reads the plugin once and caches the token id until that token changes.
+- Live events that arrive while a shadow stream is replaying are kept. That replay does not block other subscribers.
+
 ## [v3.4.1-rc.2] - 2026-10-14
 
 This release is for testing, not for production.
