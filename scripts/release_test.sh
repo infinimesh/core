@@ -58,6 +58,20 @@ out=$("$notes" v3.4.0-rc.1 "$tmp")
 ### Added
 - http-fs" ]
 
+cat > "$tmp" << 'EOF'
+## [v3.4.1-rc.1] - 2026-10-14
+
+This release is for testing, not for production.
+
+### Added
+- rotate
+EOF
+out=$("$notes" v3.4.1-rc.1 "$tmp")
+[ "$out" = "This release is for testing, not for production.
+
+### Added
+- rotate" ]
+
 ids=$(printf '%s\n' '[
   {"id":1,"created_at":"2020-01-01T00:00:00Z","metadata":{"container":{"tags":["v3.4.0-rc.1"]}}},
   {"id":2,"created_at":"2026-10-01T00:00:00Z","metadata":{"container":{"tags":["v3.4.0-rc.2"]}}},
