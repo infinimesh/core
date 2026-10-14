@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v3.4.1-rc.2] - 2026-10-14
+
+This release is for testing, not for production.
+
+### Fixed
+- A shadow stream subscribes before it replays. An update that lands during the replay is delivered once. A duplicate sequence is dropped.
+- A device token cannot post state after that device is deleted.
+- An addon token cannot set `desired.ota.requested_version` on a plain state patch.
+- A stream opened with an old addon token stops after `inf plugins rotate`. Rotate writes an audit row `plugin_rotate`.
+- A reported patch that contains `ota` and another key is refused with `reported patch may contain only ota`. An invalid `ota` field comes back as invalid argument.
+- An addon token or a device token on `POST /v1/devices/ota:request` gets a top-level `ota request needs an account token`. An account still gets HTTP 200 with an error per device.
+
 ## [v3.4.1-rc.1] - 2026-10-14
 
 This release is for testing, not for production.
