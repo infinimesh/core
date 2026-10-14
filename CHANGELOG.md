@@ -5,22 +5,12 @@ All notable changes to this project will be documented in this file.
 ## [v3.4.1] - 2026-10-14
 
 ### Added
-- A manage-level account stores `desired.ota.requested_version` with `POST /v1/devices/ota:request` when the provider is `hawkbit`, `mender`, or `webhook`. That publishes `OTA_REQUESTED` and does not change `desired.ota.version`.
-- An addon token can patch `reported.data.ota` when the patch contains only `ota`. The same token can open a read-only shadow stream for a namespace it serves.
-- `POST /v1/plugins/{uuid}/token:rotate` issues a new addon bearer and denies the previous token. The plugin stays registered.
-
-### Changed
-- OTA `status` is `idle`, `downloading`, `installing`, `success`, or `failed`.
+- Account OTA request, addon reported state, and plugin token rotate.
 
 ### Fixed
-- A shadow stream subscribes before it replays. An update that lands during the replay is delivered once. The stream skips only a sequence the replay already sent.
-- This process assigns a sequence and publishes it under one lock, so a higher sequence is not delivered before a lower one.
-- `resume_after` replays later events from the last 256 events this process has stamped for that namespace. A resume from before that window closes with `resume window exceeded`. The devices present at subscribe are sent with `sequence` 0, before that replay.
-- A full replay queue sends the updates it still holds, then closes with `shadow stream fell behind`. The API returns that close as Aborted.
-- An old addon token stops, on every API process, when the token is rotated, the provider changes, or the plugin is deleted.
-- A device token cannot post state after that device is deleted. An addon token cannot set `desired.ota.requested_version` on a plain state patch.
-- A reported patch that contains `ota` and another key is refused. An account is required for `POST /v1/devices/ota:request`.
-- Rotating a plugin token writes an audit row `plugin_rotate`. Changing an OTA plugin's provider writes `plugin_update`.
+- A shadow stream keeps every update across replay, a full queue, and a reconnect.
+- Each namespace has its own 256-event replay window. A resume from before that window returns `resume window exceeded`.
+- The device list at subscribe does not take a new sequence number.
 
 ## [v3.4.1-rc.7] - 2026-10-14
 
