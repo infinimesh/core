@@ -68,6 +68,12 @@ func TestFullQueueClosesTheStream(t *testing.T) {
 		mq.Deliver(ps, "mqtt.incoming/"+id, &pb.Shadow{
 			Device: id, Sequence: uint64(i), EventId: uint64(i),
 		})
+		// The bus buffer is 256. A tight burst is dropped there, before the
+		// replay queue can reach its cap. Pause so the drainer can move each
+		// batch into the queue while Send is blocked.
+		if i == 1 || i%32 == 0 {
+			time.Sleep(25 * time.Millisecond)
+		}
 	}
 	select {
 	case <-st.ch:
