@@ -83,6 +83,7 @@ type pluginAuditor interface {
 const (
 	auditPluginCreate = "plugin_create"
 	auditPluginDelete = "plugin_delete"
+	auditPluginRotate = "plugin_rotate"
 )
 
 func (c *PluginsController) SetAuditor(a pluginAuditor) {
@@ -439,5 +440,6 @@ func (c *PluginsController) RotateToken(ctx context.Context, req *connect.Reques
 	}
 	cur.TokenId = jti
 	cur.Token = signed
+	c.auditPlugin(ctx, auditPluginRotate, pluginNamespace(&cur))
 	return connect.NewResponse(&cur), nil
 }

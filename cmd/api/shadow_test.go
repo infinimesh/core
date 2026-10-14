@@ -7,6 +7,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -68,6 +69,15 @@ func containsTag(tags []string, tag string) bool {
 		}
 	}
 	return false
+}
+
+func (f *fakeScopeDevices) Present(_ context.Context, id string) (bool, error) {
+	for _, dev := range f.devices {
+		if dev.GetUuid() == id {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func (f *fakeScopeDevices) DeviceNamespace(_ context.Context, id string) (string, error) {
@@ -246,6 +256,39 @@ func TestPrepareStreamRegistryUnavailable(t *testing.T) {
 	ctx := context.WithValue(context.Background(), inf.InfinimeshAccountCtxKey, "acc")
 	err := api.prepareStream(ctx, &shadow.StreamShadowRequest{Namespace: "plant", Devices: []string{"evil"}})
 	assert.Equal(t, connect.CodeUnavailable, connect.CodeOf(err))
+}
+
+func TestOpenAddonStreamStopsWhenTheTokenRotates(t *testing.T) {
+	plugs := &fakeOTAPlugins{ok: true, plug: graph.OTAPlugin{ID: "plug", Provider: "hawkbit", TokenID: "jti-1", Namespace: "plant"}}
+	api := &ShadowAPI{log: zap.NewNop(), plugins: plugs}
+	ctx := context.WithValue(context.Background(), inf.InfinimeshPluginCtxKey, "plug")
+	ctx = context.WithValue(ctx, inf.InfinimeshJTICtxKey, "jti-1")
+	n := 0
+	var sent []uint64
+	err := api.copyShadowStream(ctx, func() (*shadow.Shadow, error) {
+		n++
+		if n == 2 {
+			plugs.plug.TokenID = "jti-2"
+		}
+		return &shadow.Shadow{Device: "pump", Sequence: uint64(n)}, nil
+	}, func(sh *shadow.Shadow) error {
+		sent = append(sent, sh.GetSequence())
+		return nil
+	})
+	assert.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+	assert.ErrorContains(t, err, "token is revoked")
+	assert.Equal(t, []uint64{1}, sent)
+
+	ctx = context.WithValue(context.Background(), inf.InfinimeshPluginCtxKey, "plug")
+	ctx = context.WithValue(ctx, inf.InfinimeshJTICtxKey, "jti-2")
+	err = api.copyShadowStream(ctx, func() (*shadow.Shadow, error) {
+		return &shadow.Shadow{Device: "pump", Sequence: 9}, nil
+	}, func(sh *shadow.Shadow) error {
+		sent = append(sent, sh.GetSequence())
+		return errors.New("stop")
+	})
+	assert.EqualError(t, err, "stop")
+	assert.Equal(t, []uint64{1, 9}, sent)
 }
 
 func strPtr(s string) *string { return &s }
