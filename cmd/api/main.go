@@ -255,7 +255,15 @@ func main() {
 		plugCtrl.SetDenylist(auth.NewRedisDenylist(rdb))
 		if shadowAPI != nil {
 			shadowAPI.SetPlugins(plugCtrl)
-			plugCtrl.SetOnRotate(shadowAPI.PluginTokenChanged)
+			plugCtrl.SetOnRotate(func(id string) {
+				shadowAPI.PluginTokenChanged(id)
+				if err := publishPluginToken(context.Background(), rdb, id); err != nil {
+					log.Warn("could not publish plugin token change", zap.String("plugin", id), zap.Error(err))
+				}
+			})
+			if err := listenPluginTokens(context.Background(), rdb, shadowAPI.PluginTokenChanged); err != nil {
+				log.Warn("could not listen for plugin token changes", zap.Error(err))
+			}
 		}
 
 		path, handler := pluginsconnect.NewPluginsServiceHandler(plugCtrl, interceptors)

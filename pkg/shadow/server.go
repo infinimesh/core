@@ -304,20 +304,22 @@ func (s *ShadowServiceServer) StreamShadow(req *pb.StreamShadowRequest, srv pb.S
 	s.ps.AddSub(messages, topics...)
 	defer unsub(s.ps, messages)
 
-	var high uint64
-	deliver := func(ev *pb.Shadow) error {
+	replayed := map[uint64]struct{}{}
+	deliver := func(ev *pb.Shadow, live bool) error {
 		if ev == nil {
 			return nil
 		}
 		seq := ev.GetSequence()
-		if seq > 0 && seq <= high {
-			return nil
+		if seq > 0 {
+			if _, ok := replayed[seq]; ok {
+				return nil
+			}
 		}
 		if err := s.send(ctx, srv, req, ev, meta); err != nil {
 			return err
 		}
-		if seq > high {
-			high = seq
+		if !live && seq > 0 {
+			replayed[seq] = struct{}{}
 		}
 		return nil
 	}
@@ -340,7 +342,7 @@ func (s *ShadowServiceServer) StreamShadow(req *pb.StreamShadowRequest, srv pb.S
 			if ev.Namespace == "" {
 				ev.Namespace = scope.namespace
 			}
-			if err := deliver(ev); err != nil {
+			if err := deliver(ev, false); err != nil {
 				log.Warn("Unable to send message", zap.Error(err))
 				return nil
 			}
@@ -352,7 +354,7 @@ func (s *ShadowServiceServer) StreamShadow(req *pb.StreamShadowRequest, srv pb.S
 			if !eventInStream(devices, scope, ev) {
 				continue
 			}
-			if err := deliver(ev); err != nil {
+			if err := deliver(ev, false); err != nil {
 				log.Warn("Unable to send message", zap.Error(err))
 				return nil
 			}
@@ -370,7 +372,7 @@ func (s *ShadowServiceServer) StreamShadow(req *pb.StreamShadowRequest, srv pb.S
 			log.Warn("Couldn't get current devices Shadow state", zap.Error(err))
 		} else {
 			for _, sh := range r.GetShadows() {
-				if err := deliver(sh); err != nil {
+				if err := deliver(sh, false); err != nil {
 					log.Warn("Unable to send message", zap.Error(err))
 				}
 			}
@@ -400,7 +402,7 @@ func (s *ShadowServiceServer) StreamShadow(req *pb.StreamShadowRequest, srv pb.S
 			}
 			applyTag(meta, incoming)
 			s.remember(incoming)
-			if err := deliver(incoming); err != nil {
+			if err := deliver(incoming, true); err != nil {
 				log.Warn("Unable to send message", zap.Error(err))
 				return nil
 			}
@@ -432,7 +434,7 @@ func (s *ShadowServiceServer) StreamShadow(req *pb.StreamShadowRequest, srv pb.S
 				in, out := deviceTopics(id)
 				go s.ps.Unsub(messages, in, out)
 			}
-			if err := deliver(incoming); err != nil {
+			if err := deliver(incoming, true); err != nil {
 				log.Warn("Unable to send message", zap.Error(err))
 				return nil
 			}
@@ -444,7 +446,7 @@ func (s *ShadowServiceServer) StreamShadow(req *pb.StreamShadowRequest, srv pb.S
 		if req.GetResumeAfter() > 0 && incoming.GetSequence() > 0 && incoming.GetSequence() <= req.GetResumeAfter() {
 			continue
 		}
-		if err := deliver(incoming); err != nil {
+		if err := deliver(incoming, true); err != nil {
 			log.Warn("Unable to send message", zap.Error(err))
 			return nil
 		}
@@ -623,12 +625,18 @@ type shadowQueue struct {
 	done chan struct{}
 }
 
+const shadowQueueCap = 1024
+
 func newShadowQueue() *shadowQueue {
 	return &shadowQueue{wake: make(chan struct{}, 1), done: make(chan struct{})}
 }
 
 func (q *shadowQueue) push(sh *pb.Shadow) {
 	q.mu.Lock()
+	if len(q.buf) >= shadowQueueCap {
+		q.mu.Unlock()
+		return
+	}
 	q.buf = append(q.buf, sh)
 	q.mu.Unlock()
 	select {
