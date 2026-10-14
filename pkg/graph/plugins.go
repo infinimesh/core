@@ -85,6 +85,7 @@ const (
 	auditPluginCreate = "plugin_create"
 	auditPluginDelete = "plugin_delete"
 	auditPluginRotate = "plugin_rotate"
+	auditPluginUpdate = "plugin_update"
 )
 
 func (c *PluginsController) SetOnRotate(fn func(string)) {
@@ -404,6 +405,9 @@ func (c *PluginsController) Update(ctx context.Context, req *connect.Request[pb.
 	plugin.Token = stored
 	if reissued {
 		c.noteToken(plug.Uuid)
+		if cur.GetProvider() != "" && plug.GetProvider() != cur.GetProvider() {
+			c.auditPlugin(ctx, auditPluginUpdate, pluginNamespace(plug))
+		}
 	}
 	return connect.NewResponse(plugin.Plugin), nil
 }

@@ -93,6 +93,31 @@ func (d *recordedDeny) Deny(_ context.Context, id string, ttl time.Duration) err
 	return d.err
 }
 
+func TestProviderChangeWritesAudit(t *testing.T) {
+	ns := "plant"
+	col := driver_mocks.NewMockCollection(t)
+	col.On("ReadDocument", mock.Anything, "plug-1", mock.Anything).Run(func(args mock.Arguments) {
+		plug := args.Get(2).(*pb.Plugin)
+		plug.Kind = pb.PluginKind_OTA
+		plug.Provider = "hawkbit"
+		plug.TokenId = "old-jti"
+		plug.Namespace = &ns
+	}).Return(driver.DocumentMeta{ID: driver.NewDocumentID(schema.PLUGINS_COL, "plug-1")}, nil)
+	col.On("ReplaceDocument", mock.Anything, "plug-1", mock.Anything).Return(driver.DocumentMeta{}, nil)
+	seen := &seenPluginAudit{}
+	ctrl := &PluginsController{log: zap.NewNop(), col: col, signingKey: []byte("secret"), audit: seen}
+	ctx := context.WithValue(context.Background(), inf.InfinimeshRootCtxKey, true)
+	ctx = context.WithValue(ctx, inf.InfinimeshAccountCtxKey, "root")
+
+	res, err := ctrl.Update(ctx, connect.NewRequest(&pb.Plugin{
+		Uuid: "plug-1", Title: "Hawk", Kind: pb.PluginKind_OTA, Provider: "mender", Namespace: &ns,
+	}))
+	require.NoError(t, err)
+	require.NotEmpty(t, res.Msg.GetToken())
+	require.NotEqual(t, "old-jti", res.Msg.GetTokenId())
+	require.Equal(t, []string{"plugin_update root plant"}, seen.rows)
+}
+
 func TestRotateTokenDeniesThePreviousJTI(t *testing.T) {
 	ns := "plant"
 	col := driver_mocks.NewMockCollection(t)

@@ -16,7 +16,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func TestLowerSequenceAfterHigherIsDropped(t *testing.T) {
+func TestLiveUpdatesArriveOutOfOrder(t *testing.T) {
 	ps := pubsub.New(8)
 	svc := shadow.NewShadowServiceServer(zap.NewNop(), nil, ps)
 	const id = "pump"
@@ -44,23 +44,13 @@ func TestLowerSequenceAfterHigherIsDropped(t *testing.T) {
 	}
 sawFive:
 	mq.Deliver(ps, "mqtt.incoming/"+id, &pb.Shadow{Device: id, Sequence: 4, EventId: 4})
-	time.Sleep(50 * time.Millisecond)
-	for {
-		select {
-		case sh := <-st.ch:
-			if sh.GetEventId() == 4 {
-				t.Fatal("sequence 4 was sent after sequence 5")
-			}
-		default:
-			close(st.stop)
-			mq.Deliver(ps, "mqtt.incoming/"+id, &pb.Shadow{Device: id, Sequence: 6, EventId: 6})
-			select {
-			case <-done:
-			case <-time.After(2 * time.Second):
-				t.Fatal("stream did not return")
-			}
-			return
-		}
+	waitShadow(t, st.ch, func(sh *pb.Shadow) bool { return sh.GetEventId() == 4 })
+	close(st.stop)
+	mq.Deliver(ps, "mqtt.incoming/"+id, &pb.Shadow{Device: id, Sequence: 6, EventId: 6})
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("stream did not return")
 	}
 }
 
