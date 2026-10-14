@@ -225,8 +225,8 @@ func (s *ShadowServiceServer) stamp(ctx context.Context, sh *pb.Shadow) {
 	if sh.Sequence == 0 {
 		sh.Sequence = sh.EventId
 	}
-	s.rememberEvent(sh)
 	s.fill(sh, nil)
+	s.rememberEvent(sh)
 }
 
 func requestDevices(req *pb.GetRequest) []string {
