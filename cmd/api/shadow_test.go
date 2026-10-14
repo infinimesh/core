@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/infinimesh/core/pkg/apierr"
+	"github.com/infinimesh/core/pkg/graph"
 	inf "github.com/infinimesh/core/pkg/shared"
 	pb "github.com/infinimesh/proto/node"
 	"github.com/infinimesh/proto/node/access"
@@ -206,6 +207,38 @@ func TestPrepareStreamStreamTokenPinsNamespace(t *testing.T) {
 	assert.Equal(t, "plant", devices.namespace)
 	assert.Equal(t, "plant", req.Namespace)
 	assert.Equal(t, []string{"plant"}, req.Namespaces)
+}
+
+func TestPrepareStreamAddonNamespace(t *testing.T) {
+	devices := &fakeScopeDevices{panicOnList: true, devices: []*devpb.Device{
+		{Uuid: "pump", Title: "Pump", Tags: []string{"canary"}, Access: &access.Access{Namespace: strPtr("plant")}},
+		{Uuid: "other", Access: &access.Access{Namespace: strPtr("lab")}},
+	}}
+	namespaces := &fakeScopeNamespaces{byID: map[string]*nspb.Namespace{
+		"plant": {Uuid: "plant", Ota: &nspb.OTAConfig{Enabled: true, AddonRegistered: true, Provider: "hawkbit"}},
+		"lab":   {Uuid: "lab", Ota: &nspb.OTAConfig{Enabled: true, AddonRegistered: true, Provider: "mender"}},
+	}}
+	api := &ShadowAPI{
+		devices: devices, namespaces: namespaces,
+		plugins: &fakeOTAPlugins{ok: true, plug: graph.OTAPlugin{ID: "plug", Provider: "hawkbit", TokenID: "jti-1", Namespace: "plant"}},
+	}
+	ctx := context.WithValue(context.Background(), inf.InfinimeshPluginCtxKey, "plug")
+	ctx = context.WithValue(ctx, inf.InfinimeshOTAProviderCtxKey, "hawkbit")
+	ctx = context.WithValue(ctx, inf.InfinimeshJTICtxKey, "jti-1")
+
+	req := &shadow.StreamShadowRequest{}
+	assert.NoError(t, api.prepareStream(ctx, req))
+	assert.Equal(t, "plant", req.GetNamespace())
+	assert.Equal(t, []string{"plant"}, req.GetNamespaces())
+	assert.Equal(t, []string{"pump"}, req.GetDevices())
+	assert.Empty(t, req.GetAccount())
+	assert.Equal(t, 0, devices.listCalls)
+	assert.Equal(t, 1, devices.addonCalls)
+
+	err := api.prepareStream(ctx, &shadow.StreamShadowRequest{Namespace: "lab"})
+	assert.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	assert.ErrorContains(t, err, "ota provider does not match the namespace")
+	assert.Equal(t, 0, devices.listCalls)
 }
 
 func TestPrepareStreamRegistryUnavailable(t *testing.T) {
