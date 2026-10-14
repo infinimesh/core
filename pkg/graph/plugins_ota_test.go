@@ -2,7 +2,9 @@ package graph
 
 import (
 	"context"
+	"errors"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/arangodb/go-driver"
@@ -74,6 +76,101 @@ func TestCreateAndDeletePluginWriteAudit(t *testing.T) {
 	_, err = ctrl.Delete(ctx, connect.NewRequest(&pb.Plugin{Uuid: "plug-1"}))
 	require.NoError(t, err)
 	require.Equal(t, []string{"plugin_create root plant", "plugin_delete root plant"}, seen.rows)
+}
+
+type recordedDeny struct {
+	id  string
+	ttl time.Duration
+	err error
+}
+
+func (d *recordedDeny) Deny(_ context.Context, id string, ttl time.Duration) error {
+	d.id = id
+	d.ttl = ttl
+	return d.err
+}
+
+func TestRotateTokenDeniesThePreviousJTI(t *testing.T) {
+	ns := "plant"
+	col := driver_mocks.NewMockCollection(t)
+	col.On("ReadDocument", mock.Anything, "plug-1", mock.Anything).Run(func(args mock.Arguments) {
+		plug := args.Get(2).(*pb.Plugin)
+		plug.Kind = pb.PluginKind_OTA
+		plug.Provider = "hawkbit"
+		plug.TokenId = "old-jti"
+		plug.Title = "Hawk"
+		plug.Namespace = &ns
+	}).Return(driver.DocumentMeta{ID: driver.NewDocumentID(schema.PLUGINS_COL, "plug-1")}, nil)
+	col.On("UpdateDocument", mock.Anything, "plug-1", mock.MatchedBy(func(patch map[string]interface{}) bool {
+		_, stored := patch["token"]
+		id, _ := patch["token_id"].(string)
+		return !stored && id != "" && id != "old-jti"
+	})).Return(driver.DocumentMeta{}, nil)
+	deny := &recordedDeny{}
+	ctrl := &PluginsController{log: zap.NewNop(), col: col, signingKey: []byte("secret"), denylist: deny}
+	ctx := context.WithValue(context.Background(), inf.InfinimeshRootCtxKey, true)
+
+	res, err := ctrl.RotateToken(ctx, connect.NewRequest(&pb.Plugin{Uuid: "plug-1"}))
+	require.NoError(t, err)
+	require.Equal(t, "plug-1", res.Msg.GetUuid())
+	require.Equal(t, pb.PluginKind_OTA, res.Msg.GetKind())
+	require.Equal(t, "hawkbit", res.Msg.GetProvider())
+	require.Equal(t, "plant", res.Msg.GetNamespace())
+	require.NotEmpty(t, res.Msg.GetToken())
+	require.NotEqual(t, "old-jti", res.Msg.GetTokenId())
+	parsed, err := jwt.Parse(res.Msg.GetToken(), func(token *jwt.Token) (interface{}, error) {
+		return []byte("secret"), nil
+	})
+	require.NoError(t, err)
+	claims := parsed.Claims.(jwt.MapClaims)
+	require.Equal(t, "plug-1", claims[inf.INFINIMESH_PLUGIN_CLAIM])
+	require.Equal(t, "hawkbit", claims[inf.INFINIMESH_OTA_PROVIDER_CLAIM])
+	require.Equal(t, res.Msg.GetTokenId(), claims[inf.INFINIMESH_JTI_CLAIM])
+	require.Equal(t, "old-jti", deny.id)
+	require.GreaterOrEqual(t, deny.ttl, 365*24*time.Hour)
+}
+
+func TestRotateTokenStillReturnsTheBearerWhenDenyFails(t *testing.T) {
+	col := driver_mocks.NewMockCollection(t)
+	col.On("ReadDocument", mock.Anything, "plug-1", mock.Anything).Run(func(args mock.Arguments) {
+		plug := args.Get(2).(*pb.Plugin)
+		plug.Kind = pb.PluginKind_OTA
+		plug.Provider = "mender"
+		plug.TokenId = "old-jti"
+	}).Return(driver.DocumentMeta{ID: driver.NewDocumentID(schema.PLUGINS_COL, "plug-1")}, nil)
+	col.On("UpdateDocument", mock.Anything, "plug-1", mock.Anything).Return(driver.DocumentMeta{}, nil)
+	ctrl := &PluginsController{
+		log: zap.NewNop(), col: col, signingKey: []byte("secret"),
+		denylist: &recordedDeny{err: errors.New("redis down")},
+	}
+	ctx := context.WithValue(context.Background(), inf.InfinimeshRootCtxKey, true)
+	res, err := ctrl.RotateToken(ctx, connect.NewRequest(&pb.Plugin{Uuid: "plug-1"}))
+	require.NoError(t, err)
+	require.NotEmpty(t, res.Msg.GetToken())
+	require.NotEqual(t, "old-jti", res.Msg.GetTokenId())
+}
+
+func TestRotateTokenRejectsNonRootMissingAndEmbedded(t *testing.T) {
+	col := driver_mocks.NewMockCollection(t)
+	ctrl := &PluginsController{log: zap.NewNop(), col: col, signingKey: []byte("secret")}
+	_, err := ctrl.RotateToken(context.Background(), connect.NewRequest(&pb.Plugin{Uuid: "plug-1"}))
+	require.EqualError(t, err, "permission_denied: Not enough access rights to rotate the plugin token")
+
+	ctx := context.WithValue(context.Background(), inf.InfinimeshRootCtxKey, true)
+	_, err = ctrl.RotateToken(ctx, connect.NewRequest(&pb.Plugin{}))
+	require.EqualError(t, err, "invalid_argument: No Plugin UUID has been provided")
+
+	col.On("ReadDocument", mock.Anything, "missing", mock.Anything).Return(driver.DocumentMeta{}, errors.New("missing"))
+	_, err = ctrl.RotateToken(ctx, connect.NewRequest(&pb.Plugin{Uuid: "missing"}))
+	require.EqualError(t, err, "not_found: Plugin not found")
+
+	col.On("ReadDocument", mock.Anything, "emb", mock.Anything).Run(func(args mock.Arguments) {
+		plug := args.Get(2).(*pb.Plugin)
+		plug.Kind = pb.PluginKind_EMBEDDED
+		plug.Title = "Page"
+	}).Return(driver.DocumentMeta{ID: driver.NewDocumentID(schema.PLUGINS_COL, "emb")}, nil)
+	_, err = ctrl.RotateToken(ctx, connect.NewRequest(&pb.Plugin{Uuid: "emb"}))
+	require.EqualError(t, err, "invalid_argument: only an OTA plugin has an addon token")
 }
 
 func TestGetClearsPluginToken(t *testing.T) {

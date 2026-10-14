@@ -252,6 +252,7 @@ func main() {
 		log.Info("Registering plugins service")
 		plugCtrl = graph.NewPluginsController(log, db)
 		plugCtrl.SetSigningKey(SIGNING_KEY)
+		plugCtrl.SetDenylist(auth.NewRedisDenylist(rdb))
 		if shadowAPI != nil {
 			shadowAPI.SetPlugins(plugCtrl)
 		}

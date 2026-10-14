@@ -55,7 +55,7 @@ Change these for anything beyond local testing.
   inf ns create --title demo --max-devices 10
   inf --token "$ADDON" ota assign --device <device> --version 1.2.3
   ```
-  `--root` is the token for `inf plugins create` and `inf plugins delete`. `inf plugins create` prints the addon bearer once. Pass it with `--token`. Quotas are `--max-devices`, `--device-mps`, and `--namespace-mps` on `inf ns create` and `inf ns update`. Zero means unlimited.
+  `--root` is the token for `inf plugins create`, `inf plugins rotate`, and `inf plugins delete`. `inf plugins create` prints the addon bearer once. Pass it with `--token`. Quotas are `--max-devices`, `--device-mps`, and `--namespace-mps` on `inf ns create` and `inf ns update`. Zero means unlimited.
 - Shadow/MQTT examples are in [device-auth.md](device-auth.md).
 
 ## Public domain

@@ -17,6 +17,7 @@ package graph
 
 import (
 	"context"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/arangodb/go-driver"
@@ -72,6 +73,7 @@ type PluginsController struct {
 	db         driver.Database
 	signingKey []byte
 	audit      pluginAuditor
+	denylist   TokenDenylist
 }
 
 type pluginAuditor interface {
@@ -110,6 +112,15 @@ func (c *PluginsController) SetSigningKey(key []byte) {
 		c.signingKey = key
 	}
 }
+
+func (c *PluginsController) SetDenylist(d TokenDenylist) {
+	if c != nil {
+		c.denylist = d
+	}
+}
+
+// Addon tokens have no exp. A short denylist TTL would let the old bearer authenticate again.
+const addonTokenDenyTTL = 10 * 365 * 24 * time.Hour
 
 type OTAPlugin struct {
 	ID        string
@@ -393,4 +404,40 @@ func (c *PluginsController) Delete(ctx context.Context, req *connect.Request[pb.
 	c.auditPlugin(ctx, auditPluginDelete, pluginNamespace(&cur))
 
 	return connect.NewResponse(plug), nil
+}
+
+func (c *PluginsController) RotateToken(ctx context.Context, req *connect.Request[pb.Plugin]) (*connect.Response[pb.Plugin], error) {
+	if !ValidateRoot(ctx) {
+		return nil, apierr.Code(connect.CodePermissionDenied, "Not enough access rights to rotate the plugin token")
+	}
+	id := req.Msg.GetUuid()
+	if id == "" {
+		return nil, apierr.Code(connect.CodeInvalidArgument, "No Plugin UUID has been provided")
+	}
+	var cur pb.Plugin
+	meta, err := c.col.ReadDocument(ctx, id, &cur)
+	if err != nil {
+		return nil, apierr.Code(connect.CodeNotFound, "Plugin not found")
+	}
+	cur.Uuid = meta.ID.Key()
+	if cur.GetKind() != pb.PluginKind_OTA {
+		return nil, apierr.Code(connect.CodeInvalidArgument, "only an OTA plugin has an addon token")
+	}
+	signed, jti, err := c.issueOTAToken(cur.Uuid, cur.GetProvider())
+	if err != nil {
+		return nil, err
+	}
+	if _, err := c.col.UpdateDocument(ctx, cur.Uuid, map[string]interface{}{"token_id": jti}); err != nil {
+		return nil, apierr.Code(connect.CodeInternal, "could not store the addon token")
+	}
+	old := cur.GetTokenId()
+	if old != "" && c.denylist != nil {
+		// token_id already names the new jti. Still return the bearer if the denylist write fails.
+		if denyErr := c.denylist.Deny(ctx, old, addonTokenDenyTTL); denyErr != nil {
+			c.log.Named("RotateToken").Warn("could not deny the previous addon token", zap.Error(denyErr))
+		}
+	}
+	cur.TokenId = jti
+	cur.Token = signed
+	return connect.NewResponse(&cur), nil
 }
