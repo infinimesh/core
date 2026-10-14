@@ -923,6 +923,41 @@
         ]
       }
     },
+    "/devices/ota:request": {
+      "post": {
+        "summary": "Ask for an OTA version",
+        "description": "Sets desired.data.ota.requested_version and updated_at. A manage-level account token is the caller. Example body: {\"namespace\":\"plant\",\"version\":\"1.4.0\"}. results has one entry per device. desired.data.ota.version is unchanged. Each success is an audit row with action ota_request. A change publishes OTA_REQUESTED.",
+        "operationId": "ShadowService_RequestOTA2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1AssignOTAResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "AssignOTARequest sets desired.data.ota.version on each selected device.",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1AssignOTARequest"
+            }
+          }
+        ],
+        "tags": [
+          "ShadowService"
+        ]
+      }
+    },
     "/devices/states": {
       "get": {
         "operationId": "ShadowService_Get2",
@@ -4306,6 +4341,41 @@
         "summary": "Assign an OTA target version",
         "description": "Sets desired.data.ota.version and updated_at. A manage-level account token is accepted when the namespace provider is none. Example body: {\"namespace\":\"plant\",\"version\":\"1.4.0\"}. A tag: {\"namespace\":\"plant\",\"tag\":\"line-a\",\"version\":\"1.4.0\"}. A device list: {\"devices\":[\"dev-1\",\"dev-2\"],\"version\":\"1.4.0\"}. results has one entry per device. When the namespace provider is hawkbit, mender, or webhook, the caller is the OTA plugin bearer token from plugin create, not an account token. Each success is an audit row with action ota_assign.",
         "operationId": "ShadowService_AssignOTA",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1AssignOTAResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "AssignOTARequest sets desired.data.ota.version on each selected device.",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1AssignOTARequest"
+            }
+          }
+        ],
+        "tags": [
+          "ShadowService"
+        ]
+      }
+    },
+    "/v1/devices/ota:request": {
+      "post": {
+        "summary": "Ask for an OTA version",
+        "description": "Sets desired.data.ota.requested_version and updated_at. A manage-level account token is the caller. Example body: {\"namespace\":\"plant\",\"version\":\"1.4.0\"}. results has one entry per device. desired.data.ota.version is unchanged. Each success is an audit row with action ota_request. A change publishes OTA_REQUESTED.",
+        "operationId": "ShadowService_RequestOTA",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -8588,10 +8658,11 @@
         "TAG_ADDED",
         "TAG_REMOVED",
         "OTA_TARGET_SET",
-        "OTA_STATUS_CHANGED"
+        "OTA_STATUS_CHANGED",
+        "OTA_REQUESTED"
       ],
       "default": "STATE",
-      "description": " - TAG_ADDED: A tag was added. tag names it. tags is the full list after the change.\n - TAG_REMOVED: A tag was removed. tag names it. tags is the full list after the change.\n - OTA_TARGET_SET: desired.data.ota.version changed.\n - OTA_STATUS_CHANGED: reported.data.ota.status changed."
+      "description": " - TAG_ADDED: A tag was added. tag names it. tags is the full list after the change.\n - TAG_REMOVED: A tag was removed. tag names it. tags is the full list after the change.\n - OTA_TARGET_SET: desired.data.ota.version changed.\n - OTA_STATUS_CHANGED: reported.data.ota.status changed.\n - OTA_REQUESTED: desired.data.ota.requested_version changed."
     },
     "v1State": {
       "type": "object",
@@ -8608,7 +8679,7 @@
           "format": "uint64"
         }
       },
-      "description": "State is one section of a device shadow.\ndata.ota, when present, is an object. A patch may set any subset of these fields:\nversion (string), url (string), sha256 (64 lowercase hex characters),\nsize (number, zero or greater), status (idle, downloading, installing, success, or failed),\nerror (string), updated_at (RFC3339). Any other key is rejected, including state and progress.\nA null data.ota clears the document."
+      "description": "State is one section of a device shadow.\ndata.ota, when present, is an object. A patch may set any subset of these fields:\nversion (string), requested_version (string), url (string), sha256 (64 lowercase hex characters),\nsize (number, zero or greater), status (idle, downloading, installing, success, or failed),\nerror (string), updated_at (RFC3339). Any other key is rejected, including state and progress.\nA null data.ota clears the document."
     },
     "v1StateKey": {
       "type": "string",
