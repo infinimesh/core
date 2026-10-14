@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/infinimesh/core/pkg/shadow"
 	pb "github.com/infinimesh/proto/shadow"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -37,6 +38,21 @@ func TestValidateStateAcceptsPartialOTA(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, pb.ShadowEvent_STATE, resp.GetEvent())
 	f.mocks.ps.AssertNumberOfCalls(t, "TryPub", 2)
+}
+
+func TestValidateStateKeepsFiveStatuses(t *testing.T) {
+	for _, status := range []string{"idle", "downloading", "installing", "success", "failed"} {
+		err := shadow.ValidateState(otaState(map[string]any{"status": status}))
+		assert.NoError(t, err, status)
+	}
+	for _, key := range []string{"progress", "target", "current", "deployment_id", "backend_id", "state"} {
+		err := shadow.ValidateState(otaState(map[string]any{key: "x"}))
+		assert.EqualError(t, err, "invalid_argument: ota field "+key+" is not supported")
+	}
+	for _, status := range []string{"scheduled", "rebooting", "canceled", "rolled_back"} {
+		err := shadow.ValidateState(otaState(map[string]any{"status": status}))
+		assert.EqualError(t, err, "invalid_argument: ota status must be idle, downloading, installing, success, or failed", status)
+	}
 }
 
 func TestValidateStateRejectsUnknownOTAField(t *testing.T) {
