@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v3.4.1-rc.6] - 2026-10-14
+
+This release is for testing, not for production.
+
+### Fixed
+- A resume from before the last 256 stamped events closes the stream with `resume window exceeded`.
+- A full replay queue sends the updates it still holds, then closes with `shadow stream fell behind`.
+- The API returns that close as Aborted.
+
 ## [v3.4.1-rc.5] - 2026-10-14
 
 This release is for testing, not for production.
