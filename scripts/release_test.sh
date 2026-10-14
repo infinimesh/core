@@ -155,6 +155,55 @@ grep -q 'bufbuild/buf/releases/download/v1.55.1/' "$root/.github/workflows/go.ym
   exit 1
 }
 
+stable=$root/scripts/check-stable.sh
+fix=$(mktemp -d)
+trap 'rm -f "$tmp"; rm -rf "$fix"' EXIT
+cat > "$fix/CHANGELOG.md" << 'EOF'
+## [v9.9.9] - 2026-10-14
+
+### Fixed
+- kept
+
+## [v9.9.9-rc.1] - 2026-10-14
+
+This release is for testing, not for production.
+
+### Fixed
+- draft
+EOF
+printf 'module example\n\ngo 1.27.2\n\nrequire github.com/infinimesh/proto v1.2.0\n' > "$fix/go.mod"
+STABLE_SKIP_REMOTE=1 sh "$stable" "$fix" v9.9.9
+printf 'module example\n\ngo 1.27.2\n\nrequire github.com/infinimesh/proto v1.2.3-0.20261014081529-3817bce516c2\n' > "$fix/go.mod"
+if STABLE_SKIP_REMOTE=1 sh "$stable" "$fix" v9.9.9 >/dev/null 2>&1; then
+  echo "a pseudo-version must fail a stable release" >&2
+  exit 1
+fi
+printf 'module example\n\ngo 1.27.2\n\nrequire github.com/infinimesh/proto v1.2.0-rc.1\n' > "$fix/go.mod"
+if STABLE_SKIP_REMOTE=1 sh "$stable" "$fix" v9.9.9 >/dev/null 2>&1; then
+  echo "a prerelease module must fail a stable release" >&2
+  exit 1
+fi
+printf 'module example\n\ngo 1.27.2\n\nrequire github.com/infinimesh/proto v1.2.0\n\nreplace github.com/infinimesh/proto => ../proto\n' > "$fix/go.mod"
+if STABLE_SKIP_REMOTE=1 sh "$stable" "$fix" v9.9.9 >/dev/null 2>&1; then
+  echo "a replace directive must fail a stable release" >&2
+  exit 1
+fi
+printf 'module example\n\ngo 1.27.2\n\nrequire github.com/infinimesh/proto v1.2.3-0.20261014081529-3817bce516c2\n' > "$fix/go.mod"
+STABLE_SKIP_REMOTE=1 sh "$stable" "$fix" v9.9.9-rc.1
+cat > "$fix/CHANGELOG.md" << 'EOF'
+## [v9.9.9] - 2026-10-14
+
+This release is for testing, not for production.
+
+### Fixed
+- kept
+EOF
+printf 'module example\n\ngo 1.27.2\n\nrequire github.com/infinimesh/proto v1.2.0\n' > "$fix/go.mod"
+if STABLE_SKIP_REMOTE=1 sh "$stable" "$fix" v9.9.9 >/dev/null 2>&1; then
+  echo "stable notes must not say the release is for testing" >&2
+  exit 1
+fi
+
 go_ver=$(awk '/^go / { print $2; exit }' "$root/go.mod")
 major=${go_ver%.*}
 for f in "$root"/Dockerfiles/*/Dockerfile; do

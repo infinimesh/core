@@ -10,7 +10,7 @@ One core tag releases core, inf-cli, platform-operator and the k8s Helm chart at
 
 ## Order
 
-1. Tag core (`git tag vX.Y.Z && git push origin vX.Y.Z`).
+1. Tag core (`git tag vX.Y.Z && git push origin vX.Y.Z`). `scripts/check-stable.sh` runs in the release workflow before the GitHub release is published. A final tag fails when `CHANGELOG.md` says the release is for testing, or when a `github.com/infinimesh/` module is a pseudo-version, a pre-release, a `replace`, or a tag that does not exist. A release candidate skips that check.
 2. `Docker Build` publishes `ghcr.io/infinimesh/core/<service>` and `Publish Release` creates the core GitHub release.
 3. `Release orchestrator` runs after Docker Build succeeds. It waits for the core release, then sends `repository_dispatch` `core-release` with `{version, prerelease}` to inf-cli, platform-operator and k8s.
 4. inf-cli `lockstep.yml` tags the same version on main. Its `release.yml` runs goreleaser and, on a final, merges the Homebrew formula PR.

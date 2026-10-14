@@ -42,6 +42,9 @@ jobs:
       - name: release scripts
         run: sh scripts/release_test.sh
 
+      - name: Stable release prerequisites
+        run: sh scripts/check-stable.sh .
+
       - name: gofmt
         run: make fmt-check
 

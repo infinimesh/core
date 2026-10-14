@@ -19,6 +19,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Stable release prerequisites
+        run: sh scripts/check-stable.sh . "${GITHUB_REF_NAME}"
+
       - name: Prepare release notes from changelog
         id: notes
         run: |
