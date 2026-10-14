@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v3.4.1-rc.5] - 2026-10-14
+
+This release is for testing, not for production.
+
+### Fixed
+- A full replay queue closes the shadow stream with `shadow stream fell behind` and logs it. The client reconnects and the gap is replayed.
+- Sequence assignment and publish share one lock, so this process does not deliver a higher sequence before a lower one. A reconnect that resumes after the highest sequence it saw keeps the update posted at the cut.
+- Replay covers the last 256 stamped events on this process. A larger gap needs the stream opened with `sync` true.
+
 ## [v3.4.1-rc.4] - 2026-10-14
 
 This release is for testing, not for production.
