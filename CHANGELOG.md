@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v3.4.1-rc.7] - 2026-10-14
+
+This release is for testing, not for production.
+
+### Fixed
+- The device list sent when a shadow stream subscribes keeps `sequence` 0, so a second reconnect does not skip the replay.
+- Each namespace keeps its own 256-event replay window.
+
 ## [v3.4.1-rc.6] - 2026-10-14
 
 This release is for testing, not for production.
