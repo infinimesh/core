@@ -378,7 +378,12 @@ func (s *ShadowServiceServer) StreamShadow(req *pb.StreamShadowRequest, srv pb.S
 	}
 
 	if req.GetResumeAfter() > 0 {
-		for _, ev := range s.since(req.GetResumeAfter()) {
+		replay, err := s.since(req.GetResumeAfter())
+		if err != nil {
+			log.Error("resume window exceeded", zap.Uint64("resume_after", req.GetResumeAfter()))
+			return err
+		}
+		for _, ev := range replay {
 			if !eventInStream(devices, scope, ev) {
 				continue
 			}
@@ -410,22 +415,22 @@ func (s *ShadowServiceServer) StreamShadow(req *pb.StreamShadowRequest, srv pb.S
 	log.Debug("Listening for messages")
 
 	for {
-		if err := live.overflowErr(); err != nil {
-			log.Error("shadow stream queue is full", zap.Int("cap", shadowQueueCap))
-			return err
-		}
 		incoming, ok := live.pop()
 		if !ok {
+			if err := live.overflowErr(); err != nil {
+				log.Error("shadow stream queue is full", zap.Int("cap", shadowQueueCap))
+				return err
+			}
 			select {
 			case <-ctx.Done():
 				return nil
 			case <-live.done:
-				if err := live.overflowErr(); err != nil {
-					log.Error("shadow stream queue is full", zap.Int("cap", shadowQueueCap))
-					return err
-				}
 				incoming, ok = live.pop()
 				if !ok {
+					if err := live.overflowErr(); err != nil {
+						log.Error("shadow stream queue is full", zap.Int("cap", shadowQueueCap))
+						return err
+					}
 					return nil
 				}
 			case <-live.wake:
@@ -521,16 +526,19 @@ func (s *ShadowServiceServer) rememberEvent(sh *pb.Shadow) {
 	s.mu.Unlock()
 }
 
-func (s *ShadowServiceServer) since(seq uint64) []*pb.Shadow {
+func (s *ShadowServiceServer) since(seq uint64) ([]*pb.Shadow, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if len(s.events) == eventLogCap && seq+1 < s.events[0].GetSequence() {
+		return nil, rpcErr(connect.CodeAborted, "resume window exceeded")
+	}
 	out := make([]*pb.Shadow, 0, len(s.events))
 	for _, ev := range s.events {
 		if ev.GetSequence() > seq {
 			out = append(out, proto.Clone(ev).(*pb.Shadow))
 		}
 	}
-	return out
+	return out, nil
 }
 
 func eventInStream(devices map[string]struct{}, scope streamScope, ev *pb.Shadow) bool {

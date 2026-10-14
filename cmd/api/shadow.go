@@ -463,7 +463,7 @@ func (s *ShadowAPI) copyShadowStream(ctx context.Context, recv func() (*shadow.S
 		case in := <-wait:
 			if in.err != nil {
 				log.Info("Error receiving message, closing stream", zap.Error(in.err))
-				return in.err
+				return asConnect(in.err)
 			}
 			if err := s.addonTokenCurrent(ctx); err != nil {
 				return err

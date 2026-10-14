@@ -16,6 +16,66 @@ import (
 	"go.uber.org/zap"
 )
 
+func TestResumePastTheWindowReturnsAnError(t *testing.T) {
+	ps := pubsub.New(8)
+	svc := shadow.NewShadowServiceServer(zap.NewNop(), nil, ps)
+	ctx := context.Background()
+	const id = "pump"
+	for i := uint64(1); i <= 258; i++ {
+		_, err := svc.PublishDeviceScope(ctx, &pb.Shadow{
+			Device:   id,
+			Sequence: i,
+			EventId:  i,
+			Event:    pb.ShadowEvent_OTA_STATUS_CHANGED,
+		})
+		require.NoError(t, err)
+	}
+
+	st := &recStream{ctx: ctx, ch: make(chan *pb.Shadow, 8), stop: make(chan struct{})}
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- svc.StreamShadow(&pb.StreamShadowRequest{
+			Devices:     []string{id},
+			ResumeAfter: 1,
+			OnlyDelta:   true,
+		}, st)
+	}()
+	select {
+	case err := <-errCh:
+		require.ErrorContains(t, err, "resume window exceeded")
+	case sh := <-st.ch:
+		t.Fatalf("resumed past the window with sequence %d", sh.GetSequence())
+	case <-time.After(time.Second):
+		t.Fatal("resume past the window left the stream open")
+	}
+}
+
+func TestResumeAtTheWindowEdgeReplays(t *testing.T) {
+	ps := pubsub.New(8)
+	svc := shadow.NewShadowServiceServer(zap.NewNop(), nil, ps)
+	ctx := context.Background()
+	const id = "pump"
+	for i := uint64(1); i <= 258; i++ {
+		_, err := svc.PublishDeviceScope(ctx, &pb.Shadow{
+			Device:   id,
+			Sequence: i,
+			EventId:  i,
+			Event:    pb.ShadowEvent_OTA_STATUS_CHANGED,
+		})
+		require.NoError(t, err)
+	}
+
+	st := &recStream{ctx: ctx, ch: make(chan *pb.Shadow, 8), stop: make(chan struct{})}
+	go func() {
+		_ = svc.StreamShadow(&pb.StreamShadowRequest{
+			Devices:     []string{id},
+			ResumeAfter: 2,
+			OnlyDelta:   true,
+		}, st)
+	}()
+	waitShadow(t, st.ch, func(sh *pb.Shadow) bool { return sh.GetSequence() == 3 })
+}
+
 func TestResumeKeepsTheUpdateThatLandsBeforeSubscribe(t *testing.T) {
 	ps := pubsub.New(8)
 	rdb := redis_mocks.NewMockCmdable(t)

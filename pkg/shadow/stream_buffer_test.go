@@ -77,7 +77,7 @@ func TestFullQueueClosesTheStream(t *testing.T) {
 	st := &holdStream{
 		recStream: recStream{
 			ctx:  context.Background(),
-			ch:   make(chan *pb.Shadow, 1),
+			ch:   make(chan *pb.Shadow, 2048),
 			stop: make(chan struct{}),
 		},
 		entered: make(chan struct{}),
@@ -135,7 +135,18 @@ func TestFullQueueClosesTheStream(t *testing.T) {
 			case <-time.After(2 * time.Second):
 				t.Fatal("a full queue left the stream open")
 			}
-			return
+			var n int
+			for {
+				select {
+				case <-st.ch:
+					n++
+				default:
+					if n < 2 {
+						t.Fatalf("queued updates were dropped, sent %d", n)
+					}
+					return
+				}
+			}
 		}
 	}
 	t.Fatal("published 4096 updates without filling the queue")
