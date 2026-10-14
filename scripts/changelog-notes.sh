@@ -19,8 +19,13 @@ body=$(awk -v tag="$tag" '
   found { print }
   END { if (!found) exit 1 }
 ' "$file")
+note='This release is for testing, not for production.'
 if printf '%s\n' "$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$'; then
-  printf '%s\n%s\n' "This release is for testing, not for production." "$body"
+  rest=$(printf '%s\n' "$body" | sed '/./,$!d')
+  case $rest in
+    "$note"*) printf '%s\n' "$rest" ;;
+    *) printf '%s\n%s\n' "$note" "$body" ;;
+  esac
   exit 0
 fi
 printf '%s\n' "$body"

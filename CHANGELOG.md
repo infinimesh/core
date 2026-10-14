@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v3.4.1-rc.1] - 2026-10-14
+
+This release is for testing, not for production.
+
+### Added
+- A manage-level account stores `desired.ota.requested_version` with `POST /v1/devices/ota:request` when the provider is `hawkbit`, `mender`, or `webhook`. That publishes `OTA_REQUESTED` and does not change `desired.ota.version`. `inf ota assign` uses that path when a provider is set.
+- An addon token can patch `reported.data.ota` when the patch contains only `ota`. The same token can open `StreamShadow` read-only for a namespace it serves.
+- `POST /v1/plugins/{uuid}/token:rotate` and `inf plugins rotate <uuid>` issue a new addon bearer and deny the previous jti. The plugin stays registered.
+
+### Changed
+- OTA `status` is `idle`, `downloading`, `installing`, `success`, or `failed`. Other statuses and keys are rejected.
+
 ## [v3.4.0-rc.14] - 2026-10-13
 
 ### Fixed
