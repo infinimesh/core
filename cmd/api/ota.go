@@ -50,6 +50,36 @@ func stateHasOTA(st *shadow.State) bool {
 	return st != nil && st.GetData() != nil && st.GetData().GetFields()["ota"] != nil
 }
 
+func reportedOTAOnly(st *shadow.State) bool {
+	if st == nil || st.GetData() == nil {
+		return false
+	}
+	fields := st.GetData().GetFields()
+	if len(fields) != 1 {
+		return false
+	}
+	ota := fields["ota"]
+	return ota != nil && ota.GetStructValue() != nil
+}
+
+func addonMayPatch(body *shadow.Shadow) bool {
+	if body == nil || body.GetConnection() != nil {
+		return false
+	}
+	desired := body.GetDesired()
+	reported := body.GetReported()
+	if desired == nil && reported == nil {
+		return false
+	}
+	if desired != nil && !stateHasOTA(desired) {
+		return false
+	}
+	if reported != nil && !reportedOTAOnly(reported) {
+		return false
+	}
+	return true
+}
+
 func (s *ShadowAPI) namespaceDoc(ctx context.Context, id string, cache map[string]*nspb.Namespace) (*nspb.Namespace, error) {
 	if ns, ok := cache[id]; ok {
 		return ns, nil

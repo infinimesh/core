@@ -241,6 +241,24 @@ func TestPluginTokenAuth(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "acc", requestCtx.Value(infinimesh.InfinimeshAccountCtxKey))
 
+	header := http.Header{"Authorization": []string{"Bearer tok"}}
+	err = plugins.WrapStreamingHandler(func(ctx context.Context, _ connect.StreamingHandlerConn) error {
+		assert.Equal(t, "plug", ctx.Value(infinimesh.InfinimeshPluginCtxKey))
+		assert.Nil(t, ctx.Value(infinimesh.InfinimeshAccountCtxKey))
+		return nil
+	})(context.Background(), fakeStreamConn{procedure: nodeconnect.ShadowServiceStreamShadowProcedure, header: header})
+	assert.NoError(t, err)
+
+	streamPlugin := &interceptor{log: zap.NewNop(), jwt: &countJWT{claims: jwt.MapClaims{
+		infinimesh.INFINIMESH_PLUGIN_CLAIM:       "plug",
+		infinimesh.INFINIMESH_OTA_PROVIDER_CLAIM: "hawkbit",
+		infinimesh.INFINIMESH_JTI_CLAIM:          "jti",
+		infinimesh.INFINIMESH_STREAM_CLAIM:       true,
+		infinimesh.INFINIMESH_NOSESSION_CLAIM:    true,
+	}}, signing_key: []byte("k")}
+	_, _, err = streamPlugin.ConnectShadowStreamMiddleware(context.Background(), []byte("k"), "tok")
+	assert.EqualError(t, err, "permission_denied: streaming token is read-only")
+
 	patchCtx, _, err = SelectMiddleware(devices, nodeconnect.ShadowServicePatchProcedure)(context.Background(), []byte("k"), "tok")
 	assert.NoError(t, err)
 	pool, _ := patchCtx.Value(infinimesh.InfinimeshDevicesCtxKey).(map[string]access.Level)

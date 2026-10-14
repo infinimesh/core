@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/infinimesh/core/pkg/graph"
 	inf "github.com/infinimesh/core/pkg/shared"
@@ -370,6 +371,60 @@ func TestRequestOTAOnHawkbitLeavesVersion(t *testing.T) {
 	assert.Nil(t, client.got)
 	require.Len(t, assigned.Msg.GetResults(), 1)
 	assert.Equal(t, "ota provider requires the addon token", assigned.Msg.Results[0].GetError())
+}
+
+func TestAddonTokenPatchesReportedOTAOnly(t *testing.T) {
+	client := &stubShadowClient{}
+	audit := &recordAudit{}
+	devices := &fakeScopeDevices{panicOnList: true, devices: []*devpb.Device{
+		{Uuid: "pump", Access: &access.Access{Level: access.Level_MGMT, Namespace: nsPtr("plant")}},
+	}}
+	namespaces := &fakeScopeNamespaces{byID: map[string]*nspb.Namespace{
+		"plant": {Uuid: "plant", Ota: &nspb.OTAConfig{Enabled: true, AddonRegistered: true, Provider: "hawkbit"}},
+	}}
+	api := &ShadowAPI{
+		log: zap.NewNop(), client: client, devices: devices, namespaces: namespaces, auditor: audit,
+		plugins: &fakeOTAPlugins{ok: true, plug: graph.OTAPlugin{ID: "plug", Provider: "hawkbit", TokenID: "jti-1", Namespace: "plant"}},
+	}
+	ctx := context.WithValue(context.Background(), inf.InfinimeshPluginCtxKey, "plug")
+	ctx = context.WithValue(ctx, inf.InfinimeshOTAProviderCtxKey, "hawkbit")
+	ctx = context.WithValue(ctx, inf.InfinimeshJTICtxKey, "jti-1")
+
+	res, err := api.Patch(ctx, connect.NewRequest(&shadow.Shadow{
+		Device:   "pump",
+		Reported: otaStateStatus("downloading"),
+	}))
+	require.NoError(t, err)
+	assert.Equal(t, "pump", res.Msg.GetDevice())
+	got := client.patched.GetReported().GetData().GetFields()["ota"].GetStructValue().GetFields()
+	assert.Equal(t, "downloading", got["status"].GetStringValue())
+	assert.Empty(t, audit.rows)
+
+	client.patched = nil
+	_, err = api.Patch(ctx, connect.NewRequest(&shadow.Shadow{
+		Device:   "pump",
+		Reported: otaStateFields(map[string]any{"ota": map[string]any{"status": "idle"}, "temp": 1}),
+	}))
+	require.Error(t, err)
+	assert.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	assert.ErrorContains(t, err, "addon token can write desired ota only")
+	assert.Nil(t, client.patched)
+}
+
+func otaStateStatus(status string) *shadow.State {
+	data, err := structpb.NewStruct(map[string]any{"ota": map[string]any{"status": status}})
+	if err != nil {
+		panic(err)
+	}
+	return &shadow.State{Data: data}
+}
+
+func otaStateFields(fields map[string]any) *shadow.State {
+	data, err := structpb.NewStruct(fields)
+	if err != nil {
+		panic(err)
+	}
+	return &shadow.State{Data: data}
 }
 
 func TestRequestOTARejectsAddonToken(t *testing.T) {

@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strings"
 
 	"github.com/infinimesh/proto/node/access"
 
@@ -31,6 +32,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/infinimesh/core/pkg/apierr"
+	"github.com/infinimesh/core/pkg/graph"
 	inf "github.com/infinimesh/core/pkg/shared"
 	pb "github.com/infinimesh/proto/node"
 	devpb "github.com/infinimesh/proto/node/devices"
@@ -113,7 +115,7 @@ func (s *ShadowAPI) Patch(ctx context.Context, request *connect.Request[shadow.S
 			}
 		}
 	} else if _, plugin, _, _ := callerIDs(ctx); plugin != "" {
-		if body.GetReported() != nil || !stateHasOTA(body.GetDesired()) {
+		if !addonMayPatch(body) {
 			return nil, apierr.Code(connect.CodePermissionDenied, "addon token can write desired ota only")
 		}
 		otaNamespace, err = s.authorizeDeviceTokenOTA(ctx, body.GetDevice())
@@ -184,6 +186,10 @@ func (s *ShadowAPI) prepareStream(ctx context.Context, req *shadow.StreamShadowR
 		return nil
 	}
 
+	if _, plugin, _, _ := callerIDs(ctx); plugin != "" {
+		return s.prepareAddonStream(ctx, req)
+	}
+
 	account, _ := ctx.Value(inf.InfinimeshAccountCtxKey).(string)
 	if account == "" {
 		return connect.NewError(connect.CodeUnauthenticated, errors.New("requested device is outside of token scope or not allowed to post"))
@@ -247,6 +253,65 @@ func (s *ShadowAPI) prepareStream(ctx context.Context, req *shadow.StreamShadowR
 	req.Account = account
 	req.Namespace = ns
 	req.Namespaces = namespaces
+	req.Devices = ids
+	req.Catalog = catalog
+	return nil
+}
+
+func (s *ShadowAPI) prepareAddonStream(ctx context.Context, req *shadow.StreamShadowRequest) error {
+	_, plugin, provider, jti := callerIDs(ctx)
+	if s.plugins == nil || s.devices == nil || s.namespaces == nil {
+		return apierr.Code(connect.CodeUnavailable, "device registry is not available")
+	}
+	loaded, ok := s.plugins.OTAPlugin(ctx, plugin)
+	if !ok || loaded.TokenID != jti || loaded.Provider != provider || !graph.ValidAddonProvider(loaded.Provider) {
+		return apierr.Code(connect.CodePermissionDenied, "ota provider requires the addon token")
+	}
+	ns := req.GetNamespace()
+	if !loaded.Public {
+		if ns != "" && ns != loaded.Namespace {
+			return apierr.Code(connect.CodePermissionDenied, "ota provider does not match the namespace")
+		}
+		ns = loaded.Namespace
+	}
+	if ns == "" {
+		return apierr.Code(connect.CodeInvalidArgument, "namespace is required")
+	}
+	doc, err := s.namespaces.Config(ctx, ns)
+	if err != nil {
+		return err
+	}
+	got := strings.TrimSpace(doc.GetOta().GetProvider())
+	if got == "" {
+		got = "none"
+	}
+	if got != loaded.Provider || !graph.OTAActive(doc.GetOta()) {
+		return apierr.Code(connect.CodePermissionDenied, "ota provider does not match the namespace")
+	}
+	devs, err := s.devices.ListForAddon(ctx, ns, "")
+	if err != nil {
+		return err
+	}
+	slices.SortFunc(devs, func(a, b *devpb.Device) int {
+		return strings.Compare(a.GetUuid(), b.GetUuid())
+	})
+	ids := make([]string, 0, len(devs))
+	catalog := make([]*shadow.DeviceMeta, 0, len(devs))
+	for _, dev := range devs {
+		if dev.GetUuid() == "" {
+			continue
+		}
+		ids = append(ids, dev.GetUuid())
+		catalog = append(catalog, &shadow.DeviceMeta{
+			Device:    dev.GetUuid(),
+			Title:     dev.GetTitle(),
+			Namespace: ns,
+			Tags:      append([]string(nil), dev.GetTags()...),
+		})
+	}
+	req.Account = ""
+	req.Namespace = ns
+	req.Namespaces = []string{ns}
 	req.Devices = ids
 	req.Catalog = catalog
 	return nil

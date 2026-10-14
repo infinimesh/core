@@ -354,6 +354,9 @@ func (i *interceptor) ConnectShadowStreamMiddleware(ctx context.Context, signing
 	if token[infinimesh.INFINIMESH_DEVICES_CLAIM] != nil {
 		return i.ConnectDeviceAuthMiddleware(ctx, signingKey, tokenString)
 	}
+	if id, _ := token[infinimesh.INFINIMESH_PLUGIN_CLAIM].(string); id != "" {
+		return i.pluginAuth(ctx, token)
+	}
 	if stream, _ := token[infinimesh.INFINIMESH_STREAM_CLAIM].(bool); stream {
 		return i.ConnectStreamTokenMiddleware(ctx, signingKey, tokenString)
 	}
