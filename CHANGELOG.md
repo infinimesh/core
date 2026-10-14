@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v3.4.1-rc.4] - 2026-10-14
+
+This release is for testing, not for production.
+
+### Fixed
+- A live shadow update is delivered when a higher sequence number arrived first. The stream skips only a sequence the replay already sent.
+- The queue of live updates during a replay stops at 1024 messages.
+- A plugin token change closes an old-token stream on every API process and clears that process's token cache.
+- Changing an OTA plugin's provider writes an audit row `plugin_update`.
+
 ## [v3.4.1-rc.3] - 2026-10-14
 
 This release is for testing, not for production.
