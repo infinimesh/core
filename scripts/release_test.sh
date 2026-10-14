@@ -93,6 +93,14 @@ grep -q 'prerelease:' "$root/.github/workflows/release.yml" || {
   echo "release candidates must be GitHub pre-releases" >&2
   exit 1
 }
+grep -q 'scripts/check-stable.sh' "$root/.github/workflows/release.yml" || {
+  echo "release workflow must check stable prerequisites" >&2
+  exit 1
+}
+grep -q 'scripts/check-stable.sh' "$root/.github/workflows/go.yml" || {
+  echo "go.yml must check stable prerequisites" >&2
+  exit 1
+}
 if "$notes" v9.9.9 "$tmp" >/dev/null 2>&1; then
   echo "missing tag should fail" >&2
   exit 1
