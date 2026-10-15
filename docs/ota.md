@@ -32,3 +32,5 @@ A desired version change publishes `OTA_TARGET_SET` on the device state stream. 
 The device card has no on/off switch. A namespace row shows whether OTA is on. The card footer shows that, the desired version, and `reported.data.ota.status`. The OTA section on the card shows the target, the reported status, version, URL, error, and `updated_at`. Assign calls `POST /v1/devices/ota:assign` when the provider is `none`. It calls `POST /v1/devices/ota:request` when the provider is `hawkbit`, `mender`, or `webhook`.
 
 A rule reads `reported.ota` and `desired.ota`. The API and the stored shadow use `reported.data.ota` and `desired.data.ota`.
+
+The hawkBit addon is [ota-hawkbit](https://github.com/infinimesh/addons/blob/main/ota-hawkbit/README.md).
