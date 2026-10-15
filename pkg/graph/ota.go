@@ -4,8 +4,11 @@ import (
 	"context"
 	"strings"
 
+	"connectrpc.com/connect"
 	"github.com/arangodb/go-driver"
+	"github.com/infinimesh/core/pkg/apierr"
 	"github.com/infinimesh/core/pkg/graph/schema"
+	inf "github.com/infinimesh/core/pkg/shared"
 	nspb "github.com/infinimesh/proto/node/namespaces"
 )
 
@@ -61,6 +64,40 @@ func KeepOTABackend(next, prev *nspb.OTAConfig) {
 	if next.Backend == "" {
 		next.Backend = prev.Backend
 	}
+}
+
+type otaPluginSource interface {
+	OTAPlugin(ctx context.Context, id string) (OTAPlugin, bool)
+}
+
+func (c *NamespacesController) addonNamespace(ctx context.Context, id string) (*connect.Response[nspb.Namespace], error) {
+	provider, _ := ctx.Value(inf.InfinimeshOTAProviderCtxKey).(string)
+	if provider != "webhook" {
+		return nil, apierr.Code(connect.CodePermissionDenied, "ota provider does not match the namespace")
+	}
+	pluginID, _ := ctx.Value(inf.InfinimeshPluginCtxKey).(string)
+	jti, _ := ctx.Value(inf.InfinimeshJTICtxKey).(string)
+	if c == nil || c.plugins == nil {
+		return nil, apierr.Code(connect.CodePermissionDenied, "ota provider requires the addon token")
+	}
+	loaded, ok := c.plugins.OTAPlugin(ctx, pluginID)
+	if !ok || loaded.TokenID != jti || loaded.Provider != "webhook" {
+		return nil, apierr.Code(connect.CodePermissionDenied, "ota provider requires the addon token")
+	}
+	if !loaded.Public && loaded.Namespace != id {
+		return nil, apierr.Code(connect.CodePermissionDenied, "ota provider does not match the namespace")
+	}
+	doc, err := c.Config(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&nspb.Namespace{
+		Uuid: doc.GetUuid(),
+		Ota: &nspb.OTAConfig{
+			Provider:   doc.GetOta().GetProvider(),
+			WebhookUrl: doc.GetOta().GetWebhookUrl(),
+		},
+	}), nil
 }
 
 func (c *NamespacesController) countOTAAddons(ctx context.Context, namespace string) (int, error) {

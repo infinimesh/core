@@ -222,6 +222,12 @@ func TestPluginTokenAuth(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "plug", patchCtx.Value(infinimesh.InfinimeshPluginCtxKey))
 
+	nsCtx, _, err := SelectMiddleware(plugins, nodeconnect.NamespacesServiceGetProcedure)(context.Background(), []byte("k"), "tok")
+	assert.NoError(t, err)
+	assert.Equal(t, "plug", nsCtx.Value(infinimesh.InfinimeshPluginCtxKey))
+	_, _, err = SelectMiddleware(plugins, nodeconnect.NamespacesServiceListProcedure)(context.Background(), []byte("k"), "tok")
+	assert.ErrorContains(t, err, "no requestor ID")
+
 	deviceClaims := jwt.MapClaims{
 		infinimesh.INFINIMESH_DEVICES_CLAIM: map[string]any{"dev": float64(access.Level_MGMT)},
 	}

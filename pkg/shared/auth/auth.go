@@ -99,6 +99,8 @@ func SelectMiddleware(i *interceptor, procedure string) middleware {
 		middleware = i.ConnectAccountOrPluginMiddleware
 	case procedure == nodeconnect.ShadowServicePatchProcedure:
 		middleware = i.ConnectShadowPatchMiddleware
+	case procedure == nodeconnect.NamespacesServiceGetProcedure:
+		middleware = i.ConnectAccountOrPluginMiddleware
 	case strings.HasPrefix(procedure, "/"+nodeconnect.ShadowServiceName):
 		middleware = i.ConnectDeviceAuthMiddleware
 	default:

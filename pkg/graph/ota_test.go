@@ -4,8 +4,10 @@ import (
 	"context"
 	"testing"
 
+	"connectrpc.com/connect"
 	"github.com/arangodb/go-driver"
 	driver_mocks "github.com/infinimesh/core/mocks/github.com/arangodb/go-driver"
+	inf "github.com/infinimesh/core/pkg/shared"
 	nspb "github.com/infinimesh/proto/node/namespaces"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -39,6 +41,61 @@ func TestNamespaceConfigIgnoresAccount(t *testing.T) {
 	require.Equal(t, "plant", ns.GetUuid())
 	require.Equal(t, "hawkbit", ns.GetOta().GetProvider())
 	require.True(t, ns.GetOta().GetEnabled())
+}
+
+type fakePluginSource struct {
+	plug OTAPlugin
+	ok   bool
+}
+
+func (f fakePluginSource) OTAPlugin(context.Context, string) (OTAPlugin, bool) {
+	return f.plug, f.ok
+}
+
+func TestAddonReadsWebhookURL(t *testing.T) {
+	col := driver_mocks.NewMockCollection(t)
+	col.On("ReadDocument", mock.Anything, "plant", mock.Anything).Run(func(args mock.Arguments) {
+		doc := args.Get(2).(*nspb.Namespace)
+		doc.Title = "Plant"
+		doc.Ota = &nspb.OTAConfig{Enabled: true, Provider: "webhook", WebhookUrl: "http://host:18092/ota", BackendUrl: "https://hidden.example"}
+	}).Return(driver.DocumentMeta{ID: driver.NewDocumentID("Namespaces", "plant")}, nil)
+	ctrl := &NamespacesController{log: zap.NewNop(), col: col}
+	ctrl.SetPlugins(fakePluginSource{ok: true, plug: OTAPlugin{ID: "plug", Provider: "webhook", TokenID: "jti-1", Public: true}})
+	ctx := context.WithValue(context.Background(), inf.InfinimeshPluginCtxKey, "plug")
+	ctx = context.WithValue(ctx, inf.InfinimeshOTAProviderCtxKey, "webhook")
+	ctx = context.WithValue(ctx, inf.InfinimeshJTICtxKey, "jti-1")
+	res, err := ctrl.Get(ctx, connect.NewRequest(&nspb.Namespace{Uuid: "plant"}))
+	require.NoError(t, err)
+	require.Equal(t, "plant", res.Msg.GetUuid())
+	require.Empty(t, res.Msg.GetTitle())
+	require.Nil(t, res.Msg.GetConfig())
+	require.Equal(t, "webhook", res.Msg.GetOta().GetProvider())
+	require.Equal(t, "http://host:18092/ota", res.Msg.GetOta().GetWebhookUrl())
+	require.Empty(t, res.Msg.GetOta().GetBackendUrl())
+	require.False(t, res.Msg.GetOta().GetEnabled())
+
+	other := context.WithValue(context.Background(), inf.InfinimeshPluginCtxKey, "plug")
+	other = context.WithValue(other, inf.InfinimeshOTAProviderCtxKey, "hawkbit")
+	other = context.WithValue(other, inf.InfinimeshJTICtxKey, "jti-1")
+	_, err = ctrl.Get(other, connect.NewRequest(&nspb.Namespace{Uuid: "plant"}))
+	require.Error(t, err)
+	assert.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	assert.ErrorContains(t, err, "ota provider does not match the namespace")
+
+	scoped := &NamespacesController{log: zap.NewNop()}
+	scoped.SetPlugins(fakePluginSource{ok: true, plug: OTAPlugin{Provider: "webhook", TokenID: "jti-1", Namespace: "plant"}})
+	ctx = context.WithValue(context.Background(), inf.InfinimeshPluginCtxKey, "plug")
+	ctx = context.WithValue(ctx, inf.InfinimeshOTAProviderCtxKey, "webhook")
+	ctx = context.WithValue(ctx, inf.InfinimeshJTICtxKey, "jti-1")
+	_, err = scoped.Get(ctx, connect.NewRequest(&nspb.Namespace{Uuid: "other"}))
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "ota provider does not match the namespace")
+
+	bad := &NamespacesController{log: zap.NewNop()}
+	bad.SetPlugins(fakePluginSource{ok: true, plug: OTAPlugin{Provider: "webhook", TokenID: "other"}})
+	_, err = bad.Get(ctx, connect.NewRequest(&nspb.Namespace{Uuid: "plant"}))
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "ota provider requires the addon token")
 }
 
 func TestKeepOTABackend(t *testing.T) {
