@@ -1,4 +1,4 @@
-# Infinimesh
+# infinimesh
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/infinimesh/core)](https://goreportcard.com/report/github.com/infinimesh/core)
 [![Release](https://img.shields.io/github/v/release/infinimesh/core)](https://github.com/infinimesh/core/releases)
@@ -6,7 +6,7 @@
 
 ![The inf CLI creates a namespace, a device and a rule, reports a hot reading, lists the raised alarm and acks it](docs/media/inf-cli-demo.gif)
 
-Infinimesh is an open source IoT platform you run yourself. It gives you a device registry, device auth, a device shadow (digital twin), an MQTT bridge, and REST, gRPC and Connect APIs. It runs on Docker Compose or Kubernetes.
+infinimesh is an open source IoT platform you run yourself. It gives you a device registry, device auth, a device shadow (digital twin), an MQTT bridge, and REST, gRPC and Connect APIs. It runs on Docker Compose or Kubernetes.
 
 What you get:
 
