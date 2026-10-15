@@ -253,6 +253,9 @@ func main() {
 		plugCtrl = graph.NewPluginsController(log, db)
 		plugCtrl.SetSigningKey(SIGNING_KEY)
 		plugCtrl.SetDenylist(auth.NewRedisDenylist(rdb))
+		if nsCtrl != nil {
+			nsCtrl.SetPlugins(plugCtrl)
+		}
 		if shadowAPI != nil {
 			shadowAPI.SetPlugins(plugCtrl)
 			plugCtrl.SetOnRotate(func(id string) {

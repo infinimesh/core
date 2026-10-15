@@ -71,7 +71,8 @@ type NamespacesController struct {
 
 	ica InfinimeshCommonActionsRepo
 
-	db driver.Database
+	db      driver.Database
+	plugins otaPluginSource
 }
 
 func NewNamespacesController(log *zap.Logger, db driver.Database) *NamespacesController {
@@ -132,11 +133,23 @@ func (c *NamespacesController) Create(ctx context.Context, req *connect.Request[
 	return resp, nil
 }
 
+func (c *NamespacesController) SetPlugins(p otaPluginSource) {
+	if c != nil {
+		c.plugins = p
+	}
+}
+
 func (c *NamespacesController) Get(ctx context.Context, ns *connect.Request[nspb.Namespace]) (res *connect.Response[nspb.Namespace], err error) {
+	if id, _ := ctx.Value(inf.InfinimeshPluginCtxKey).(string); id != "" {
+		return c.addonNamespace(ctx, ns.Msg.GetUuid())
+	}
 	log := c.log.Named("Get")
 	log.Debug("Get request received", zap.Any("request", ns))
 
-	requestor := ctx.Value(inf.InfinimeshAccountCtxKey).(string)
+	requestor, _ := ctx.Value(inf.InfinimeshAccountCtxKey).(string)
+	if requestor == "" {
+		return nil, apierr.Code(connect.CodeUnauthenticated, "Invalid token format: no requestor ID")
+	}
 	log.Debug("Requestor", zap.String("id", requestor))
 
 	uuid := ns.Msg.GetUuid()
