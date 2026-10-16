@@ -39,7 +39,7 @@ It redirects to HTTPS with a local self-signed certificate. Accept that certific
 
 Log in as `infinimesh` / `infinimesh`. Change the password right away.
 
-Images come from GHCR. Set `INFINIMESH_VERSION` in `.env` to pin a release. `v3.4.1` pulls that exact tag. A release candidate does not move `latest`.
+Images come from GHCR. Set `INFINIMESH_VERSION` in `.env` to pin a release. `v3.4.2` pulls that exact tag. A release candidate does not move `latest`.
 
 `BASE_DOMAIN` in `.env` is the root host for all services. The default, `127.0.0.1.nip.io`, resolves to your own machine, so it works locally with no `/etc/hosts` edits. For real use, set `BASE_DOMAIN` to your own domain (see [docs/public-tls.md](docs/public-tls.md)).
 
