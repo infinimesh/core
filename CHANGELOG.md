@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v3.4.2] - 2026-10-16
+
+### Added
+- A webhook addon token may `GET /v1/namespaces/{uuid}` and receives the uuid, `ota.provider`, and `ota.webhook_url`. A hawkBit or Mender token is refused.
+
 ## [v3.4.2-rc.1] - 2026-10-16
 
 This release is for testing, not for production.
