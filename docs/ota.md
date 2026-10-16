@@ -35,4 +35,4 @@ The device card has no on/off switch. A namespace row shows whether OTA is on. T
 
 A rule reads `reported.ota` and `desired.ota`. The API and the stored shadow use `reported.data.ota` and `desired.data.ota`.
 
-The hawkBit addon is [ota-hawkbit](https://github.com/infinimesh/addons/blob/main/ota-hawkbit/README.md).
+The hawkBit addon is [ota-hawkbit](https://github.com/infinimesh/addons/blob/main/ota-hawkbit/README.md). The Mender addon is [ota-mender](https://github.com/infinimesh/addons/blob/main/ota-mender/README.md). The signed webhook addon is [ota-webhook](https://github.com/infinimesh/addons/blob/main/ota-webhook/README.md). None of them is published as an image. The webhook addon reads this namespace with its addon token. The `v3.4.1` image does not serve that read.
