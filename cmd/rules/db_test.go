@@ -16,6 +16,7 @@ import (
 	pb "github.com/infinimesh/proto/shadow"
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
 )
 
 type seqCursor struct {
@@ -39,7 +40,8 @@ func (c *seqCursor) ReadDocument(_ context.Context, result interface{}) (driver.
 	case *string:
 		*dst = c.rows[c.i].(string)
 	case *rpb.Rule:
-		*dst = *c.rows[c.i].(*rpb.Rule)
+		proto.Reset(dst)
+		proto.Merge(dst, c.rows[c.i].(*rpb.Rule))
 	case *graph.StoredAlarm:
 		*dst = c.rows[c.i].(graph.StoredAlarm)
 	case *graph.NamespaceDevice:

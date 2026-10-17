@@ -25,6 +25,7 @@ import (
 	stpb "github.com/infinimesh/proto/shadow"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -562,8 +563,7 @@ func TestHandleConnBranches(t *testing.T) {
 }
 
 func protoCloneDevice(in *devpb.Device) *devpb.Device {
-	out := *in
-	return &out
+	return proto.Clone(in).(*devpb.Device)
 }
 
 func readLevel(c net.Conn, level byte) (packet.ControlPacket, error) {
