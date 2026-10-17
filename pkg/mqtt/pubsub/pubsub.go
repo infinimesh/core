@@ -19,9 +19,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/infinimesh/core/pkg/observe"
-	"github.com/infinimesh/core/pkg/pubsub"
-	shadowsvc "github.com/infinimesh/core/pkg/shadow"
+	"github.com/infinimesh/core/v3/pkg/observe"
+	"github.com/infinimesh/core/v3/pkg/pubsub"
+	shadowsvc "github.com/infinimesh/core/v3/pkg/shadow"
 	pb "github.com/infinimesh/proto/shadow"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"go.uber.org/zap"

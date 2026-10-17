@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
-	pubsub_mocks "github.com/infinimesh/core/mocks/github.com/infinimesh/core/pkg/pubsub"
-	"github.com/infinimesh/core/pkg/pubsub"
-	"github.com/infinimesh/core/pkg/shadow"
+	pubsub_mocks "github.com/infinimesh/core/v3/mocks/github.com/infinimesh/core/v3/pkg/pubsub"
+	"github.com/infinimesh/core/v3/pkg/pubsub"
+	"github.com/infinimesh/core/v3/pkg/shadow"
 	pb "github.com/infinimesh/proto/shadow"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

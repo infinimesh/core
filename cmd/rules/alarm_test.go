@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/infinimesh/core/pkg/graph"
-	"github.com/infinimesh/core/pkg/rules"
+	"github.com/infinimesh/core/v3/pkg/graph"
+	"github.com/infinimesh/core/v3/pkg/rules"
 )
 
 func TestAlarmDocumentKeepsAck(t *testing.T) {

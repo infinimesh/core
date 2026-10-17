@@ -12,8 +12,8 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/infinimesh/core/pkg/apierr"
-	inf "github.com/infinimesh/core/pkg/shared"
+	"github.com/infinimesh/core/v3/pkg/apierr"
+	inf "github.com/infinimesh/core/v3/pkg/shared"
 	"github.com/infinimesh/proto/node/access"
 	"github.com/infinimesh/proto/shadow"
 	"github.com/stretchr/testify/assert"

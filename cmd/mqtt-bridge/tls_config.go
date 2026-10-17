@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/infinimesh/core/pkg/mqtt/acme"
+	"github.com/infinimesh/core/v3/pkg/mqtt/acme"
 )
 
 // crypto/tls issues session tickets for 7 days and rotates the key every

@@ -12,7 +12,7 @@ import (
 
 	driver "github.com/arangodb/go-driver"
 	arangohttp "github.com/arangodb/go-driver/http"
-	"github.com/infinimesh/core/pkg/graph/schema"
+	"github.com/infinimesh/core/v3/pkg/graph/schema"
 	"github.com/infinimesh/proto/node/access"
 	"go.uber.org/zap"
 )

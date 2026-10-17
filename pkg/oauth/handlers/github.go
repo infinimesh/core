@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	logpkg "github.com/infinimesh/core/pkg/log"
-	"github.com/infinimesh/core/pkg/oauth/config"
+	logpkg "github.com/infinimesh/core/v3/pkg/log"
+	"github.com/infinimesh/core/v3/pkg/oauth/config"
 
 	"github.com/infinimesh/proto/node"
 	"github.com/infinimesh/proto/node/access"

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
-	"github.com/infinimesh/core/pkg/mqtt/packet"
+	"github.com/infinimesh/core/v3/pkg/mqtt/packet"
 )
 
 type sessionPersist interface {

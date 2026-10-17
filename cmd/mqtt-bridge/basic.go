@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/infinimesh/core/pkg/mqtt/metrics"
+	"github.com/infinimesh/core/v3/pkg/mqtt/metrics"
 	devpb "github.com/infinimesh/proto/node/devices"
 	"go.uber.org/zap"
 )

@@ -20,7 +20,7 @@ import (
 	"errors"
 
 	"github.com/arangodb/go-driver"
-	"github.com/infinimesh/core/pkg/graph/schema"
+	"github.com/infinimesh/core/v3/pkg/graph/schema"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 )

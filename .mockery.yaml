@@ -1,15 +1,15 @@
 with-expecter: true
 outpkg: "{{.PackageName}}_mocks"
 packages:
-    github.com/infinimesh/core/pkg/shared/auth:
+    github.com/infinimesh/core/v3/pkg/shared/auth:
         interfaces:
             JWTHandler:
             AuthInterceptor:
-    github.com/infinimesh/core/pkg/sessions:
+    github.com/infinimesh/core/v3/pkg/sessions:
         interfaces:
             SessionsHandler:
     
-    github.com/infinimesh/core/pkg/graph:
+    github.com/infinimesh/core/v3/pkg/graph:
         interfaces:
             InfinimeshCommonActionsRepo:
 
@@ -45,6 +45,6 @@ packages:
             Collection:
             Cursor:
 
-    github.com/infinimesh/core/pkg/pubsub:
+    github.com/infinimesh/core/v3/pkg/pubsub:
         interfaces:
             PubSub:

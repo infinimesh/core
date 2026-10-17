@@ -19,7 +19,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 
-	infinimesh "github.com/infinimesh/core/pkg/shared"
+	infinimesh "github.com/infinimesh/core/v3/pkg/shared"
 	pb "github.com/infinimesh/proto/node"
 	accpb "github.com/infinimesh/proto/node/accounts"
 	"github.com/infinimesh/proto/node/nodeconnect"

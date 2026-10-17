@@ -24,8 +24,8 @@ import (
 
 	"connectrpc.com/connect"
 	redis "github.com/go-redis/redis/v8"
-	"github.com/infinimesh/core/pkg/observe"
-	"github.com/infinimesh/core/pkg/pubsub"
+	"github.com/infinimesh/core/v3/pkg/observe"
+	"github.com/infinimesh/core/v3/pkg/pubsub"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"

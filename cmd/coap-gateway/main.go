@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"net"
 
-	mqttps "github.com/infinimesh/core/pkg/mqtt/pubsub"
-	"github.com/infinimesh/core/pkg/observe"
-	"github.com/infinimesh/core/pkg/pubsub"
+	mqttps "github.com/infinimesh/core/v3/pkg/mqtt/pubsub"
+	"github.com/infinimesh/core/v3/pkg/observe"
+	"github.com/infinimesh/core/v3/pkg/pubsub"
 	pb "github.com/infinimesh/proto/shadow"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/spf13/viper"

@@ -4,7 +4,7 @@ import (
 	"encoding/base64"
 	"testing"
 
-	"github.com/infinimesh/core/pkg/mqtt/packet"
+	"github.com/infinimesh/core/v3/pkg/mqtt/packet"
 	"github.com/stretchr/testify/assert"
 )
 

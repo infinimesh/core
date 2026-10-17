@@ -17,12 +17,12 @@ package graph
 
 import (
 	"context"
-	"github.com/infinimesh/core/pkg/apierr"
+	"github.com/infinimesh/core/v3/pkg/apierr"
 
 	"connectrpc.com/connect"
 	pb "github.com/infinimesh/proto/node"
 
-	cred "github.com/infinimesh/core/pkg/credentials"
+	cred "github.com/infinimesh/core/v3/pkg/credentials"
 )
 
 type InternalService struct {

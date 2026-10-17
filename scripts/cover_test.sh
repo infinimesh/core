@@ -8,7 +8,7 @@ if echo "$pkgs" | grep -q '/mocks/'; then
 	echo "coverage package list includes mocks"
 	exit 1
 fi
-if ! echo "$pkgs" | grep -qx 'github.com/infinimesh/core/pkg/graph'; then
+if ! echo "$pkgs" | grep -qx 'github.com/infinimesh/core/v3/pkg/graph'; then
 	echo "coverage package list dropped pkg/graph"
 	exit 1
 fi

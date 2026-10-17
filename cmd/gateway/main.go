@@ -24,8 +24,8 @@ import (
 	"os"
 	"strings"
 
-	logger "github.com/infinimesh/core/pkg/log"
-	"github.com/infinimesh/core/pkg/observe"
+	logger "github.com/infinimesh/core/v3/pkg/log"
+	"github.com/infinimesh/core/v3/pkg/observe"
 	pb "github.com/infinimesh/proto/node"
 	hfpb "github.com/infinimesh/proto/pairing"
 	"github.com/infinimesh/proto/plugins"

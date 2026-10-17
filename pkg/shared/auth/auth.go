@@ -18,7 +18,7 @@ package auth
 import (
 	"context"
 	"errors"
-	"github.com/infinimesh/core/pkg/apierr"
+	"github.com/infinimesh/core/v3/pkg/apierr"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -31,8 +31,8 @@ import (
 	"github.com/infinimesh/proto/node/nodeconnect"
 	"github.com/infinimesh/proto/pairing/pairingconnect"
 
-	"github.com/infinimesh/core/pkg/sessions"
-	infinimesh "github.com/infinimesh/core/pkg/shared"
+	"github.com/infinimesh/core/v3/pkg/sessions"
+	infinimesh "github.com/infinimesh/core/v3/pkg/shared"
 )
 
 type AuthInterceptor interface {

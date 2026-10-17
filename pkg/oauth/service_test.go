@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
-	"github.com/infinimesh/core/pkg/oauth/config"
+	"github.com/infinimesh/core/v3/pkg/oauth/config"
 	"go.uber.org/zap"
 )
 

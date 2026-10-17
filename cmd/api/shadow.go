@@ -32,9 +32,9 @@ import (
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/status"
 
-	"github.com/infinimesh/core/pkg/apierr"
-	"github.com/infinimesh/core/pkg/graph"
-	inf "github.com/infinimesh/core/pkg/shared"
+	"github.com/infinimesh/core/v3/pkg/apierr"
+	"github.com/infinimesh/core/v3/pkg/graph"
+	inf "github.com/infinimesh/core/v3/pkg/shared"
 	pb "github.com/infinimesh/proto/node"
 	devpb "github.com/infinimesh/proto/node/devices"
 	nspb "github.com/infinimesh/proto/node/namespaces"

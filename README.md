@@ -1,7 +1,7 @@
 # infinimesh
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/infinimesh/core)](https://goreportcard.com/report/github.com/infinimesh/core)
-[![Go Reference](https://pkg.go.dev/badge/github.com/infinimesh/core.svg)](https://pkg.go.dev/github.com/infinimesh/core)
+[![Go Report Card](https://goreportcard.com/badge/github.com/infinimesh/core/v3)](https://goreportcard.com/report/github.com/infinimesh/core/v3)
+[![Go Reference](https://pkg.go.dev/badge/github.com/infinimesh/core/v3.svg)](https://pkg.go.dev/github.com/infinimesh/core/v3)
 [![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/infinimesh/core/badges/coverage.json)](https://github.com/infinimesh/core/actions/workflows/go.yml)
 [![Release](https://img.shields.io/github/v/release/infinimesh/core)](https://github.com/infinimesh/core/releases)
 [![License](https://img.shields.io/github/license/infinimesh/core)](LICENSE)

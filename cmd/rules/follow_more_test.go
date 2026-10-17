@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/infinimesh/core/pkg/rules"
+	"github.com/infinimesh/core/v3/pkg/rules"
 	pb "github.com/infinimesh/proto/shadow"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
