@@ -1,7 +1,6 @@
 # infinimesh
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/infinimesh/core)](https://goreportcard.com/report/github.com/infinimesh/core)
-[![codecov](https://codecov.io/gh/infinimesh/core/graph/badge.svg)](https://codecov.io/gh/infinimesh/core)
 [![Go Reference](https://pkg.go.dev/badge/github.com/infinimesh/core.svg)](https://pkg.go.dev/github.com/infinimesh/core)
 [![Release](https://img.shields.io/github/v/release/infinimesh/core)](https://github.com/infinimesh/core/releases)
 [![License](https://img.shields.io/github/license/infinimesh/core)](LICENSE)
