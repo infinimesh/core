@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/infinimesh/core/pkg/mqtt/packet"
+	"github.com/infinimesh/core/v3/pkg/mqtt/packet"
 )
 
 type inflight struct {

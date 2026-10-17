@@ -5,8 +5,8 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/go-redis/redis/v8"
-	"github.com/infinimesh/core/pkg/sessions"
-	inf "github.com/infinimesh/core/pkg/shared"
+	"github.com/infinimesh/core/v3/pkg/sessions"
+	inf "github.com/infinimesh/core/v3/pkg/shared"
 	node "github.com/infinimesh/proto/node"
 	pb "github.com/infinimesh/proto/node/sessions"
 	"go.uber.org/zap"

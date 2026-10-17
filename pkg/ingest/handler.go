@@ -13,9 +13,9 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/infinimesh/core/pkg/apierr"
-	"github.com/infinimesh/core/pkg/quota"
-	inf "github.com/infinimesh/core/pkg/shared"
+	"github.com/infinimesh/core/v3/pkg/apierr"
+	"github.com/infinimesh/core/v3/pkg/quota"
+	inf "github.com/infinimesh/core/v3/pkg/shared"
 	"github.com/infinimesh/proto/node/access"
 	"github.com/infinimesh/proto/shadow"
 	structpb "google.golang.org/protobuf/types/known/structpb"

@@ -13,7 +13,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
-	"github.com/infinimesh/core/pkg/oauth/config"
+	"github.com/infinimesh/core/v3/pkg/oauth/config"
 	"github.com/infinimesh/proto/node"
 	"github.com/infinimesh/proto/node/access"
 	"github.com/infinimesh/proto/node/accounts"

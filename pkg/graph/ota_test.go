@@ -6,8 +6,8 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/arangodb/go-driver"
-	driver_mocks "github.com/infinimesh/core/mocks/github.com/arangodb/go-driver"
-	inf "github.com/infinimesh/core/pkg/shared"
+	driver_mocks "github.com/infinimesh/core/v3/mocks/github.com/arangodb/go-driver"
+	inf "github.com/infinimesh/core/v3/pkg/shared"
 	nspb "github.com/infinimesh/proto/node/namespaces"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

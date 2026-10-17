@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	driver "github.com/arangodb/go-driver"
-	driver_mocks "github.com/infinimesh/core/mocks/github.com/arangodb/go-driver"
+	driver_mocks "github.com/infinimesh/core/v3/mocks/github.com/arangodb/go-driver"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"

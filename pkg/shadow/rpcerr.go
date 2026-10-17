@@ -2,7 +2,7 @@ package shadow
 
 import (
 	"connectrpc.com/connect"
-	"github.com/infinimesh/core/pkg/apierr"
+	"github.com/infinimesh/core/v3/pkg/apierr"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

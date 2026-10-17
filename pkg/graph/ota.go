@@ -6,9 +6,9 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/arangodb/go-driver"
-	"github.com/infinimesh/core/pkg/apierr"
-	"github.com/infinimesh/core/pkg/graph/schema"
-	inf "github.com/infinimesh/core/pkg/shared"
+	"github.com/infinimesh/core/v3/pkg/apierr"
+	"github.com/infinimesh/core/v3/pkg/graph/schema"
+	inf "github.com/infinimesh/core/v3/pkg/shared"
 	nspb "github.com/infinimesh/proto/node/namespaces"
 )
 

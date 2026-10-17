@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 
-	infinimesh "github.com/infinimesh/core/pkg/shared"
+	infinimesh "github.com/infinimesh/core/v3/pkg/shared"
 	"github.com/infinimesh/proto/node/access"
 	"github.com/infinimesh/proto/node/nodeconnect"
 	"github.com/infinimesh/proto/pairing/pairingconnect"

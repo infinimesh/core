@@ -9,8 +9,8 @@ import (
 
 	"github.com/arangodb/go-driver"
 	"github.com/go-redis/redis/v8"
-	"github.com/infinimesh/core/pkg/graph"
-	"github.com/infinimesh/core/pkg/rules"
+	"github.com/infinimesh/core/v3/pkg/graph"
+	"github.com/infinimesh/core/v3/pkg/rules"
 	pb "github.com/infinimesh/proto/shadow"
 	"go.uber.org/zap"
 )

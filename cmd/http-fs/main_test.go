@@ -6,7 +6,7 @@ import (
 
 	"github.com/arangodb/go-driver"
 	"github.com/go-redis/redis/v8"
-	"github.com/infinimesh/core/pkg/graph"
+	"github.com/infinimesh/core/v3/pkg/graph"
 	"github.com/infinimesh/proto/node/access"
 	"go.uber.org/zap"
 )

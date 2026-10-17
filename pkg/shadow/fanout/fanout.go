@@ -4,8 +4,8 @@ import (
 	"context"
 	"sync"
 
-	"github.com/infinimesh/core/pkg/observe"
-	"github.com/infinimesh/core/pkg/pubsub"
+	"github.com/infinimesh/core/v3/pkg/observe"
+	"github.com/infinimesh/core/v3/pkg/pubsub"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"

@@ -4,7 +4,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/infinimesh/core/pkg/mqtt/packet"
+	"github.com/infinimesh/core/v3/pkg/mqtt/packet"
 )
 
 func TestMQTTPublish(t *testing.T) {

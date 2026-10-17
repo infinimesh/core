@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/infinimesh/core/pkg/ingest"
+	"github.com/infinimesh/core/v3/pkg/ingest"
 	pb "github.com/infinimesh/proto/shadow"
 	"google.golang.org/protobuf/encoding/protojson"
 )

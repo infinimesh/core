@@ -9,7 +9,7 @@ import (
 
 	driver "github.com/arangodb/go-driver"
 
-	graph "github.com/infinimesh/core/pkg/graph"
+	graph "github.com/infinimesh/core/v3/pkg/graph"
 
 	mock "github.com/stretchr/testify/mock"
 

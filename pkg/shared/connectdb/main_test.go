@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/infinimesh/core/pkg/graph/schema"
+	"github.com/infinimesh/core/v3/pkg/graph/schema"
 	"go.uber.org/zap"
 )
 

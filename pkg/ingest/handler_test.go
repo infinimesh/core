@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
-	inf "github.com/infinimesh/core/pkg/shared"
+	inf "github.com/infinimesh/core/v3/pkg/shared"
 	"github.com/infinimesh/proto/node/access"
 	"github.com/infinimesh/proto/shadow"
 	"github.com/stretchr/testify/assert"

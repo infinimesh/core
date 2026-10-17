@@ -22,9 +22,9 @@ import (
 	"sync"
 
 	structpb "github.com/golang/protobuf/ptypes/struct"
-	"github.com/infinimesh/core/pkg/mqtt/metrics"
-	"github.com/infinimesh/core/pkg/mqtt/packet"
-	"github.com/infinimesh/core/pkg/pubsub"
+	"github.com/infinimesh/core/v3/pkg/mqtt/metrics"
+	"github.com/infinimesh/core/v3/pkg/mqtt/packet"
+	"github.com/infinimesh/core/v3/pkg/pubsub"
 	devpb "github.com/infinimesh/proto/node/devices"
 	pb "github.com/infinimesh/proto/shadow"
 	"go.uber.org/zap"

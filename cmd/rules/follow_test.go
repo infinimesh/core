@@ -10,9 +10,9 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/go-redis/redis/v8"
-	"github.com/infinimesh/core/pkg/pubsub"
-	"github.com/infinimesh/core/pkg/rules"
-	"github.com/infinimesh/core/pkg/shadow"
+	"github.com/infinimesh/core/v3/pkg/pubsub"
+	"github.com/infinimesh/core/v3/pkg/rules"
+	"github.com/infinimesh/core/v3/pkg/shadow"
 	pb "github.com/infinimesh/proto/shadow"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"

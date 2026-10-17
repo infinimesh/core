@@ -11,7 +11,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/alicebob/miniredis/v2"
 	redis "github.com/go-redis/redis/v8"
-	"github.com/infinimesh/core/pkg/pubsub"
+	"github.com/infinimesh/core/v3/pkg/pubsub"
 	pb "github.com/infinimesh/proto/shadow"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/metadata"

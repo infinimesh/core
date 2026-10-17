@@ -25,8 +25,8 @@ import (
 
 	"github.com/arangodb/go-driver"
 	"github.com/go-ldap/ldap/v3"
-	"github.com/infinimesh/core/pkg/graph/schema"
-	logger "github.com/infinimesh/core/pkg/log"
+	"github.com/infinimesh/core/v3/pkg/graph/schema"
+	logger "github.com/infinimesh/core/v3/pkg/log"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v2"

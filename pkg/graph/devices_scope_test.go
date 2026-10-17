@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	inf "github.com/infinimesh/core/pkg/shared"
+	inf "github.com/infinimesh/core/v3/pkg/shared"
 	pb "github.com/infinimesh/proto/node"
 	"github.com/infinimesh/proto/node/access"
 	shadowpb "github.com/infinimesh/proto/shadow"

@@ -9,7 +9,7 @@ import (
 	devpb "github.com/infinimesh/proto/node/devices"
 	shadowpb "github.com/infinimesh/proto/shadow"
 
-	inf "github.com/infinimesh/core/pkg/shared"
+	inf "github.com/infinimesh/core/v3/pkg/shared"
 )
 
 func (ctrl *DevicesController) Move(ctx context.Context, msg *connect.Request[node.MoveRequest]) (*connect.Response[node.EmptyMessage], error) {

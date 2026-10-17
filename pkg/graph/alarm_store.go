@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/infinimesh/core/pkg/rules"
+	"github.com/infinimesh/core/v3/pkg/rules"
 	rpb "github.com/infinimesh/proto/node/rules"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )

@@ -1,4 +1,4 @@
-module github.com/infinimesh/core
+module github.com/infinimesh/core/v3
 
 go 1.27.2
 

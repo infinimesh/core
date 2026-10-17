@@ -10,7 +10,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	inf "github.com/infinimesh/core/pkg/shared"
+	inf "github.com/infinimesh/core/v3/pkg/shared"
 	"github.com/infinimesh/proto/node"
 	sesspb "github.com/infinimesh/proto/node/sessions"
 )

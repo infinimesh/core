@@ -16,8 +16,8 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/go-redis/redis/v8"
-	"github.com/infinimesh/core/pkg/mqtt/packet"
-	"github.com/infinimesh/core/pkg/pubsub"
+	"github.com/infinimesh/core/v3/pkg/mqtt/packet"
+	"github.com/infinimesh/core/v3/pkg/pubsub"
 	pb "github.com/infinimesh/proto/node"
 	"github.com/infinimesh/proto/node/access"
 	devpb "github.com/infinimesh/proto/node/devices"

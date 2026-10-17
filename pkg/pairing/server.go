@@ -17,7 +17,7 @@ package pairing
 
 import (
 	"context"
-	"github.com/infinimesh/core/pkg/apierr"
+	"github.com/infinimesh/core/v3/pkg/apierr"
 	"math/rand"
 	"strconv"
 	"strings"

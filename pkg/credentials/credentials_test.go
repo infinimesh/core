@@ -20,8 +20,8 @@ import (
 	"os"
 
 	"github.com/arangodb/go-driver"
-	"github.com/infinimesh/core/pkg/graph/schema"
-	inf "github.com/infinimesh/core/pkg/shared"
+	"github.com/infinimesh/core/v3/pkg/graph/schema"
+	inf "github.com/infinimesh/core/v3/pkg/shared"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/metadata"

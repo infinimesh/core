@@ -16,7 +16,7 @@ import (
 
 	"github.com/arangodb/go-driver"
 	ldap "github.com/go-ldap/ldap/v3"
-	driver_mocks "github.com/infinimesh/core/mocks/github.com/arangodb/go-driver"
+	driver_mocks "github.com/infinimesh/core/v3/mocks/github.com/arangodb/go-driver"
 	accountspb "github.com/infinimesh/proto/node/accounts"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/mock"

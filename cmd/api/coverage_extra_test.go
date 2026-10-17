@@ -21,8 +21,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	"github.com/infinimesh/core/pkg/graph"
-	inf "github.com/infinimesh/core/pkg/shared"
+	"github.com/infinimesh/core/v3/pkg/graph"
+	inf "github.com/infinimesh/core/v3/pkg/shared"
 	"github.com/infinimesh/proto/node/access"
 	devpb "github.com/infinimesh/proto/node/devices"
 	nspb "github.com/infinimesh/proto/node/namespaces"

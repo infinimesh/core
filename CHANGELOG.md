@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v3.4.3] - 2026-10-17
+
+### Changed
+- The Go import path is `github.com/infinimesh/core/v3`.
+
 ## [v3.4.2] - 2026-10-16
 
 ### Added
