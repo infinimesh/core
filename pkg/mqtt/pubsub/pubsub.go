@@ -28,11 +28,24 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+type brokerChannel interface {
+	QueueDeclare(name string, durable, autoDelete, exclusive, noWait bool, args amqp.Table) (amqp.Queue, error)
+	PublishWithContext(ctx context.Context, exchange, key string, mandatory, immediate bool, msg amqp.Publishing) error
+	Consume(queue, consumer string, autoAck, exclusive, noLocal, noWait bool, args amqp.Table) (<-chan amqp.Delivery, error)
+}
+
 var (
 	ps     pubsub.PubSub
 	logger *zap.Logger
 
 	cap int
+
+	openChannel = func(conn *amqp.Connection) (brokerChannel, error) {
+		return conn.Channel()
+	}
+	retryWait     = time.Second
+	publishExit   = func() {}
+	subscribeExit = func() {}
 )
 
 // Setup - Sets up RabbitMQ Queues and internal PubSub.
@@ -44,7 +57,7 @@ func Setup(Log *zap.Logger, conn *amqp.Connection, pub, sub string, buffer_capac
 	cap = buffer_capacity
 	ps = pubsub.New(cap)
 
-	ch, err := conn.Channel()
+	ch, err := openChannel(conn)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +69,8 @@ func Setup(Log *zap.Logger, conn *amqp.Connection, pub, sub string, buffer_capac
 }
 
 // HandlePublish - Reads messages from PubSub and publishing them to RabbitMQ Queue
-func HandlePublish(ch *amqp.Channel, topic string) {
+func HandlePublish(ch brokerChannel, topic string) {
+	defer publishExit()
 	log := logger.Named("publish")
 init:
 	q, err := ch.QueueDeclare(
@@ -65,7 +79,7 @@ init:
 	)
 	if err != nil {
 		log.Warn("Error declaring queue", zap.Error(err))
-		time.Sleep(time.Second)
+		time.Sleep(retryWait)
 		goto init
 	}
 	log.Info("Queue declared", zap.String("name", q.Name))
@@ -94,7 +108,8 @@ init:
 }
 
 // HandleSubscribe - Reads messages from RabbitMQ Queue and publishing them to PubSub
-func HandleSubscribe(ch *amqp.Channel, topic string) {
+func HandleSubscribe(ch brokerChannel, topic string) {
+	defer subscribeExit()
 	log := logger.Named("subscribe")
 init:
 	q, err := ch.QueueDeclare(
@@ -103,7 +118,7 @@ init:
 	)
 	if err != nil {
 		log.Warn("Error declaring queue", zap.Error(err))
-		time.Sleep(time.Second)
+		time.Sleep(retryWait)
 		goto init
 	}
 	log.Info("Queue declared", zap.String("name", q.Name))
@@ -112,7 +127,7 @@ consume:
 	messages, err := ch.Consume(q.Name, "", false, false, false, false, nil)
 	if err != nil {
 		log.Warn("Error setting up consumer", zap.Error(err))
-		time.Sleep(time.Second)
+		time.Sleep(retryWait)
 		goto consume
 	}
 

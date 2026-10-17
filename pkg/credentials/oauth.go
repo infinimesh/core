@@ -15,17 +15,22 @@ import (
 
 type OauthVerifier func(string) (string, error)
 
+var (
+	githubAPIBase = "https://api.github.com"
+	githubHTTP    = http.DefaultClient
+)
+
 var verifiers = map[string]OauthVerifier{
 	"github": GithubVerifier,
 }
 
 func GithubVerifier(token string) (string, error) {
-	request, _ := http.NewRequest("GET", "https://api.github.com/user", nil)
+	request, _ := http.NewRequest("GET", githubAPIBase+"/user", nil)
 	request.Header.Set("Accept", "application/vnd.github+json")
 	request.Header.Set("Authorization", "Bearer "+token)
 	request.Header.Set("X-GitHub-Api-Version", "2022-11-28")
 
-	response, err := http.DefaultClient.Do(request)
+	response, err := githubHTTP.Do(request)
 	if err != nil {
 		return "", err
 	}

@@ -59,13 +59,12 @@ jobs:
       - name: fuzz
         run: make test-fuzz
 
+      - name: coverage script
+        run: sh scripts/cover_test.sh
+
       - name: coverage
         id: coverage
-        run: |
-          go test ./... -coverprofile=coverage.out
-          total=$(go tool cover -func=coverage.out | awk '/^total:/ {sub("%", "", $3); print $3}')
-          echo "Total coverage: ${total}%" >> "$GITHUB_STEP_SUMMARY"
-          echo "total=${total}" >> "$GITHUB_OUTPUT"
+        run: sh scripts/cover.sh
 
   coverage-badge:
     name: coverage badge

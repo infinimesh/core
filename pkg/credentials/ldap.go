@@ -38,6 +38,10 @@ var (
 )
 
 func init() {
+	loadLDAP()
+}
+
+func loadLDAP() {
 	viper.AutomaticEnv()
 	viper.SetDefault("LDAP_CONF", "")
 
@@ -84,12 +88,18 @@ func init() {
 	signal.Notify(exit, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
-		sig := <-exit
-		log.Info("Exit signal received, closing connections", zap.Any("signal", sig))
-		for _, provider := range LDAP.Providers {
+		closeLDAP(<-exit)
+	}()
+}
+
+func closeLDAP(sig os.Signal) {
+	log := logger.NewLogger().Named("LDAP Credentials Init")
+	log.Info("Exit signal received, closing connections", zap.Any("signal", sig))
+	for _, provider := range LDAP.Providers {
+		if provider.Conn != nil {
 			provider.Conn.Close()
 		}
-	}()
+	}
 }
 
 type LDAPConfFile struct {

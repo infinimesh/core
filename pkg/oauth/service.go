@@ -11,6 +11,8 @@ import (
 	"net/http"
 )
 
+var encodeProviders = json.Marshal
+
 type Registrar interface {
 	Register(*zap.Logger, *mux.Router, *config.Config, nodeconnect.AccountsServiceClient, nodeconnect.NamespacesServiceClient, string)
 }
@@ -49,7 +51,7 @@ func (s *oauthService) Register(router *mux.Router, configs map[string]config.Co
 	}
 
 	router.HandleFunc("/oauth/providers", func(w http.ResponseWriter, r *http.Request) {
-		marshal, err := json.Marshal(s.registeredProviders)
+		marshal, err := encodeProviders(s.registeredProviders)
 		if err != nil {
 			s.log.Error("Failed to marshal providers", zap.Error(err))
 			w.WriteHeader(http.StatusInternalServerError)

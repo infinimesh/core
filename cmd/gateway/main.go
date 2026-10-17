@@ -48,6 +48,8 @@ var (
 	secure      bool
 	with_block  bool
 	caFile      string
+
+	listenAndServe = http.ListenAndServe
 )
 
 func init() {
@@ -85,12 +87,18 @@ func main() {
 	stopTrace := observe.Start("gateway")
 	defer stopTrace()
 
+	if err := serve(); err != nil {
+		log.Fatal("Failed to start gateway", zap.Error(err))
+	}
+}
+
+func serve() error {
 	log.Info("Starting REST-API Server")
 	log.Info("Registering Endpoints", zap.String("server", apiserver))
 
 	tlsConfig, err := buildTLSConfig(secure, caFile, log)
 	if err != nil {
-		log.Fatal("Failed to configure TLS for API server", zap.Error(err))
+		return fmt.Errorf("failed to configure TLS for API server: %w", err)
 	}
 
 	gwmux := runtime.NewServeMux(runtime.WithIncomingHeaderMatcher(gatewayHeader))
@@ -107,63 +115,63 @@ func main() {
 	log.Info("Registering Accounts Service")
 	err = pb.RegisterAccountsServiceHandlerFromEndpoint(context.Background(), gwmux, apiserver, opts)
 	if err != nil {
-		log.Fatal("Failed to register AccountsService gateway", zap.Error(err))
+		return fmt.Errorf("failed to register AccountsService gateway: %w", err)
 	}
 
 	log.Info("Registering Sessions Service")
 	err = pb.RegisterSessionsServiceHandlerFromEndpoint(context.Background(), gwmux, apiserver, opts)
 	if err != nil {
-		log.Fatal("Failed to register SessionsService gateway", zap.Error(err))
+		return fmt.Errorf("failed to register SessionsService gateway: %w", err)
 	}
 
 	log.Info("Registering Namespaces Service")
 	err = pb.RegisterNamespacesServiceHandlerFromEndpoint(context.Background(), gwmux, apiserver, opts)
 	if err != nil {
-		log.Fatal("Failed to register NamespacesService gateway", zap.Error(err))
+		return fmt.Errorf("failed to register NamespacesService gateway: %w", err)
 	}
 
 	log.Info("Registering Devices Service")
 	err = pb.RegisterDevicesServiceHandlerFromEndpoint(context.Background(), gwmux, apiserver, opts)
 	if err != nil {
-		log.Fatal("Failed to register DevicesService gateway", zap.Error(err))
+		return fmt.Errorf("failed to register DevicesService gateway: %w", err)
 	}
 
 	log.Info("Registering Shadow Service")
 	err = pb.RegisterShadowServiceHandlerFromEndpoint(context.Background(), gwmux, apiserver, opts)
 	if err != nil {
-		log.Fatal("Failed to register ShadowService gateway", zap.Error(err))
+		return fmt.Errorf("failed to register ShadowService gateway: %w", err)
 	}
 
 	log.Info("Registering Rules, Audit, and Grants Services")
 	err = registerRulesAuditGrants(context.Background(), gwmux, apiserver, opts)
 	if err != nil {
-		log.Fatal("Failed to register Rules, Audit, or Grants gateway", zap.Error(err))
+		return fmt.Errorf("failed to register Rules, Audit, or Grants gateway: %w", err)
 	}
 
 	log.Info("Registering Plugins Service")
 	err = plugins.RegisterPluginsServiceHandlerFromEndpoint(context.Background(), gwmux, apiserver, opts)
 	if err != nil {
-		log.Fatal("Failed to register PluginsService gateway")
+		return fmt.Errorf("failed to register PluginsService gateway: %w", err)
 	}
 
 	log.Info("Registering Internal Service")
 	err = pb.RegisterInternalServiceHandlerFromEndpoint(context.Background(), gwmux, apiserver, opts)
 	if err != nil {
-		log.Fatal("Failed to register InternalService gateway")
+		return fmt.Errorf("failed to register InternalService gateway: %w", err)
 	}
 
 	log.Info("Registering Console Services Service")
 	init_cs(log)
 	err = gwmux.HandlePath("GET", "/console/services", cs_handler())
 	if err != nil {
-		log.Fatal("Failed to register ConsoleServices service", zap.Error(err))
+		return fmt.Errorf("failed to register ConsoleServices service: %w", err)
 	}
 
 	if e, ok := SERVICES_ENABLED_MAP["pairing"]; ok {
 		log.Info("Pairing enabled, registering Gateway")
 		err = hfpb.RegisterPairingServiceHandlerFromEndpoint(context.Background(), gwmux, e, opts)
 		if err != nil {
-			log.Fatal("Failed to register pairing service gateway", zap.Error(err))
+			return fmt.Errorf("failed to register pairing service gateway: %w", err)
 		}
 	}
 
@@ -175,7 +183,7 @@ func main() {
 	)(wrapGateway(gwmux, apiserver, secure))
 
 	log.Info("Serving gRPC-Gateway on http://0.0.0.0:8000")
-	log.Fatal("Failed to Listen and Serve Gateway-Server", zap.Error(http.ListenAndServe(":8000", wsproxy.WebsocketProxy(handler))))
+	return listenAndServe(":8000", wsproxy.WebsocketProxy(handler))
 }
 
 func registerRulesAuditGrants(ctx context.Context, mux *runtime.ServeMux, target string, opts []grpc.DialOption) error {

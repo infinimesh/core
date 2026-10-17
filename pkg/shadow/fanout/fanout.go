@@ -21,9 +21,21 @@ type fanout struct {
 	ps  pubsub.PubSub
 
 	exchange string
-	channel  *amqp.Channel
+	channel  broker
 
 	buffer_capacity int
+}
+
+type broker interface {
+	QueueDeclare(name string, durable, autoDelete, exclusive, noWait bool, args amqp.Table) (amqp.Queue, error)
+	QueueBind(name, key, exchange string, noWait bool, args amqp.Table) error
+	Consume(queue, consumer string, autoAck, exclusive, noLocal, noWait bool, args amqp.Table) (<-chan amqp.Delivery, error)
+	ExchangeDeclare(name, kind string, durable, autoDelete, internal, noWait bool, args amqp.Table) error
+	PublishWithContext(ctx context.Context, exchange, key string, mandatory, immediate bool, msg amqp.Publishing) error
+}
+
+var openChannel = func(conn *amqp.Connection) (broker, error) {
+	return conn.Channel()
 }
 
 var lock = &sync.Mutex{}
@@ -40,7 +52,7 @@ func Setup(log *zap.Logger, conn *amqp.Connection, name string, buffer_capacity 
 	lock.Lock()
 	defer lock.Unlock()
 
-	ch, err := conn.Channel()
+	ch, err := openChannel(conn)
 	if err != nil {
 		return nil, err
 	}

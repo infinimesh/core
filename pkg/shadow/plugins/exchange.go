@@ -27,10 +27,22 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+type broker interface {
+	ExchangeDeclare(name, kind string, durable, autoDelete, internal, noWait bool, args amqp.Table) error
+	QueueDeclare(name string, durable, autoDelete, exclusive, noWait bool, args amqp.Table) (amqp.Queue, error)
+	QueueBind(name, key, exchange string, noWait bool, args amqp.Table) error
+	PublishWithContext(ctx context.Context, exchange, key string, mandatory, immediate bool, msg amqp.Publishing) error
+}
+
 var (
 	logger  *zap.Logger
-	channel *amqp.Channel
+	channel broker
 	qs      map[string]bool
+
+	openChannel = func(conn *amqp.Connection) (broker, error) {
+		return conn.Channel()
+	}
+	pluginsExit = func() {}
 )
 
 type FetchDeviceFunc func(string) *devpb.Device
@@ -38,7 +50,7 @@ type FetchDeviceFunc func(string) *devpb.Device
 func Setup(Log *zap.Logger, conn *amqp.Connection, ps pubsub.PubSub, fetcher FetchDeviceFunc) error {
 	logger = Log.Named("PluginsExchange")
 
-	ch, err := conn.Channel()
+	ch, err := openChannel(conn)
 	if err != nil {
 		return err
 	}
@@ -52,6 +64,7 @@ func Setup(Log *zap.Logger, conn *amqp.Connection, ps pubsub.PubSub, fetcher Fet
 	qs = make(map[string]bool)
 
 	go func(messages chan interface{}) {
+		defer pluginsExit()
 		for msg := range messages {
 			logger.Debug("Received message to Broadcast", zap.Any("msg", msg))
 			handlePluginMessage(msg, fetcher)
@@ -99,7 +112,7 @@ func Publish(dev *devpb.Device, state *pb.Shadow) {
 	}
 }
 
-func SetupQueue(log *zap.Logger, channel *amqp.Channel, plugin string) (amqp.Queue, error) {
+func SetupQueue(log *zap.Logger, channel broker, plugin string) (amqp.Queue, error) {
 	queue, err := channel.QueueDeclare(
 		"plugin."+plugin, true, false, false, false, nil,
 	)

@@ -2,6 +2,7 @@ package httpfs
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -27,6 +28,7 @@ type S3Config struct {
 	AccessKey string
 	SecretKey string
 	PathStyle bool
+	Transport http.RoundTripper
 }
 
 func ConfigFromEnv() (Config, error) {

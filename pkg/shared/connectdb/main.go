@@ -27,12 +27,14 @@ import (
 
 var CONNECT_ATTEMPT_DELAY = time.Second * 5
 
+var logFatal = (*zap.Logger).Fatal
+
 func MakeDBConnection(log *zap.Logger, host, cred string) driver.Database {
 	conn, err := http.NewConnection(http.ConnectionConfig{
 		Endpoints: []string{"http://" + cred + "@" + host},
 	})
 	if err != nil {
-		log.Fatal("Error creating connection to DB", zap.Error(err))
+		logFatal(log, "Error creating connection to DB", zap.Error(err))
 	}
 	log.Debug("Instantiated DB connection", zap.Any("conn", conn))
 
@@ -41,7 +43,7 @@ func MakeDBConnection(log *zap.Logger, host, cred string) driver.Database {
 		Connection: conn,
 	})
 	if err != nil {
-		log.Fatal("Error creating driver instance for DB", zap.Error(err))
+		logFatal(log, "Error creating driver instance for DB", zap.Error(err))
 	}
 	log.Debug("Instantiated DB client", zap.Any("client", c))
 
