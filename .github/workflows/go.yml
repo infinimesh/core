@@ -12,6 +12,8 @@ jobs:
   test:
     name: test
     runs-on: ubuntu-latest
+    outputs:
+      coverage: ${{ steps.coverage.outputs.total }}
     steps:
       - uses: actions/checkout@v7
 
@@ -58,7 +60,49 @@ jobs:
         run: make test-fuzz
 
       - name: coverage
-        run: go test ./... -coverprofile=coverage.out
+        id: coverage
+        run: |
+          go test ./... -coverprofile=coverage.out
+          total=$(go tool cover -func=coverage.out | awk '/^total:/ {sub("%", "", $3); print $3}')
+          echo "Total coverage: ${total}%" >> "$GITHUB_STEP_SUMMARY"
+          echo "total=${total}" >> "$GITHUB_OUTPUT"
+
+  coverage-badge:
+    name: coverage badge
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: coverage-badge
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Publish coverage.json to the badges branch
+        env:
+          TOTAL: ${{ needs.test.outputs.coverage }}
+        run: |
+          if [ -z "$TOTAL" ]; then
+            echo "No coverage total from the test job." >&2
+            exit 1
+          fi
+          color=red
+          if awk -v t="$TOTAL" 'BEGIN { exit !(t >= 80) }'; then
+            color=brightgreen
+          elif awk -v t="$TOTAL" 'BEGIN { exit !(t >= 60) }'; then
+            color=yellow
+          fi
+          git switch --orphan badges
+          printf '{"schemaVersion":1,"label":"coverage","message":"%s%%","color":"%s"}\n' "$TOTAL" "$color" > coverage.json
+          git add coverage.json
+          git -c user.name="github-actions[bot]" \
+            -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -q -m "Coverage badge: ${TOTAL}%"
+          git push --force origin badges
 
   console:
     name: console
