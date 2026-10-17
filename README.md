@@ -155,7 +155,7 @@ A tag `vX.Y.Z` or `vX.Y.Z-rN` publishes `ghcr.io/infinimesh/core/<service>` and 
 - [inf-cli](https://github.com/infinimesh/inf-cli): the `inf` command
 - [platform-operator](https://github.com/infinimesh/platform-operator): Kubernetes operator
 - [k8s](https://github.com/infinimesh/k8s): cluster install recipes
-- [addons](https://github.com/infinimesh/addons): connectors for Redis streams, Elasticsearch, Snowflake, SAP HANA, RedisTimeSeries and cloud storage
+- [addons](https://github.com/infinimesh/addons): data sinks for Redis streams, Elasticsearch, Snowflake, SAP HANA, RedisTimeSeries and cloud storage, plus OTA addons for [hawkBit](https://github.com/infinimesh/addons/tree/main/ota-hawkbit), [Mender](https://github.com/infinimesh/addons/tree/main/ota-mender) and a [signed webhook](https://github.com/infinimesh/addons/tree/main/ota-webhook). The latest addons release is [v3.4.2](https://github.com/infinimesh/addons/releases/tag/v3.4.2). It ships as source only, with no published images and no Helm entries.
 - [website](https://github.com/infinimesh/website): the site at [infinimesh.org](https://infinimesh.org/)
 
 ## Contributing
