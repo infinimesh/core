@@ -202,59 +202,60 @@ func main() {
 			}
 			log.Debug("Connection Accepted", zap.String("remote", c.RemoteAddr().String()))
 
-			go func(c net.Conn) {
-
-				conn, ok := c.(*tls.Conn)
-				if !ok {
-					log.Warn("Couldn't cast conection to tls.Connection")
-					if err := conn.Close(); err != nil {
-						log.Warn("Couldn't close connection", zap.Error(err))
-					}
-					metrics.TlsFailedToAcceptTotal.Inc()
-					return
-				}
-
-				if err := waitHandshake(conn, tlsHandshakeTimeout); err != nil {
-					LogErrorAndClose(c, err)
-					metrics.TlsFailedToAcceptTotal.Inc()
-					return
-				}
-
-				connectPacket, meta, err := readConnect(conn)
-				if err != nil {
-					LogErrorAndClose(conn, fmt.Errorf("error while reading connect packet: %v", err))
-					metrics.ConnNotAnMqttPacketTotal.Inc()
-					return
-				}
-				log.Debug("ConnectPacket", zap.String("client", connectPacket.ClientID))
-
-				fingerprint, err := clientFingerprint(conn)
-				if err != nil {
-					LogErrorAndClose(conn, err)
-					metrics.TlsDeviceAuthFailedTotal.Inc()
-					return
-				}
-				log.Debug("Fingerprint", zap.Binary("fingerprint", fingerprint))
-
-				device, err := GetByFingerprintAndVerify(fingerprint, func(device *devpb.Device) bool {
-					if device.Enabled {
-						log.Info("Device is enabled", zap.String("device", device.Uuid), zap.Strings("tags", device.Tags))
-						return true
-					} else {
-						log.Warn("Failed to verify client as the device is not enabled", zap.String("device", device.Uuid))
-						return false
-					}
-				})
-				if err != nil {
-					LogErrorAndClose(conn, err)
-					metrics.TlsDeviceAuthFailedTotal.Inc()
-					return
-				}
-
-				go HandleConn(conn, connectPacket, meta, device)
-			}(c)
+			go handleTLSConn(c)
 		}
 	}
+}
+
+func handleTLSConn(c net.Conn) {
+	conn, ok := c.(*tls.Conn)
+	if !ok {
+		log.Warn("Couldn't cast conection to tls.Connection")
+		if err := conn.Close(); err != nil {
+			log.Warn("Couldn't close connection", zap.Error(err))
+		}
+		metrics.TlsFailedToAcceptTotal.Inc()
+		return
+	}
+
+	if err := waitHandshake(conn, tlsHandshakeTimeout); err != nil {
+		LogErrorAndClose(c, err)
+		metrics.TlsFailedToAcceptTotal.Inc()
+		return
+	}
+
+	connectPacket, meta, err := readConnect(conn)
+	if err != nil {
+		LogErrorAndClose(conn, fmt.Errorf("error while reading connect packet: %v", err))
+		metrics.ConnNotAnMqttPacketTotal.Inc()
+		return
+	}
+	log.Debug("ConnectPacket", zap.String("client", connectPacket.ClientID))
+
+	fingerprint, err := clientFingerprint(conn)
+	if err != nil {
+		LogErrorAndClose(conn, err)
+		metrics.TlsDeviceAuthFailedTotal.Inc()
+		return
+	}
+	log.Debug("Fingerprint", zap.Binary("fingerprint", fingerprint))
+
+	device, err := GetByFingerprintAndVerify(fingerprint, func(device *devpb.Device) bool {
+		if device.Enabled {
+			log.Info("Device is enabled", zap.String("device", device.Uuid), zap.Strings("tags", device.Tags))
+			return true
+		} else {
+			log.Warn("Failed to verify client as the device is not enabled", zap.String("device", device.Uuid))
+			return false
+		}
+	})
+	if err != nil {
+		LogErrorAndClose(conn, err)
+		metrics.TlsDeviceAuthFailedTotal.Inc()
+		return
+	}
+
+	go HandleConn(conn, connectPacket, meta, device)
 }
 
 func printConnState(con net.Conn) {

@@ -59,6 +59,12 @@ func LogErrorAndClose(c net.Conn, err error) {
 
 // HandleConn - note: Connection is expected to be valid & legitimate at this point
 func HandleConn(c net.Conn, connectPacket *packet.Connect, meta connectMeta, device *devpb.Device) {
+	// client, shadow, and ps are set once at startup. A connection keeps the
+	// values it saw so a later assignment cannot race the accept goroutines.
+	registry := client
+	bus := ps
+	shadows := shadow
+
 	log := log.Named(device.GetUuid()).Named(connectPacket.ClientID)
 	defer log.Debug("Client disconnected")
 	log.Debug(
@@ -70,6 +76,17 @@ func HandleConn(c net.Conn, connectPacket *packet.Connect, meta connectMeta, dev
 
 	var back chan interface{}
 	var forward sync.Once
+	var devMu sync.Mutex
+	devOf := func() *devpb.Device {
+		devMu.Lock()
+		defer devMu.Unlock()
+		return device
+	}
+	setDev := func(next *devpb.Device) {
+		devMu.Lock()
+		device = next
+		devMu.Unlock()
+	}
 	token := device.GetToken()
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "authorization", "Bearer "+token)
 	metrics.ActiveConnectionsTotal.Inc()
@@ -81,8 +98,9 @@ func HandleConn(c net.Conn, connectPacket *packet.Connect, meta connectMeta, dev
 			log.Warn("Failed to handle Publish", zap.Error(err))
 			return false
 		}
+		current := devOf()
 		reported := &pb.Shadow{
-			Device: device.Uuid,
+			Device: current.Uuid,
 			Reported: &pb.State{
 				Timestamp: timestamppb.Now(),
 				Data:      &data,
@@ -92,62 +110,66 @@ func HandleConn(c net.Conn, connectPacket *packet.Connect, meta connectMeta, dev
 				Timestamp: timestamppb.Now(),
 			},
 		}
-		copyDeviceMeta(reported, device)
-		ps.TryPub(reported, "mqtt.incoming")
+		copyDeviceMeta(reported, current)
+		bus.TryPub(reported, "mqtt.incoming")
 		return true
 	}
 
 	serveDevice(c, device.Uuid, connectPacket, meta, bridgeSessions, deviceHooks{
 		enabled: func() bool {
-			next, err := client.GetByToken(ctx, device)
+			current := devOf()
+			next, err := registry.GetByToken(ctx, current)
 			if err != nil {
 				log.Warn("Can't retrieve device status from registry", zap.Error(err))
-				return device.Enabled
+				return current.Enabled
 			}
-			device = next
-			if !device.Enabled {
-				log.Debug("Device is disabled, disconnecting", zap.String("device", device.Uuid), zap.Bool("enabled", device.Enabled))
+			setDev(next)
+			if !next.Enabled {
+				log.Debug("Device is disabled, disconnecting", zap.String("device", next.Uuid), zap.Bool("enabled", next.Enabled))
 			}
-			return device.Enabled
+			return next.Enabled
 		},
 		reported: func(payload []byte, _ packet.Properties, _ bool) bool {
 			return storeReported(payload)
 		},
 		connected: func(up bool) {
+			current := devOf()
 			sh := &pb.Shadow{
-				Device: device.Uuid,
+				Device: current.Uuid,
 				Connection: &pb.ConnectionState{
 					Connected: up,
 					Timestamp: timestamppb.Now(),
 					ClientId:  connectPacket.ClientID,
 				},
 			}
-			copyDeviceMeta(sh, device)
-			ps.TryPub(sh, "mqtt.incoming")
+			copyDeviceMeta(sh, current)
+			bus.TryPub(sh, "mqtt.incoming")
 		},
 		subscribed: func(send func([]byte, packet.Properties)) {
+			current := devOf()
 			if back == nil {
-				back = ps.Sub()
+				back = bus.Sub()
 			}
-			ps.AddSub(back, "mqtt.outgoing/"+device.Uuid)
+			bus.AddSub(back, "mqtt.outgoing/"+current.Uuid)
 			forward.Do(func() {
 				go handleBackChannel(log, back, send, func() {
+					live := devOf()
 					sh := &pb.Shadow{
-						Device: device.Uuid,
+						Device: live.Uuid,
 						Connection: &pb.ConnectionState{
 							Connected: true,
 							Timestamp: timestamppb.Now(),
 						},
 					}
-					copyDeviceMeta(sh, device)
-					ps.TryPub(sh, "mqtt.incoming")
+					copyDeviceMeta(sh, live)
+					bus.TryPub(sh, "mqtt.incoming")
 				})
 			})
 			go func() {
-				if shadow == nil {
+				if shadows == nil {
 					return
 				}
-				r, err := shadow.Get(ctx, &pb.GetRequest{Pool: []string{device.Uuid}})
+				r, err := shadows.Get(ctx, &pb.GetRequest{Pool: []string{current.Uuid}})
 				if err != nil || len(r.GetShadows()) == 0 {
 					return
 				}
@@ -161,30 +183,33 @@ func HandleConn(c net.Conn, connectPacket *packet.Connect, meta connectMeta, dev
 				}
 				send(payload, packet.Properties{})
 			}()
-			log.Debug("Added Subscription", zap.String("topic", desiredTopic(device.Uuid)), zap.String("device", device.Uuid))
+			log.Debug("Added Subscription", zap.String("topic", desiredTopic(current.Uuid)), zap.String("device", current.Uuid))
 		},
 		allow: func() bool {
-			q := device.GetQuota()
+			current := devOf()
+			q := current.GetQuota()
 			if q == nil {
 				return true
 			}
 			ns := ""
-			if device.GetAccess() != nil {
-				ns = device.GetAccess().GetNamespace()
+			if current.GetAccess() != nil {
+				ns = current.GetAccess().GetNamespace()
 			}
-			if !publishLimits.Allow(device.GetUuid(), q.GetDeviceMessagesPerSecond()) {
+			if !publishLimits.Allow(current.GetUuid(), q.GetDeviceMessagesPerSecond()) {
 				return false
 			}
 			return publishLimits.Allow("ns:"+ns, q.GetNamespaceMessagesPerSecond())
 		},
 		unsub: func() {
+			current := devOf()
 			if back != nil {
-				ps.Unsub(back, "mqtt.outgoing/"+device.Uuid)
+				bus.Unsub(back, "mqtt.outgoing/"+current.Uuid)
 			}
-			log.Debug("Removed Subscription", zap.String("topic", desiredTopic(device.Uuid)), zap.String("device", device.Uuid))
+			log.Debug("Removed Subscription", zap.String("topic", desiredTopic(current.Uuid)), zap.String("device", current.Uuid))
 		},
 		will: func(topic string, payload []byte, _ bool) {
-			if classifyTopic(topic, device.Uuid) != topicReported {
+			current := devOf()
+			if classifyTopic(topic, current.Uuid) != topicReported {
 				log.Debug("Ignoring will for a topic the device cannot report", zap.String("topic", topic))
 				return
 			}
@@ -192,7 +217,7 @@ func HandleConn(c net.Conn, connectPacket *packet.Connect, meta connectMeta, dev
 		},
 	})
 	if back != nil {
-		unsub(ps, back)
+		unsub(bus, back)
 	}
 }
 

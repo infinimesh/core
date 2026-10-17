@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"sync"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -194,10 +195,13 @@ func (r *redisSessions) drop(key string) {
 }
 
 type memorySessions struct {
-	m map[string]sessionSnap
+	mu sync.Mutex
+	m  map[string]sessionSnap
 }
 
 func (m *memorySessions) save(key string, snap sessionSnap, ttl time.Duration) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.m == nil {
 		m.m = map[string]sessionSnap{}
 	}
@@ -209,10 +213,14 @@ func (m *memorySessions) save(key string, snap sessionSnap, ttl time.Duration) {
 }
 
 func (m *memorySessions) load(key string) (sessionSnap, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	snap, ok := m.m[key]
 	return snap, ok
 }
 
 func (m *memorySessions) drop(key string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	delete(m.m, key)
 }

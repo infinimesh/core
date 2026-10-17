@@ -32,6 +32,8 @@ func init() {
 	rand.New(rand.NewSource(time.Now().UnixNano()))
 }
 
+var codeTTL = 60 * time.Second
+
 type Connection struct {
 	Channel chan []string
 	Payload []string
@@ -114,7 +116,8 @@ func (s *PairingServer) Connect(ctx context.Context, req *connect.Request[pb.Con
 		return nil
 	}
 
-	refresh := time.NewTicker(60 * time.Second)
+	refresh := time.NewTicker(codeTTL)
+	defer refresh.Stop()
 
 	for {
 		select {

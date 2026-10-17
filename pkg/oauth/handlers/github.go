@@ -24,6 +24,11 @@ import (
 	"golang.org/x/oauth2/github"
 )
 
+var (
+	githubAPIBase = "https://api.github.com"
+	githubHTTP    = http.DefaultClient
+)
+
 type GithubUser struct {
 	Login string `json:"login"`
 	Name  string `json:"name"`
@@ -40,12 +45,12 @@ type Team struct {
 }
 
 func getGithubUser(token string) (*GithubUser, error) {
-	request, _ := http.NewRequest("GET", "https://api.github.com/user", nil)
+	request, _ := http.NewRequest("GET", githubAPIBase+"/user", nil)
 	request.Header.Set("Accept", "application/vnd.github+json")
 	request.Header.Set("Authorization", "Bearer "+token)
 	request.Header.Set("X-GitHub-Api-Version", "2022-11-28")
 
-	response, err := http.DefaultClient.Do(request)
+	response, err := githubHTTP.Do(request)
 	if err != nil {
 		return nil, err
 	}
@@ -65,12 +70,12 @@ func getGithubUser(token string) (*GithubUser, error) {
 }
 
 func getGithubUserTeams(token string) ([]*Team, error) {
-	request, _ := http.NewRequest("GET", "https://api.github.com/user/teams", nil)
+	request, _ := http.NewRequest("GET", githubAPIBase+"/user/teams", nil)
 	request.Header.Set("Accept", "application/vnd.github+json")
 	request.Header.Set("Authorization", "Bearer "+token)
 	request.Header.Set("X-GitHub-Api-Version", "2022-11-28")
 
-	response, err := http.DefaultClient.Do(request)
+	response, err := githubHTTP.Do(request)
 	if err != nil {
 		return nil, err
 	}

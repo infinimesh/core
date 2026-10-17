@@ -254,10 +254,11 @@ func TestRevokeDevicesToken(t *testing.T) {
 type memDeny struct {
 	id  string
 	ttl time.Duration
+	err error
 }
 
 func (m *memDeny) Deny(_ context.Context, id string, ttl time.Duration) error {
 	m.id = id
 	m.ttl = ttl
-	return nil
+	return m.err
 }

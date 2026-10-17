@@ -25,6 +25,7 @@ func openS3(cfg *S3Config) (Store, error) {
 		Secure:       secure,
 		Region:       cfg.Region,
 		BucketLookup: lookup,
+		Transport:    cfg.Transport,
 	})
 	if err != nil {
 		return nil, err

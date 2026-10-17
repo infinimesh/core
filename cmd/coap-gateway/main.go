@@ -19,6 +19,13 @@ func coapPlaintextNotice(addr string) string {
 	return "CoAP " + addr + " is plaintext UDP with no DTLS. Keep it on a private network."
 }
 
+var (
+	dialAMQP  = amqp.Dial
+	setupBus  = mqttps.Setup
+	listenUDP = net.ListenPacket
+	die       = func(log *zap.Logger, msg string, fields ...zap.Field) { log.Fatal(msg, fields...) }
+)
+
 func main() {
 	viper.AutomaticEnv()
 	viper.SetDefault("COAP_ADDR", ":5683")
@@ -26,18 +33,18 @@ func main() {
 	log, _ := zap.NewProduction()
 	stop := observe.Start("coap-gateway")
 	defer stop()
-	conn, err := amqp.Dial(viper.GetString("RABBITMQ_CONN"))
+	conn, err := dialAMQP(viper.GetString("RABBITMQ_CONN"))
 	if err != nil {
-		log.Fatal("rabbitmq", zap.Error(err))
+		die(log, "rabbitmq", zap.Error(err))
 	}
-	ps, err := mqttps.Setup(log, conn, "mqtt.incoming", "coap.unused", 10)
+	ps, err := setupBus(log, conn, "mqtt.incoming", "coap.unused", 10)
 	if err != nil {
-		log.Fatal("pubsub", zap.Error(err))
+		die(log, "pubsub", zap.Error(err))
 	}
 	addr := viper.GetString("COAP_ADDR")
-	pc, err := net.ListenPacket("udp", addr)
+	pc, err := listenUDP("udp", addr)
 	if err != nil {
-		log.Fatal("udp", zap.Error(err))
+		die(log, "udp", zap.Error(err))
 	}
 	log.Warn(coapPlaintextNotice(addr))
 	serve(pc, func(device string, body []byte) error {

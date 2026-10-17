@@ -16,6 +16,7 @@ limitations under the License.
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net"
 
@@ -32,6 +33,9 @@ func HandleTCPConnections(tcp net.Listener) {
 		if err != nil {
 			log.Warn("Couldn't accept connection", zap.Error(err))
 			metrics.BasicAuthFailedToAcceptTotal.Inc()
+			if errors.Is(err, net.ErrClosed) {
+				return
+			}
 			continue
 		}
 		log.Debug("Connection Accepted", zap.String("remote", conn.RemoteAddr().String()))

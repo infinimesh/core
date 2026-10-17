@@ -50,11 +50,17 @@ var (
 // Start serves /metrics and, when OTEL_EXPORTER_OTLP_ENDPOINT is set, exports traces.
 // METRICS_ADDR defaults to :2112.
 func Start(service string) func() {
-	Listen(os.Getenv("METRICS_ADDR"))
-	return Tracing(context.Background(), os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"), service)
+	srv := Listen(os.Getenv("METRICS_ADDR"))
+	stop := Tracing(context.Background(), os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"), service)
+	return func() {
+		stop()
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		_ = srv.Shutdown(ctx)
+	}
 }
 
-func Listen(addr string) {
+func Listen(addr string) *http.Server {
 	if addr == "" {
 		addr = ":2112"
 	}
@@ -62,7 +68,8 @@ func Listen(addr string) {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
 	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 5 * time.Second}
-	go srv.ListenAndServe()
+	go func() { _ = srv.ListenAndServe() }()
+	return srv
 }
 
 func Interceptor() connect.UnaryInterceptorFunc {
