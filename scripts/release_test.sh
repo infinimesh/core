@@ -141,6 +141,10 @@ grep -q 'COPY ./pkg/observe ./pkg/observe' "$console_df" || {
   echo "console image must copy pkg/observe" >&2
   exit 1
 }
+if grep -q goreportcard "$root/README.md"; then
+  echo "README must not link goreportcard; that service is retired" >&2
+  exit 1
+fi
 
 compose="$root/docker-compose.yaml"
 grep -q 'image: traefik:2.11.58' "$compose" || {
