@@ -63,7 +63,7 @@ jobs:
       V: ${{ needs.plan.outputs.version }}
       PRE: ${{ needs.plan.outputs.prerelease }}
     steps:
-      - uses: actions/create-github-app-token@v2
+      - uses: actions/create-github-app-token@v3
         id: app
         with:
           app-id: ${{ secrets.RELEASE_APP_ID }}
@@ -119,7 +119,7 @@ jobs:
     env:
       V: ${{ needs.plan.outputs.version }}
     steps:
-      - uses: actions/create-github-app-token@v2
+      - uses: actions/create-github-app-token@v3
         id: app
         with:
           app-id: ${{ secrets.RELEASE_APP_ID }}
