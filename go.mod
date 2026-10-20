@@ -4,7 +4,7 @@ go 1.27.2
 
 require (
 	cel.dev/cel-go v0.32.0
-	connectrpc.com/connect v1.21.0
+	connectrpc.com/connect v1.21.1
 	connectrpc.com/grpchealth v1.5.0
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/alicebob/miniredis/v2 v2.40.0
