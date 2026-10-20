@@ -6,7 +6,7 @@ ENV INFINIMESH_VERSION_TAG=$INFINIMESH_VERSION_TAG
 ADD console /console
 WORKDIR /console
 
-RUN npm install -g pnpm@9
+RUN npm install -g pnpm@9.15.9
 RUN pnpm install --frozen-lockfile && pnpm build
 
 # Build server
