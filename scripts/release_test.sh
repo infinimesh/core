@@ -125,8 +125,16 @@ grep -q "FROM node:20 " "$console_df" || {
   echo "console image must build on node 20" >&2
   exit 1
 }
-grep -q "pnpm@9" "$console_df" || {
-  echo "console image must install pnpm 9 to match the lockfile" >&2
+grep -q "pnpm@9.15.9" "$console_df" || {
+  echo "console image must install pnpm 9.15.9 to match the lockfile" >&2
+  exit 1
+}
+grep -q '"packageManager": "pnpm@9.15.9"' "$root/console/package.json" || {
+  echo "console packageManager must pin pnpm 9.15.9 so Dependabot updates the lockfile with that pnpm" >&2
+  exit 1
+}
+grep -q 'version: 9.15.9' "$root/.github/workflows/go.yml" || {
+  echo "console test job must install pnpm 9.15.9" >&2
   exit 1
 }
 grep -q 'COPY ./pkg/observe ./pkg/observe' "$console_df" || {
