@@ -10,7 +10,7 @@ RUN npm install -g pnpm@9.15.9
 RUN pnpm install --frozen-lockfile && pnpm build
 
 # Build server
-FROM golang:1.27-alpine AS builder
+FROM golang:1.27.3-alpine AS builder
 
 RUN apk add upx
 

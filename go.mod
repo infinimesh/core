@@ -2,6 +2,8 @@ module github.com/infinimesh/core/v3
 
 go 1.27.2
 
+toolchain go1.27.3
+
 require (
 	cel.dev/cel-go v0.32.0
 	connectrpc.com/connect v1.21.1
