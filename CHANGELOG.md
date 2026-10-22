@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v3.4.4] - 2026-10-22
+
+### Fixed
+- Built with Go 1.27.3, which fixes CVE-2026-111943 in crypto/x509.
+
 ## [v3.4.3] - 2026-10-17
 
 ### Changed
