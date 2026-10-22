@@ -1,4 +1,4 @@
-FROM golang:1.27.3-alpine AS builder
+FROM golang:1.27-alpine AS builder
 
 WORKDIR /go/src/github.com/infinimesh/core
 COPY go.mod go.sum ./
