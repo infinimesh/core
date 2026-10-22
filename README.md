@@ -143,7 +143,7 @@ mosquitto_pub -h api.${BASE_DOMAIN} -p 1883 \
 
 ## Releases
 
-Current version: `v3.4.3`. inf-cli, platform-operator and the Helm chart in k8s are released with the same version from the core tag. See [CHANGELOG.md](CHANGELOG.md) and [Releases](https://github.com/infinimesh/core/releases).
+Current version: `v3.4.4`. inf-cli, platform-operator and the Helm chart in k8s are released with the same version from the core tag. See [CHANGELOG.md](CHANGELOG.md) and [Releases](https://github.com/infinimesh/core/releases).
 
 A tag `vX.Y.Z` or `vX.Y.Z-rN` publishes `ghcr.io/infinimesh/core/<service>` and `:latest`. A revision tag also publishes `:vX.Y.Z`. A tag `vX.Y.Z-rc.N` publishes only that tag, and the GitHub release is a pre-release whose notes start with "for testing, not for production". The release text is the matching `## [tag]` section in `CHANGELOG.md`. The same tags on [platform-operator](https://github.com/infinimesh/platform-operator) publish `ghcr.io/infinimesh/platform-operator`. The Helm chart stays on its stable `image.tag` unless you set an RC tag yourself. RC images older than 30 days are deleted.
 
