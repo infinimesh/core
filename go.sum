@@ -82,8 +82,8 @@ github.com/hashicorp/go-uuid v1.0.3 h1:2gKiV6YVmrJ1i2CKKa9obLvRieoRGviZFL26PcT/C
 github.com/hashicorp/go-uuid v1.0.3/go.mod h1:6SBZvOh/SIDV7/2o3Jml5SYk/TvGqwFJ/bN7x4byOro=
 github.com/hashicorp/hcl v1.0.0 h1:0Anlzjpi4vEasTeNFn2mLJgTSwt0+6sfsiTG8qcWGx4=
 github.com/hashicorp/hcl v1.0.0/go.mod h1:E5yfLk+7swimpb2L/Alb/PJmXilQ/rhwaUYs4T20WEQ=
-github.com/infinimesh/proto v1.2.0 h1:G5kBoxJ9v/Clr6M8+U1e6rBnj/c5//xMHSmKwt10aIw=
-github.com/infinimesh/proto v1.2.0/go.mod h1:bC0x2UQ/Q+IGz7knKtpLAXwnWGQ2smUZi4pq85dKHQ8=
+github.com/infinimesh/proto v1.2.1 h1:6ia3IsgOQcXhgp+UkeLVJ6sQ89cDlgHjJJU6Ed6GTas=
+github.com/infinimesh/proto v1.2.1/go.mod h1:Jz1e+UcWgUYmSUuJPWBa4RHwmdVK1t7Tgcnx1LyjZBc=
 github.com/jcmturner/aescts/v2 v2.0.0 h1:9YKLH6ey7H4eDBXW8khjYslgyqG2xZikXP0EQFKrle8=
 github.com/jcmturner/aescts/v2 v2.0.0/go.mod h1:AiaICIRyfYg35RUkr8yESTqvSy7csK90qZ5xfvvsoNs=
 github.com/jcmturner/dnsutils/v2 v2.0.0 h1:lltnkeZGL0wILNvrNiVCR6Ro5PGU/SeBvVO/8c/iPbo=

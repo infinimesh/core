@@ -22,7 +22,7 @@ require (
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.32.0
-	github.com/infinimesh/proto v1.2.0
+	github.com/infinimesh/proto v1.2.1
 	github.com/minio/minio-go/v7 v7.0.95
 	github.com/prometheus/client_golang v1.18.0
 	github.com/rabbitmq/amqp091-go v1.14.0
