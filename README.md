@@ -134,6 +134,7 @@ mosquitto_pub -h api.${BASE_DOMAIN} -p 1883 \
 - [docs/public-tls.md](docs/public-tls.md): Traefik or Caddy with Let's Encrypt on a public domain
 - [docs/device-auth.md](docs/device-auth.md): device tokens, certificates and MQTT
 - [docs/rules.md](docs/rules.md), [docs/ota.md](docs/ota.md), [docs/coap.md](docs/coap.md), [docs/fleet.md](docs/fleet.md): the 3.4 features
+- What is new: [infinimesh 3.4 brings rules, alarms and OTA to the device layer](https://www.novatechflow.com/2026/10/infinimesh-34-device-layer.html)
 - [CLI guide](https://github.com/infinimesh/docs/blob/main/guides/cli-getting-started.md): login, quotas, rules, OTA addon registration and audit with `inf`
 - [api.swagger.json](api.swagger.json): API schema, copied from the pinned [proto](https://github.com/infinimesh/proto) module. `sh scripts/swagger_check.sh` fails if the copy drifts. `sh scripts/buf_lint_pin.sh` lints that module.
 
