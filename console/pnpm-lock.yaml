@@ -27,14 +27,14 @@ importers:
   .:
     dependencies:
       '@bufbuild/protobuf':
-        specifier: ^1.6.0
-        version: 1.6.0
+        specifier: ^1.10.1
+        version: 1.10.1
       '@connectrpc/connect':
         specifier: ^1.3.0
-        version: 1.3.0(@bufbuild/protobuf@1.6.0)
+        version: 1.3.0(@bufbuild/protobuf@1.10.1)
       '@connectrpc/connect-web':
         specifier: ^1.3.0
-        version: 1.3.0(@bufbuild/protobuf@1.6.0)(@connectrpc/connect@1.3.0(@bufbuild/protobuf@1.6.0))
+        version: 1.3.0(@bufbuild/protobuf@1.10.1)(@connectrpc/connect@1.3.0(@bufbuild/protobuf@1.10.1))
       '@vicons/ionicons5':
         specifier: ^0.12.0
         version: 0.12.0
@@ -126,8 +126,8 @@ packages:
     resolution: {integrity: sha512-6zABk/ECA/QYSCQ1NGiVwwbQerUCZ+TQbp64Q3AgmfNvurHH0j8TtXa1qbShXA6qqkpAj4V5W8pP6mLe1mcMqA==}
     engines: {node: '>=18'}
 
-  '@bufbuild/protobuf@1.6.0':
-    resolution: {integrity: sha512-hp19vSFgNw3wBBcVBx5qo5pufCqjaJ0Cfk5H/pfjNOfNWU+4/w0QVOmfAOZNRrNWRrVuaJWxcN8P2vhOkkzbBQ==}
+  '@bufbuild/protobuf@1.10.1':
+    resolution: {integrity: sha512-wJ8ReQbHxsAfXhrf9ixl0aYbZorRuOWpBNzm8pL8ftmSxQx/wnJD5Eg861NwJU/czy2VXFIebCeZnZrI9rktIQ==}
 
   '@connectrpc/connect-web@1.3.0':
     resolution: {integrity: sha512-8HSY8x6douX1LcSFsGEUdjs9jwBe9X+LxkCI8hCtH7vKUCZieQqkRWstoApeIJchHYTaQYqwy2ImKnvwyWwruA==}
@@ -1319,16 +1319,16 @@ snapshots:
 
   '@bcoe/v8-coverage@1.0.2': {}
 
-  '@bufbuild/protobuf@1.6.0': {}
+  '@bufbuild/protobuf@1.10.1': {}
 
-  '@connectrpc/connect-web@1.3.0(@bufbuild/protobuf@1.6.0)(@connectrpc/connect@1.3.0(@bufbuild/protobuf@1.6.0))':
+  '@connectrpc/connect-web@1.3.0(@bufbuild/protobuf@1.10.1)(@connectrpc/connect@1.3.0(@bufbuild/protobuf@1.10.1))':
     dependencies:
-      '@bufbuild/protobuf': 1.6.0
-      '@connectrpc/connect': 1.3.0(@bufbuild/protobuf@1.6.0)
+      '@bufbuild/protobuf': 1.10.1
+      '@connectrpc/connect': 1.3.0(@bufbuild/protobuf@1.10.1)
 
-  '@connectrpc/connect@1.3.0(@bufbuild/protobuf@1.6.0)':
+  '@connectrpc/connect@1.3.0(@bufbuild/protobuf@1.10.1)':
     dependencies:
-      '@bufbuild/protobuf': 1.6.0
+      '@bufbuild/protobuf': 1.10.1
 
   '@css-render/plugin-bem@0.15.14(css-render@0.15.14)':
     dependencies:
@@ -1962,7 +1962,7 @@ snapshots:
 
   infinimesh-proto@https://codeload.github.com/infinimesh/proto/tar.gz/fe000893d2f92b9fc86203864738dcf8b5084c37:
     dependencies:
-      '@bufbuild/protobuf': 1.6.0
+      '@bufbuild/protobuf': 1.10.1
 
   ini@1.3.8: {}
 
