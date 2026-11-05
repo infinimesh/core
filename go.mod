@@ -25,7 +25,7 @@ require (
 	github.com/infinimesh/proto v1.2.0
 	github.com/minio/minio-go/v7 v7.0.95
 	github.com/prometheus/client_golang v1.18.0
-	github.com/rabbitmq/amqp091-go v1.14.0
+	github.com/rabbitmq/amqp091-go v1.16.0
 	github.com/rs/cors v1.11.1
 	github.com/spf13/viper v1.18.2
 	github.com/stretchr/testify v1.12.1
