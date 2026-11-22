@@ -12,7 +12,7 @@ require (
 	github.com/alicebob/miniredis/v2 v2.40.0
 	github.com/arangodb/go-driver v1.6.9
 	github.com/cskr/pubsub v1.0.2
-	github.com/evanphx/json-patch v5.9.0+incompatible
+	github.com/evanphx/json-patch v5.9.11+incompatible
 	github.com/go-faker/faker/v4 v4.12.0
 	github.com/go-ldap/ldap/v3 v3.4.15
 	github.com/go-redis/redis/v8 v8.11.5
