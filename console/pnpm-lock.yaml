@@ -69,8 +69,8 @@ importers:
         specifier: ^3.6.0
         version: 3.6.0(axios@1.21.1)(vue@3.5.45)
       vue-router:
-        specifier: ^4.6.4
-        version: 4.6.4(vue@3.5.45)
+        specifier: ^4.6.5
+        version: 4.6.5(vue@3.5.45)
       vue3-markdown-it:
         specifier: ^1.0.10
         version: 1.0.10(@types/markdown-it@14.2.0)
@@ -1185,8 +1185,8 @@ packages:
       '@vue/composition-api':
         optional: true
 
-  vue-router@4.6.4:
-    resolution: {integrity: sha512-Hz9q5sa33Yhduglwz6g9skT8OBPii+4bFn88w6J+J4MfEo4KRRpmiNG/hHHkdbRFlLBOqxN8y8gf2Fb0MTUgVg==}
+  vue-router@4.6.5:
+    resolution: {integrity: sha512-HBoGqixpB2ej1kI17NotdOatUdKIsi3yfOQ5vhwAhcoHk90+JtwtIy7MEeOqdPi1+npmQVMEu5F+Hvw+3TU48w==}
     peerDependencies:
       vue: ^3.5.0
 
@@ -2199,7 +2199,7 @@ snapshots:
     dependencies:
       vue: 3.5.45
 
-  vue-router@4.6.4(vue@3.5.45):
+  vue-router@4.6.5(vue@3.5.45):
     dependencies:
       '@vue/devtools-api': 6.6.4
       vue: 3.5.45
