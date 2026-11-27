@@ -2,11 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## [v3.4.5] - 2026-11-27
+
+Security and bugfix release.
+
+### Security
+- Updated markdown-it to 14.3.3 to fix denial-of-service vulnerabilities in link references, inline HTML, and smartquotes.
+- Updated Vitest and its mocker to 4.1.12 to fix unauthenticated mock registration code injection and redirect allowlist traversal.
+- Updated minimatch to 11.0.1 to fix glob-pattern amplification, and glob to 14.0.2 to fix traversal continuing after cancellation.
 
 ### Fixed
-- Updated console Markdown, Vitest, minimatch, and glob dependencies to fix security advisories.
-- Local CLI examples use the Compose domain, require a namespace for device creation, and pin v3.4.4 (#196, #197, #200).
+- Local CLI examples use the Compose domain, require a namespace for device creation, and match the release pin (#196, #197, #200).
 - MQTT connection rejections use the client's protocol version and distinguish credentials, authorization, and registry failures (#199).
 
 ### Added
