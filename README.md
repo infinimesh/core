@@ -40,7 +40,7 @@ It redirects to HTTPS with a local self-signed certificate. Accept that certific
 
 Log in as `infinimesh` / `infinimesh`. Change the password right away.
 
-Images come from GHCR. Set `INFINIMESH_VERSION` in `.env` to pin a release. `v3.4.3` pulls that exact tag. A release candidate does not move `latest`.
+Images come from GHCR. Set `INFINIMESH_VERSION` in `.env` to pin a release. `v3.4.4` pulls that exact tag. A release candidate does not move `latest`.
 
 `BASE_DOMAIN` in `.env` is the root host for all services. The default, `127.0.0.1.nip.io`, resolves to your own machine, so it works locally with no `/etc/hosts` edits. For real use, set `BASE_DOMAIN` to your own domain (see [docs/public-tls.md](docs/public-tls.md)).
 
@@ -59,6 +59,8 @@ Default logins. Change them before you expose anything.
 - RabbitMQ, inside the Compose network: `infinimesh` / `infinimesh` (from `.env`)
 
 MQTT listens on 8883 (TLS with `hack/server.crt` and `hack/server.key`). Plaintext 1883 listens only when `MQTT_PLAINTEXT=1`. The local Compose file sets that. `hack/server-ec.crt` is a P-256 certificate with a subject alternative name for localhost. Small-device TLS is in [docs/guides/small-devices-tls.md](docs/guides/small-devices-tls.md).
+
+Follow [First device](docs/first-device.md) to create a device, publish a reported state over TLS, and read it back with `inf`.
 
 ## When not to use it
 
@@ -101,9 +103,10 @@ go build -o inf .
 A short session against the local stack:
 
 ```bash
-API=api.localhost:443
+BASE_DOMAIN=127.0.0.1.nip.io # use the BASE_DOMAIN from your .env
+API=api.${BASE_DOMAIN}:443
 
-# log in as the admin account. The default Traefik certificate does not cover api.localhost.
+# Log in as the admin account. Local Traefik uses a self-signed certificate.
 inf login --api "$API" --username infinimesh --password infinimesh --insecure-skip-verify
 
 # list namespaces and devices
@@ -117,7 +120,7 @@ inf devices token <device-id> --allow-post > device.token
 inf devices state <device-id> --token "$(cat device.token)" --report '{"online":true,"temp":21.5}'
 ```
 
-Create devices in the console, or with `inf devices create <template.json> --crt <cert.pem>`. Run `inf help` and `inf <command> --help` for all flags.
+Create devices in the console, or with `inf devices create <template.json> --crt <cert.pem> --namespace infinimesh`. The `--namespace` (`-n`) flag is required; `infinimesh` is the default root namespace. Run `inf help` and `inf <command> --help` for all flags.
 
 The device token is for the API. MQTT needs a client certificate registered on the device. On 8883 the device sends the certificate. On 1883 the username is the device id and the password is the base64 SHA-256 fingerprint of the certificate, and basic auth must be turned on for the device. Topic rules, QoS, and session behaviour are in [docs/device-auth.md](docs/device-auth.md).
 
@@ -132,6 +135,7 @@ mosquitto_pub -h api.${BASE_DOMAIN} -p 1883 \
 
 - [docs/installation.md](docs/installation.md): prerequisites and Docker Compose setup
 - [docs/public-tls.md](docs/public-tls.md): Traefik or Caddy with Let's Encrypt on a public domain
+- [docs/first-device.md](docs/first-device.md): from Compose to a reported device state
 - [docs/device-auth.md](docs/device-auth.md): device tokens, certificates and MQTT
 - [docs/rules.md](docs/rules.md), [docs/ota.md](docs/ota.md), [docs/coap.md](docs/coap.md), [docs/fleet.md](docs/fleet.md): the 3.4 features
 - What is new: [infinimesh 3.4 brings rules, alarms and OTA to the device layer](https://www.novatechflow.com/2026/10/infinimesh-34-device-layer.html)

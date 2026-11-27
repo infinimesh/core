@@ -282,14 +282,14 @@ func TestRedisSessionsAndFlush(t *testing.T) {
 
 func TestLogErrorAndCloseAndLookup(t *testing.T) {
 	left, right := net.Pipe()
-	go LogErrorAndClose(left, errors.New("nope"))
+	go LogErrorAndClose(left, &packet.Connect{ProtocolLevel: packet.ProtocolMQTT311}, errors.New("nope"))
 	_ = right.SetReadDeadline(time.Now().Add(2 * time.Second))
 	pkt, err := packet.ReadPacket(right, packet.ProtocolMQTT311, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	ack := pkt.(*packet.ConnAck)
-	if ack.Reason != packet.CodeUnacceptableProto {
+	if ack.Reason != packet.CodeServerUnavailable {
 		t.Fatalf("ack %+v", ack)
 	}
 	right.Close()

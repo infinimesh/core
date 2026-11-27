@@ -84,6 +84,13 @@ The bridge reads the client keepalive and closes the connection after one and a 
 
 ## Troubleshooting
 
+A rejected MQTT CONNECT uses the client's MQTT version. Invalid basic credentials
+return bad username/password (3.1.1 code `4`, MQTT 5 reason `0x86`); unknown,
+disabled, or unauthorized devices return not authorized (`5` / `0x87`). Registry
+failures return server unavailable (`3` / `0x88`). Check the bridge logs for the
+underlying error. If the bridge cannot read a valid CONNECT or complete TLS, it
+closes the connection without a CONNACK.
+
 - MQTT connection closed right after connect: the certificate is not registered, the device is disabled, or on 1883 the username is not the device id, the password is not the fingerprint, or basic auth is off.
 - 401/permission errors: ensure token includes the device with at least read; reissue with `--allow-post` for writes.
 - Connection refused: check broker host/port and that `docker compose ps` shows `mqtt-bridge` healthy.

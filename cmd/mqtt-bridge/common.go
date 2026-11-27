@@ -17,9 +17,9 @@ package main
 
 import (
 	"context"
-	"errors"
 	"net"
 	"sync"
+	"time"
 
 	structpb "github.com/golang/protobuf/ptypes/struct"
 	"github.com/infinimesh/core/v3/pkg/mqtt/metrics"
@@ -28,7 +28,9 @@ import (
 	devpb "github.com/infinimesh/proto/node/devices"
 	pb "github.com/infinimesh/proto/shadow"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -46,15 +48,36 @@ func GetByFingerprintAndVerify(fingerprint []byte, cb VerifyDeviceFunc) (device 
 		return resp, nil
 	}
 
-	return nil, errors.New("not found")
+	return nil, status.Error(codes.PermissionDenied, "device authentication rejected")
 }
 
-// LogErrorAndClose - Logs Error, Sends Acknowlegement(ACK) packet and Closes the connection
-// ACK Packet needs to be sent to prevent MQTT Client sending CONN packets further
-func LogErrorAndClose(c net.Conn, err error) {
+// LogErrorAndClose logs a connection failure and closes the connection. A
+// CONNACK is sent only after a valid CONNECT established the protocol level.
+func LogErrorAndClose(c net.Conn, cp *packet.Connect, err error) {
 	log.Warn("Closing connection on error", zap.Error(err))
-	_ = writeConnAck(c, packet.ProtocolMQTT311, false, packet.CodeUnacceptableProto, "")
-	c.Close()
+	defer c.Close()
+	if cp == nil {
+		return
+	}
+	reason := packet.CodeServerUnavailable
+	switch status.Code(err) {
+	case codes.Unauthenticated:
+		reason = packet.CodeBadCredentials
+	case codes.PermissionDenied, codes.NotFound:
+		reason = packet.CodeNotAuthorized
+	}
+	if cp.ProtocolLevel == packet.ProtocolMQTT5 {
+		switch reason {
+		case packet.CodeBadCredentials:
+			reason = packet.ReasonBadCredentials
+		case packet.CodeNotAuthorized:
+			reason = packet.ReasonNotAuthorized
+		default:
+			reason = packet.ReasonServerUnavailable
+		}
+	}
+	_ = c.SetWriteDeadline(time.Now().Add(5 * time.Second))
+	_ = writeConnAck(c, cp.ProtocolLevel, false, reason, "")
 }
 
 // HandleConn - note: Connection is expected to be valid & legitimate at this point
