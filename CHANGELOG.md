@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## Unreleased
 
 ### Fixed
 - Local CLI examples use the Compose domain, require a namespace for device creation, and pin v3.4.4 (#196, #197, #200).
