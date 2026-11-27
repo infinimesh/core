@@ -30,13 +30,13 @@
   "devDependencies": {
     "@types/markdown-it": "^14.2.0",
     "@vitejs/plugin-vue": "^6.0.11",
-    "@vitest/coverage-v8": "^4.1.11",
+    "@vitest/coverage-v8": "^4.1.12",
     "@vue/test-utils": "^2.6.0",
     "happy-dom": "^21.0.4",
     "naive-ui": "^2.45.3",
     "vfonts": "^0.0.3",
     "vite": "^8.3.8",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.12"
   },
   "peerDependencies": {
     "@types/markdown-it": "^14.2.0"
@@ -53,12 +53,14 @@
       "minimatch@3": "3.1.5",
       "minimatch@9": "9.0.9",
       "linkify-it@5": "5.0.2",
-      "markdown-it": "14.3.1",
+      "markdown-it": "14.3.3",
       "source-map-js": "1.2.2",
       "glob@10": "10.5.0",
       "@babel/runtime": "7.29.10",
       "cross-spawn": "7.0.6",
-      "tinypool": "2.2.0"
+      "tinypool": "2.2.0",
+      "minimatch@10": "11.0.1",
+      "glob@13": "14.0.2"
     }
   }
 }

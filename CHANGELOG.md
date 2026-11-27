@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## Unreleased
 
 ### Fixed
+- Updated console Markdown, Vitest, minimatch, and glob dependencies to fix security advisories.
 - Local CLI examples use the Compose domain, require a namespace for device creation, and pin v3.4.4 (#196, #197, #200).
 - MQTT connection rejections use the client's protocol version and distinguish credentials, authorization, and registry failures (#199).
 
