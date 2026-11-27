@@ -23,6 +23,8 @@ import (
 	"github.com/infinimesh/core/v3/pkg/mqtt/metrics"
 	devpb "github.com/infinimesh/proto/node/devices"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func HandleTCPConnections(tcp net.Listener) {
@@ -43,7 +45,7 @@ func HandleTCPConnections(tcp net.Listener) {
 		go func(conn net.Conn) {
 			connectPacket, meta, err := readConnect(conn)
 			if err != nil {
-				LogErrorAndClose(conn, fmt.Errorf("error while reading connect packet: %v", err))
+				LogErrorAndClose(conn, nil, fmt.Errorf("error while reading connect packet: %w", err))
 				metrics.ConnNotAnMqttPacketTotal.Inc()
 				return
 			}
@@ -52,7 +54,7 @@ func HandleTCPConnections(tcp net.Listener) {
 			var fingerprint []byte
 			fingerprint, err = verifyBasicAuth(connectPacket)
 			if err != nil {
-				LogErrorAndClose(conn, fmt.Errorf("error verifying Basic Auth: %v", err))
+				LogErrorAndClose(conn, connectPacket, status.Errorf(codes.Unauthenticated, "error verifying Basic Auth: %v", err))
 				metrics.BasicAuthDeviceAuthFailedTotal.Inc()
 				return
 			}
@@ -75,7 +77,7 @@ func HandleTCPConnections(tcp net.Listener) {
 				}
 			})
 			if err != nil {
-				LogErrorAndClose(conn, err)
+				LogErrorAndClose(conn, connectPacket, err)
 				metrics.BasicAuthDeviceAuthFailedTotal.Inc()
 				return
 			}

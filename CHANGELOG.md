@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### Fixed
+- Local CLI examples use the Compose domain, require a namespace for device creation, and pin v3.4.4 (#196, #197, #200).
+- MQTT connection rejections use the client's protocol version and distinguish credentials, authorization, and registry failures (#199).
+
+### Added
+- A first-device walkthrough using the sample template and certificate, TLS MQTT, and shadow verification (#198).
+
 ## [v3.4.4] - 2026-10-22
 
 ### Fixed

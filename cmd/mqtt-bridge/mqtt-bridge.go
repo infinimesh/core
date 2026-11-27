@@ -40,8 +40,10 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
 func verifyBasicAuth(p *packet.Connect) (fingerprint []byte, err error) {
@@ -219,14 +221,14 @@ func handleTLSConn(c net.Conn) {
 	}
 
 	if err := waitHandshake(conn, tlsHandshakeTimeout); err != nil {
-		LogErrorAndClose(c, err)
+		LogErrorAndClose(c, nil, err)
 		metrics.TlsFailedToAcceptTotal.Inc()
 		return
 	}
 
 	connectPacket, meta, err := readConnect(conn)
 	if err != nil {
-		LogErrorAndClose(conn, fmt.Errorf("error while reading connect packet: %v", err))
+		LogErrorAndClose(conn, nil, fmt.Errorf("error while reading connect packet: %w", err))
 		metrics.ConnNotAnMqttPacketTotal.Inc()
 		return
 	}
@@ -234,7 +236,7 @@ func handleTLSConn(c net.Conn) {
 
 	fingerprint, err := clientFingerprint(conn)
 	if err != nil {
-		LogErrorAndClose(conn, err)
+		LogErrorAndClose(conn, connectPacket, status.Error(codes.PermissionDenied, err.Error()))
 		metrics.TlsDeviceAuthFailedTotal.Inc()
 		return
 	}
@@ -250,7 +252,7 @@ func handleTLSConn(c net.Conn) {
 		}
 	})
 	if err != nil {
-		LogErrorAndClose(conn, err)
+		LogErrorAndClose(conn, connectPacket, err)
 		metrics.TlsDeviceAuthFailedTotal.Inc()
 		return
 	}
